@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import BlockDiagLazyTensor, NonLazyTensor
+from gpytorch.lazy import BlockInterleavedLazyTensor, NonLazyTensor
 from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
 
 
-class TestBlockDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLazyTensor(LazyTensorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -16,17 +16,19 @@ class TestBlockDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(8, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
-        return BlockDiagLazyTensor(NonLazyTensor(blocks))
+        return BlockInterleavedLazyTensor(NonLazyTensor(blocks))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
         actual = torch.zeros(32, 32)
         for i in range(8):
-            actual[i * 4 : (i + 1) * 4, i * 4 : (i + 1) * 4] = blocks[i]
+            for j in range(4):
+                for k in range(4):
+                    actual[j * 8 + i, k * 8 + i] = blocks[i, j, k]
         return actual
 
 
-class TestBlockDiagLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -34,18 +36,20 @@ class TestBlockDiagLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
-        return BlockDiagLazyTensor(NonLazyTensor(blocks), block_dim=2)
+        return BlockInterleavedLazyTensor(NonLazyTensor(blocks), block_dim=2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
         actual = torch.zeros(2, 24, 24)
         for i in range(2):
             for j in range(6):
-                actual[i, j * 4 : (j + 1) * 4, j * 4 : (j + 1) * 4] = blocks[i, j]
+                for k in range(4):
+                    for l in range(4):
+                        actual[i, k * 6 + j, l * 6 + j] = blocks[i, j, k, l]
         return actual
 
 
-class TestBlockDiagLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -56,7 +60,7 @@ class TestBlockDiagLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
-        return BlockDiagLazyTensor(NonLazyTensor(blocks), block_dim=1)
+        return BlockInterleavedLazyTensor(NonLazyTensor(blocks), block_dim=1)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
@@ -64,7 +68,9 @@ class TestBlockDiagLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         for i in range(2):
             for j in range(6):
                 for k in range(5):
-                    actual[i, k, j * 4 : (j + 1) * 4, j * 4 : (j + 1) * 4] = blocks[i, k, j]
+                    for l in range(4):
+                        for m in range(4):
+                            actual[i, k, l * 6 + j, m * 6 + j] = blocks[i, k, j, l, m]
         return actual
 
 

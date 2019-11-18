@@ -6,7 +6,7 @@ from ..utils.memoize import cached
 from .block_lazy_tensor import BlockLazyTensor
 
 
-class BlockDiagLazyTensor(BlockLazyTensor):
+class BlockInterleavedLazyTensor(BlockLazyTensor):
     """
     Represents a lazy tensor that is the block diagonal of square matrices.
     The :attr:`block_dim` attribute specifies which dimension of the base LazyTensor
@@ -29,8 +29,9 @@ class BlockDiagLazyTensor(BlockLazyTensor):
         *batch_shape, num_rows, num_cols = other.shape
         batch_shape = list(batch_shape)
 
-        batch_shape.append(self.num_blocks)
-        other = other.view(*batch_shape, num_rows // self.num_blocks, num_cols)
+        batch_shape.append(num_rows // self.num_blocks)
+        other = other.view(*batch_shape, self.num_blocks, num_cols)
+        other = other.transpose(-2, -3).contiguous()
         return other
 
     @cached(name="cholesky")
@@ -45,12 +46,12 @@ class BlockDiagLazyTensor(BlockLazyTensor):
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         # Figure out what block the row/column indices belong to
-        row_index_block = row_index.div(self.base_lazy_tensor.size(-2))
-        col_index_block = col_index.div(self.base_lazy_tensor.size(-1))
+        row_index_block = row_index.fmod(self.base_lazy_tensor.size(-3))
+        col_index_block = col_index.fmod(self.base_lazy_tensor.size(-3))
 
         # Find the row/col index within each block
-        row_index = row_index.fmod(self.base_lazy_tensor.size(-2))
-        col_index = col_index.fmod(self.base_lazy_tensor.size(-1))
+        row_index = row_index.div(self.base_lazy_tensor.size(-3))
+        col_index = col_index.div(self.base_lazy_tensor.size(-3))
 
         # If the row/column blocks do not agree, then we have off diagonal elements
         # These elements should be zeroed out
@@ -59,8 +60,9 @@ class BlockDiagLazyTensor(BlockLazyTensor):
         return res
 
     def _remove_batch_dim(self, other):
+        other = other.transpose(-2, -3).contiguous()
         shape = list(other.shape)
-        del shape[-3]
+        del shape[-2]
         shape[-2] *= self.num_blocks
         other = other.reshape(*shape)
         return other
@@ -88,8 +90,8 @@ class BlockDiagLazyTensor(BlockLazyTensor):
             return res
 
     def diag(self):
-        res = self.base_lazy_tensor.diag().contiguous()
-        return res.view(*self.batch_shape, self.size(-1))
+        block_diag = self.base_lazy_tensor.diag()
+        return block_diag.transpose(-1, -2).contiguous().view(*block_diag.shape[:-2], -1)
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
