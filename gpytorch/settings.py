@@ -183,32 +183,6 @@ class _fast_solves(_feature_flag):
     _default = True
 
 
-class skip_posterior_variances(_feature_flag):
-    """
-    Whether or not to skip the posterior covariance matrix when doing an ExactGP
-    forward pass. If this is on, the returned gpytorch MultivariateNormal will have a
-    ZeroLazyTensor as its covariance matrix. This allows gpytorch to not compute
-    the covariance matrix when it is not needed, speeding up computations.
-
-    (Default: False)
-    """
-
-    _default = False
-
-
-class detach_test_caches(_feature_flag):
-    """
-    Whether or not to detach caches computed for making predictions. In most cases, you will want this,
-    as this will speed up derivative computations of the predictions with respect to test inputs. However,
-    if you also need derivatives with respect to training inputs (e.g., because you have fantasy observations),
-    then you must disable this.
-
-    (Default: True)
-    """
-
-    _default = True
-
-
 class deterministic_probes(_feature_flag):
     """
     Whether or not to resample probe vectors every iteration of training. If True, we use the same set of probe vectors
@@ -242,69 +216,6 @@ class debug(_feature_flag):
     _default = True
 
 
-class fast_pred_var(_feature_flag):
-    """
-    Fast predictive variances using Lanczos Variance Estimates (LOVE)
-    Use this for improved performance when computing predictive variances.
-
-    As described in the paper:
-
-    `Constant-Time Predictive Distributions for Gaussian Processes`_.
-
-    See also: :class:`gpytorch.settings.max_root_decomposition_size` (to control the
-    size of the low rank decomposition used for variance estimates).
-
-    (Default: False)
-
-    .. _`Constant-Time Predictive Distributions for Gaussian Processes`:
-        https://arxiv.org/pdf/1803.06058.pdf
-    """
-
-    _num_probe_vectors = 1
-
-    @classmethod
-    def num_probe_vectors(cls):
-        return cls._num_probe_vectors
-
-    @classmethod
-    def _set_num_probe_vectors(cls, value):
-        cls._num_probe_vectors = value
-
-    def __init__(self, state=True, num_probe_vectors=1):
-        self.orig_value = self.__class__.num_probe_vectors()
-        self.value = num_probe_vectors
-        super().__init__(state)
-
-    def __enter__(self):
-        self.__class__._set_num_probe_vectors(self.value)
-        super().__enter__()
-
-    def __exit__(self, *args):
-        self.__class__._set_num_probe_vectors(self.orig_value)
-        return super().__exit__()
-
-
-class fast_pred_samples(_feature_flag):
-    """
-    Fast predictive samples using Lanczos Variance Estimates (LOVE).
-    Use this for improved performance when sampling from a predictive posterior matrix.
-
-    As described in the paper:
-
-    `Constant-Time Predictive Distributions for Gaussian Processes`_.
-
-    See also: :class:`gpytorch.settings.max_root_decomposition_size` (to control the
-    size of the low rank decomposition used for samples).
-
-    (Default: False)
-
-    .. _`Constant-Time Predictive Distributions for Gaussian Processes`:
-        https://arxiv.org/pdf/1803.06058.pdf
-    """
-
-    _default = False
-
-
 class fast_computations:
     r"""
     This feature flag controls whether or not to use fast approximations to various mathematical
@@ -324,7 +235,7 @@ class fast_computations:
             covariance matrices :math:`K` are decomposed using the Cholesky decomposition.
 
     * :attr:`log_prob`
-        This feature flag controls how GPyTorch computes the marginal log likelihood for exact GPs
+        This feature flag controls how to compute the marginal log likelihood for exact GPs
         and `log_prob` for multivariate normal distributions
 
         * If set to True,
@@ -337,7 +248,7 @@ class fast_computations:
             `log_prob` is computed using the Cholesky decomposition.
 
     * :attr:`fast_solves`
-        This feature flag controls how GPyTorch computes the solves of positive-definite matrices.
+        This feature flag controls how to compute the solves of positive-definite matrices.
 
         * If set to True,
             Solves are computed with preconditioned conjugate gradients.
@@ -383,32 +294,6 @@ class fast_computations:
         return False
 
 
-class lazily_evaluate_kernels(_feature_flag):
-    """
-    Lazily compute the entries of covariance matrices (set to True by default).
-    This can result in memory and speed savings - if say cross covariance terms are not needed
-    or if you only need to compute variances (not covariances).
-
-    If set to False, gpytorch will always compute the entire covariance matrix between
-    training and test data.
-
-    (Default: True)
-    """
-
-    _default = True
-
-
-class max_eager_kernel_size(_value_context):
-    """
-    If the joint train/test covariance matrix is less than this size, then we will avoid as
-    much lazy evaluation of the kernel as possible.
-
-    (Default: 512)
-    """
-
-    _global_value = 512
-
-
 class max_cg_iterations(_value_context):
     """
     The maximum number of conjugate gradient iterations to perform (when computing
@@ -418,21 +303,6 @@ class max_cg_iterations(_value_context):
     """
 
     _global_value = 1000
-
-
-class min_variance(_dtype_value_context):
-    """
-    The minimum variance that can be returned from :obj:`~gpytorch.distributions.MultivariateNormal#variance`.
-    If variances are smaller than this, they are rounded up and a warning is raised.
-
-    - Default for `float`: 1e-6
-    - Default for `double`: 1e-10
-    - Default for `half`: 1e-3
-    """
-
-    _global_float_value = 1e-6
-    _global_double_value = 1e-10
-    _global_half_value = 1e-3
 
 
 class cholesky_jitter(_dtype_value_context):
@@ -505,16 +375,6 @@ class preconditioner_tolerance(_value_context):
     """
 
     _global_value = 1e-3
-
-
-class eval_cg_tolerance(_value_context):
-    """
-    Relative residual tolerance to use for terminating CG when making predictions.
-
-    (Default: 1e-2)
-    """
-
-    _global_value = 0.01
 
 
 class _use_eval_tolerance(_feature_flag):
@@ -611,28 +471,6 @@ class num_contour_quadrature(_value_context):
     _global_value = 15
 
 
-class num_likelihood_samples(_value_context):
-    """
-    The number of samples to draw from a latent GP when computing a likelihood
-    This is used in variational inference and training
-
-    (Default: 10)
-    """
-
-    _global_value = 10
-
-
-class num_gauss_hermite_locs(_value_context):
-    """
-    The number of samples to draw from a latent GP when computing a likelihood
-    This is used in variational inference and training
-
-    (Default: 20)
-    """
-
-    _global_value = 20
-
-
 class num_trace_samples(_value_context):
     """
     The number of samples to draw when stochastically computing the trace of a matrix
@@ -643,30 +481,6 @@ class num_trace_samples(_value_context):
     """
 
     _global_value = 10
-
-
-class prior_mode(_feature_flag):
-    """
-    If set to true, GP models will be evaluated in prior mode.
-    This allows evaluating any Exact GP model in prior mode, even it if has training data / targets.
-
-    (Default: False)
-    """
-
-    _default = False
-
-
-class sgpr_diagonal_correction(_feature_flag):
-    """
-    If set to true, during posterior prediction the variances of the InducingPointKernel
-    will be corrected to match the variances of the exact kernel.
-
-    If false then no such correction will be performed (this is the default in other libraries).
-
-    (Default: True)
-    """
-
-    _default = True
 
 
 class skip_logdet_forward(_feature_flag):
@@ -734,24 +548,6 @@ class linalg_dtypes:
 class terminate_cg_by_size(_feature_flag):
     """
     If set to true, cg will terminate after n iterations for an n x n matrix.
-
-    (Default: False)
-    """
-
-    _default = False
-
-
-class trace_mode(_feature_flag):
-    """
-    If set to True, we will generally try to avoid calling our built in PyTorch functions, because these cannot
-    be run through torch.jit.trace.
-
-    Note that this will sometimes involve explicitly evaluating lazy tensors and various other slowdowns and
-    inefficiencies. As a result, you really shouldn't use this feature context unless you are calling torch.jit.trace
-    on a GPyTorch model.
-
-    Our hope is that this flag will not be necessary long term, once https://github.com/pytorch/pytorch/issues/22329
-    is fixed.
 
     (Default: False)
     """
