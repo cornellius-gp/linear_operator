@@ -26,7 +26,8 @@ version = find_version("gpytorch", "__init__.py")
 
 
 torch_min = "1.9"
-install_requires = [">=".join(["torch", torch_min]), "scikit-learn", "scipy"]
+install_requires = [">=".join(["torch", torch_min])]
+
 # if recent dev version of PyTorch is installed, no need to install stable
 try:
     import torch
@@ -36,33 +37,39 @@ try:
 except ImportError:
     pass
 
+# Other requirements
+install_requires += [
+    "numpy",
+    "scipy",
+]
+
 
 # Run the setup
 setup(
-    name="gpytorch",
+    name="linear_operator",
     version=version,
-    description="An implementation of Gaussian Processes in Pytorch",
+    description=(
+        "A linear operator implementation, primarily designed for finite-dimensional "
+        "positive definite operators (i.e. kernel matrices)"
+    ),
     long_description=readme,
     long_description_content_type="text/markdown",
-    author="Jake Gardner, Geoff Pleiss",
+    author="Geoff Pleiss",
     url="https://gpytorch.ai",
-    author_email="jrg365@cornell.edu, gpleiss@gmail.com",
+    author_email="gpleiss@gmail.com",
     project_urls={
-        "Documentation": "https://gpytorch.readthedocs.io",
-        "Source": "https://github.com/cornellius-gp/gpytorch/",
+        "Documentation": "https://linear_operator.readthedocs.io",
+        "Source": "https://github.com/cornellius-gp/linear_operator/",
     },
     license="MIT",
-    classifiers=["Development Status :: 4 - Beta", "Programming Language :: Python :: 3"],
+    classifiers=["Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3"],
     packages=find_packages(exclude=["test", "test.*"]),
     python_requires=">=3.7",
     install_requires=install_requires,
     extras_require={
         "dev": ["black", "twine", "pre-commit"],
-        "docs": ["ipython", "ipykernel", "sphinx<3.0.0", "sphinx_rtd_theme", "nbsphinx", "m2r"],
-        "examples": ["ipython", "jupyter", "matplotlib", "scipy", "torchvision", "tqdm"],
-        "pyro": ["pyro-ppl==1.8"],
-        "keops": ["pykeops>=1.1.1"],
-        "test": ["flake8==4.0.1", "flake8-print==4.0.0", "pytest", "nbval"],
+        "docs": ["sphinx<3.0.0", "sphinx_rtd_theme"],
+        "test": ["flake8==4.0.1", "flake8-print==4.0.0"],
     },
     test_suite="test",
 )
