@@ -18,7 +18,6 @@ from .kronecker_product_lazy_tensor import (
     KroneckerProductLazyTensor,
     KroneckerProductTriangularLazyTensor,
 )
-from .lazy_evaluated_kernel_tensor import LazyEvaluatedKernelTensor
 from .lazy_tensor import LazyTensor, delazify
 from .low_rank_root_added_diag_lazy_tensor import LowRankRootAddedDiagLazyTensor
 from .low_rank_root_lazy_tensor import LowRankRootLazyTensor
@@ -39,7 +38,6 @@ __all__ = [
     "lazify",
     "cat",
     "LazyTensor",
-    "LazyEvaluatedKernelTensor",
     "AddedDiagLazyTensor",
     "BatchRepeatLazyTensor",
     "BlockLazyTensor",

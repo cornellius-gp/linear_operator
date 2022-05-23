@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from . import broadcasting, cholesky, grid, interpolation, lanczos, permutation, quadrature, sparse, warnings
+from . import broadcasting, cholesky, grid, interpolation, lanczos, permutation, sparse, warnings
 from .contour_integral_quad import contour_integral_quad
 from .linear_cg import linear_cg
 from .memoize import cached
@@ -35,7 +35,6 @@ __all__ = [
     "permutation",
     "pinverse",
     "prod",
-    "quadrature",
     "sparse",
     "stable_pinverse",
     "stable_qr",

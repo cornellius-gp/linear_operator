@@ -1,49 +1,6 @@
 #!/usr/bin/env python3
 
-import torch
-
 from ._dsmm import DSMM
-from ._log_normal_cdf import LogNormalCDF
-from .matern_covariance import MaternCovariance
-from .rbf_covariance import RBFCovariance
-
-
-def add_diag(input, diag):
-    """
-    Adds a diagonal matrix s*I to the input matrix input.
-
-    Args:
-        :attr:`input` (Tensor (nxn) or (bxnxn)):
-            Tensor or LazyTensor wrapping matrix to add diagonal component to.
-        :attr:`diag` (scalar or Tensor (n) or Tensor (bxn) or Tensor (bx1)):
-            Diagonal component to add to tensor
-
-    Returns:
-        :obj:`Tensor` (bxnxn or nxn)
-    """
-    from ..lazy import lazify
-
-    return lazify(input).add_diag(diag)
-
-
-def add_jitter(mat, jitter_val=1e-3):
-    """
-    Adds "jitter" to the diagonal of a matrix.
-    This ensures that a matrix that *should* be positive definite *is* positive definate.
-
-    Args:
-        - mat (matrix nxn) - Positive definite matrxi
-
-    Returns: (matrix nxn)
-    """
-    if hasattr(mat, "add_jitter"):
-        return mat.add_jitter(jitter_val)
-    else:
-        diag = torch.eye(mat.size(-1), dtype=mat.dtype, device=mat.device).mul_(jitter_val)
-        if mat.ndimension() == 3:
-            return mat + diag.unsqueeze(0).expand(mat.size(0), mat.size(1), mat.size(2))
-        else:
-            return mat + diag
 
 
 def dsmm(sparse_mat, dense_mat):
@@ -59,16 +16,6 @@ def dsmm(sparse_mat, dense_mat):
         - matrix (b x)mxo - Result
     """
     return DSMM.apply(sparse_mat, dense_mat)
-
-
-def log_normal_cdf(x):
-    """
-    Computes the element-wise log standard normal CDF of an input tensor x.
-
-    This function should always be preferred over calling normal_cdf and taking the log
-    manually, as it is more numerically stable.
-    """
-    return LogNormalCDF.apply(x)
 
 
 def matmul(mat, rhs):
@@ -220,21 +167,14 @@ def root_inv_decomposition(mat, initial_vectors=None, test_vectors=None):
 
 
 __all__ = [
-    "MaternCovariance",
-    "RBFCovariance",
-    "add_diag",
     "dsmm",
     "inv_matmul",
     "inv_quad",
     "inv_quad_logdet",
     "logdet",
-    "log_normal_cdf",
     "matmul",
     "normal_cdf",
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",
-    # Deprecated
-    "inv_quad_log_det",
-    "log_det",
 ]

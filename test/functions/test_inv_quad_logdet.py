@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import gpytorch
-from gpytorch.kernels import RBFKernel
 from gpytorch.lazy import NonLazyTensor
 from gpytorch.test.base_test_case import BaseTestCase
 
@@ -18,10 +17,10 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
     def _test_inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, improper_logdet=False, add_diag=False):
         # Set up
         x = torch.randn(*self.__class__.matrix_shape[:-1], 3)
-        kern = RBFKernel()
-        kern_copy = RBFKernel()
-        mat = kern(x).evaluate()
-        mat_clone = kern_copy(x).evaluate()
+        ls = torch.tensor(2.0).requires_grad_(True)
+        ls_clone = torch.tensor(2.0).requires_grad_(True)
+        mat = (x[..., :, None, :] - x[..., None, :, :]).pow(2.0).sum(dim=-1).mul(-0.5 * ls).exp()
+        mat_clone = (x[..., :, None, :] - x[..., None, :, :]).pow(2.0).sum(dim=-1).mul(-0.5 * ls_clone).exp()
 
         if inv_quad_rhs is not None:
             inv_quad_rhs.requires_grad_(True)
@@ -74,7 +73,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
             actual_logdet.sum().backward()
             res_logdet.sum().backward()
 
-        self.assertAllClose(kern.raw_lengthscale.grad, kern_copy.raw_lengthscale.grad, rtol=1e-2, atol=1e-2)
+        self.assertAllClose(ls.grad, ls_clone.grad, rtol=1e-2, atol=1e-2)
         if inv_quad_rhs is not None:
             self.assertAllClose(inv_quad_rhs.grad, inv_quad_rhs_clone.grad, rtol=2e-2, atol=1e-2)
 
