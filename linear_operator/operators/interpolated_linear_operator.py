@@ -6,12 +6,12 @@ from ..utils import sparse
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
-from ._linear_operator import LazyTensor
-from .dense_linear_operator import NonLazyTensor, lazify
-from .root_linear_operator import RootLazyTensor
+from ._linear_operator import LinearOperator
+from .dense_linear_operator import DenseLinearOperator, lazify
+from .root_linear_operator import RootLinearOperator
 
 
-class InterpolatedLazyTensor(LazyTensor):
+class InterpolatedLinearOperator(LinearOperator):
     def _check_args(
         self, base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
     ):
@@ -76,7 +76,7 @@ class InterpolatedLazyTensor(LazyTensor):
                     )
                 )
 
-        super(InterpolatedLazyTensor, self).__init__(
+        super(InterpolatedLinearOperator, self).__init__(
             base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
         self.base_lazy_tensor = base_lazy_tensor
@@ -119,7 +119,7 @@ class InterpolatedLazyTensor(LazyTensor):
 
     def _getitem(self, row_index, col_index, *batch_indices):
         # Handle batch dimensions
-        # Construt a new LazyTensor
+        # Construt a new LinearOperator
         base_lazy_tensor = self.base_lazy_tensor
         left_interp_indices = self.left_interp_indices
         left_interp_values = self.left_interp_values
@@ -152,7 +152,7 @@ class InterpolatedLazyTensor(LazyTensor):
         right_interp_indices = right_interp_indices[(*batch_indices, col_index, _noop_index)]
         right_interp_values = right_interp_values[(*batch_indices, col_index, _noop_index)]
 
-        # Construct interpolated LazyTensor
+        # Construct interpolated LinearOperator
         res = self.__class__(
             base_lazy_tensor,
             left_interp_indices,
@@ -365,17 +365,19 @@ class InterpolatedLazyTensor(LazyTensor):
         right_interp_values = right_interp_values.permute(permute_order).reshape(right_shape)
 
         # Make the base_lazy tensor block diagonal
-        from .block_diag_linear_operator import BlockDiagLazyTensor
+        from .block_diag_linear_operator import BlockDiagLinearOperator
 
-        block_diag = BlockDiagLazyTensor(self.base_lazy_tensor, block_dim=dim)
+        block_diag = BlockDiagLinearOperator(self.base_lazy_tensor, block_dim=dim)
 
         # Finally! We have an interpolated lazy tensor again
-        return InterpolatedLazyTensor(
+        return InterpolatedLinearOperator(
             block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
     def diag(self):
-        if isinstance(self.base_lazy_tensor, RootLazyTensor) and isinstance(self.base_lazy_tensor.root, NonLazyTensor):
+        if isinstance(self.base_lazy_tensor, RootLinearOperator) and isinstance(
+            self.base_lazy_tensor.root, DenseLinearOperator
+        ):
             left_interp_vals = left_interp(
                 self.left_interp_indices, self.left_interp_values, self.base_lazy_tensor.root.evaluate()
             )
@@ -384,7 +386,7 @@ class InterpolatedLazyTensor(LazyTensor):
             )
             return (left_interp_vals * right_interp_vals).sum(-1)
         else:
-            return super(InterpolatedLazyTensor, self).diag()
+            return super(InterpolatedLinearOperator, self).diag()
 
     def double(self, device_id=None):
         # We need to ensure that the indices remain integers.

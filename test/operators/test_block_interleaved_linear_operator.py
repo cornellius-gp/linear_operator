@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import BlockInterleavedLazyTensor, NonLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import BlockInterleavedLinearOperator, DenseLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestBlockInterleavedLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -16,7 +16,7 @@ class TestBlockInterleavedLazyTensor(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(8, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
-        return BlockInterleavedLazyTensor(NonLazyTensor(blocks))
+        return BlockInterleavedLinearOperator(DenseLinearOperator(blocks))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
@@ -28,7 +28,7 @@ class TestBlockInterleavedLazyTensor(LazyTensorTestCase, unittest.TestCase):
         return actual
 
 
-class TestBlockInterleavedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -36,7 +36,7 @@ class TestBlockInterleavedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase)
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
-        return BlockInterleavedLazyTensor(NonLazyTensor(blocks), block_dim=2)
+        return BlockInterleavedLinearOperator(DenseLinearOperator(blocks), block_dim=2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
@@ -49,7 +49,7 @@ class TestBlockInterleavedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase)
         return actual
 
 
-class TestBlockInterleavedLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockInterleavedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -60,7 +60,7 @@ class TestBlockInterleavedLazyTensorMultiBatch(LazyTensorTestCase, unittest.Test
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
-        return BlockInterleavedLazyTensor(NonLazyTensor(blocks), block_dim=1)
+        return BlockInterleavedLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor

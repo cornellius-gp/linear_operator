@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
-from linear_operator.operators import NonLazyTensor
+from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 
 
@@ -41,7 +41,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
             else:
                 actual_logdet = logdets.squeeze()
 
-        # Compute values with LazyTensor
+        # Compute values with LinearOperator
         _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
         with linear_operator.settings.num_trace_samples(2000), linear_operator.settings.max_cholesky_size(
             0
@@ -54,7 +54,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
         ), linear_operator.settings.max_preconditioner_size(
             30
         ):
-            lazy_tensor = NonLazyTensor(mat)
+            lazy_tensor = DenseLinearOperator(mat)
 
             if add_diag:
                 lazy_tensor = lazy_tensor.add_jitter(1.0)

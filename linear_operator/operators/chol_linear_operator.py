@@ -6,22 +6,22 @@ import warnings
 import torch
 
 from ..utils.memoize import cached
-from .root_linear_operator import RootLazyTensor
-from .triangular_linear_operator import TriangularLazyTensor, _TriangularLazyTensorBase
+from .root_linear_operator import RootLinearOperator
+from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
 
 
-class CholLazyTensor(RootLazyTensor):
-    def __init__(self, chol: _TriangularLazyTensorBase, upper: bool = False):
-        if not isinstance(chol, _TriangularLazyTensorBase):
+class CholLinearOperator(RootLinearOperator):
+    def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False):
+        if not isinstance(chol, _TriangularLinearOperatorBase):
             warnings.warn(
-                "chol argument to CholLazyTensor should be a TriangularLazyTensor. "
+                "chol argument to CholLinearOperator should be a TriangularLinearOperator. "
                 "Passing a dense tensor will cause errors in future versions.",
                 DeprecationWarning,
             )
             if torch.all(torch.tril(chol) == chol):
-                chol = TriangularLazyTensor(chol, upper=False)
+                chol = TriangularLinearOperator(chol, upper=False)
             elif torch.all(torch.triu(chol) == chol):
-                chol = TriangularLazyTensor(chol, upper=True)
+                chol = TriangularLinearOperator(chol, upper=True)
             else:
                 raise ValueError("chol must be either lower or upper triangular")
         super().__init__(chol)
@@ -60,7 +60,7 @@ class CholLazyTensor(RootLazyTensor):
     @cached
     def inverse(self):
         Linv = self.root.inverse()  # this could be slow in some cases w/ structured lazies
-        return CholLazyTensor(TriangularLazyTensor(Linv, upper=not self.upper), upper=not self.upper)
+        return CholLinearOperator(TriangularLinearOperator(Linv, upper=not self.upper), upper=not self.upper)
 
     def inv_matmul(self, right_tensor, left_tensor=None):
         is_vector = right_tensor.ndim == 1
@@ -86,7 +86,7 @@ class CholLazyTensor(RootLazyTensor):
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:
             raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LazyTensors. "
+                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
                 "Got a {} of size {}.".format(self.__class__.__name__, self.size())
             )
 
@@ -94,18 +94,18 @@ class CholLazyTensor(RootLazyTensor):
             if self.dim() == 2 and inv_quad_rhs.dim() == 1:
                 if self.shape[-1] != inv_quad_rhs.numel():
                     raise RuntimeError(
-                        "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                        "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                             self.shape, inv_quad_rhs.shape
                         )
                     )
             elif self.dim() != inv_quad_rhs.dim():
                 raise RuntimeError(
-                    "LazyTensor (size={}) and right-hand-side Tensor (size={}) should have the same number "
+                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
                     "of dimensions.".format(self.shape, inv_quad_rhs.shape)
                 )
             elif self.shape[-1] != inv_quad_rhs.shape[-2]:
                 raise RuntimeError(
-                    "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                         self.shape, inv_quad_rhs.shape
                     )
                 )
@@ -123,4 +123,4 @@ class CholLazyTensor(RootLazyTensor):
 
     def root_inv_decomposition(self, method=None, initial_vectors=None, test_vectors=None):
         inv_root = self.root.inverse()
-        return RootLazyTensor(inv_root._transpose_nonbatch())
+        return RootLinearOperator(inv_root._transpose_nonbatch())

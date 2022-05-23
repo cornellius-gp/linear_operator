@@ -4,29 +4,29 @@ import torch
 
 from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .root_linear_operator import RootLazyTensor
+from ._linear_operator import LinearOperator
+from .root_linear_operator import RootLinearOperator
 
 
-class MulLazyTensor(LazyTensor):
+class MulLinearOperator(LinearOperator):
     def _check_args(self, left_lazy_tensor, right_lazy_tensor):
-        if not isinstance(left_lazy_tensor, LazyTensor) or not isinstance(right_lazy_tensor, LazyTensor):
-            return "MulLazyTensor expects two LazyTensors."
+        if not isinstance(left_lazy_tensor, LinearOperator) or not isinstance(right_lazy_tensor, LinearOperator):
+            return "MulLinearOperator expects two LinearOperators."
         if left_lazy_tensor.shape != right_lazy_tensor.shape:
-            return "MulLazyTensor expects two LazyTensors of the same size: got {} and {}.".format(
+            return "MulLinearOperator expects two LinearOperators of the same size: got {} and {}.".format(
                 left_lazy_tensor, right_lazy_tensor
             )
 
     def __init__(self, left_lazy_tensor, right_lazy_tensor):
         """
         Args:
-            - lazy_tensors (A list of LazyTensor) - A list of LazyTensor to multiplicate with.
+            - lazy_tensors (A list of LinearOperator) - A list of LinearOperator to multiplicate with.
         """
-        if not isinstance(left_lazy_tensor, RootLazyTensor):
+        if not isinstance(left_lazy_tensor, RootLinearOperator):
             left_lazy_tensor = left_lazy_tensor.root_decomposition()
-        if not isinstance(right_lazy_tensor, RootLazyTensor):
+        if not isinstance(right_lazy_tensor, RootLinearOperator):
             right_lazy_tensor = right_lazy_tensor.root_decomposition()
-        super(MulLazyTensor, self).__init__(left_lazy_tensor, right_lazy_tensor)
+        super(MulLinearOperator, self).__init__(left_lazy_tensor, right_lazy_tensor)
         self.left_lazy_tensor = left_lazy_tensor
         self.right_lazy_tensor = right_lazy_tensor
 
@@ -45,7 +45,7 @@ class MulLazyTensor(LazyTensor):
             is_vector = True
 
         # Here we have a root decomposition
-        if isinstance(self.left_lazy_tensor, RootLazyTensor):
+        if isinstance(self.left_lazy_tensor, RootLinearOperator):
             left_root = self.left_lazy_tensor.root.evaluate()
             left_res = rhs.unsqueeze(-2) * left_root.unsqueeze(-1)
 
@@ -79,7 +79,7 @@ class MulLazyTensor(LazyTensor):
 
         *batch_shape, n, num_vecs = left_vecs.size()
 
-        if isinstance(self.right_lazy_tensor, RootLazyTensor):
+        if isinstance(self.right_lazy_tensor, RootLinearOperator):
             right_root = self.right_lazy_tensor.root.evaluate()
             left_factor = left_vecs.unsqueeze(-2) * right_root.unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * right_root.unsqueeze(-1)
@@ -94,7 +94,7 @@ class MulLazyTensor(LazyTensor):
         right_factor = right_factor.view(*batch_shape, n, num_vecs * right_rank)
         left_deriv_args = self.left_lazy_tensor._quad_form_derivative(left_factor, right_factor)
 
-        if isinstance(self.left_lazy_tensor, RootLazyTensor):
+        if isinstance(self.left_lazy_tensor, RootLinearOperator):
             left_root = self.left_lazy_tensor.root.evaluate()
             left_factor = left_vecs.unsqueeze(-2) * left_root.unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * left_root.unsqueeze(-1)
@@ -133,10 +133,10 @@ class MulLazyTensor(LazyTensor):
 
     def representation(self):
         """
-        Returns the Tensors that are used to define the LazyTensor
+        Returns the Tensors that are used to define the LinearOperator
         """
-        res = super(MulLazyTensor, self).representation()
+        res = super(MulLinearOperator, self).representation()
         return res
 
     def representation_tree(self):
-        return super(MulLazyTensor, self).representation_tree()
+        return super(MulLinearOperator, self).representation_tree()

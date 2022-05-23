@@ -8,60 +8,60 @@ from torch import Tensor
 from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.errors import NotPSDError
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .batch_repeat_linear_operator import BatchRepeatLazyTensor
-from .dense_linear_operator import NonLazyTensor
+from ._linear_operator import LinearOperator
+from .batch_repeat_linear_operator import BatchRepeatLinearOperator
+from .dense_linear_operator import DenseLinearOperator
 
-Allsor = Union[Tensor, LazyTensor]
+Allsor = Union[Tensor, LinearOperator]
 
 
-class _TriangularLazyTensorBase:
+class _TriangularLinearOperatorBase:
     """Base class that all triangular lazy tensors are derived from."""
 
     pass
 
 
-class TriangularLazyTensor(LazyTensor, _TriangularLazyTensorBase):
+class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def __init__(self, tensor: Allsor, upper: bool = False) -> None:
         """
         Triangular lazy tensor. Supports arbitrary batch sizes.
 
         Args:
-            :attr:`tensor` (Tensor or LazyTensor):
+            :attr:`tensor` (Tensor or LinearOperator):
                 A `b1 x ... x bk x n x n` Tensor, representing a `b1 x ... x bk`-sized batch
                 of `n x n` triangular matrices.
             :attr:`upper` (bool):
                 If True, the tensor is considered to be upper-triangular, otherwise lower-triangular.
         """
-        if isinstance(tensor, TriangularLazyTensor):
+        if isinstance(tensor, TriangularLinearOperator):
             # this is a null-op, we can just use underlying tensor directly.
             tensor = tensor._tensor
-        elif isinstance(tensor, BatchRepeatLazyTensor):
+        elif isinstance(tensor, BatchRepeatLinearOperator):
             # things get kind of messy when interleaving repeats and triangualrisms
-            if not isinstance(tensor.base_lazy_tensor, TriangularLazyTensor):
+            if not isinstance(tensor.base_lazy_tensor, TriangularLinearOperator):
                 tensor = tensor.__class__(
-                    TriangularLazyTensor(tensor.base_lazy_tensor, upper=upper),
+                    TriangularLinearOperator(tensor.base_lazy_tensor, upper=upper),
                     batch_repeat=tensor.batch_repeat,
                 )
         if torch.is_tensor(tensor):
-            tensor = NonLazyTensor(tensor)
+            tensor = DenseLinearOperator(tensor)
         super().__init__(tensor)
         self.upper = upper
         self._tensor = tensor
 
-    def __add__(self, other: Allsor) -> LazyTensor:
-        from .diag_linear_operator import DiagLazyTensor
+    def __add__(self, other: Allsor) -> LinearOperator:
+        from .diag_linear_operator import DiagLinearOperator
 
-        if isinstance(other, DiagLazyTensor):
-            from .added_diag_linear_operator import AddedDiagLazyTensor
+        if isinstance(other, DiagLinearOperator):
+            from .added_diag_linear_operator import AddedDiagLinearOperator
 
-            return self.__class__(AddedDiagLazyTensor(self._tensor, other), upper=self.upper)
-        if isinstance(other, TriangularLazyTensor) and not self.upper ^ other.upper:
+            return self.__class__(AddedDiagLinearOperator(self._tensor, other), upper=self.upper)
+        if isinstance(other, TriangularLinearOperator) and not self.upper ^ other.upper:
             return self.__class__(self._tensor + other._tensor, upper=self.upper)
         return self._tensor + other
 
-    def _cholesky(self, upper=False) -> LazyTensor:
-        raise NotPSDError("TriangularLazyTensor does not allow a Cholesky decomposition")
+    def _cholesky(self, upper=False) -> LinearOperator:
+        raise NotPSDError("TriangularLinearOperator does not allow a Cholesky decomposition")
 
     def _cholesky_solve(self, rhs: Tensor, upper: bool = False) -> Tensor:
         # use custom method if implemented
@@ -84,14 +84,14 @@ class TriangularLazyTensor(LazyTensor, _TriangularLazyTensorBase):
     def _matmul(self, rhs: Tensor) -> Tensor:
         return self._tensor.matmul(rhs)
 
-    def _mul_constant(self, constant: Tensor) -> "TriangularLazyTensor":
-        return TriangularLazyTensor(self._tensor * constant.unsqueeze(-1), upper=self.upper)
+    def _mul_constant(self, constant: Tensor) -> "TriangularLinearOperator":
+        return TriangularLinearOperator(self._tensor * constant.unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(self) -> Allsor:
-        raise NotPSDError("TriangularLazyTensor does not allow a root decomposition")
+        raise NotPSDError("TriangularLinearOperator does not allow a root decomposition")
 
     def _root_inv_decomposition(self, initial_vectors: Optional[Tensor] = None) -> Allsor:
-        raise NotPSDError("TriangularLazyTensor does not allow an inverse root decomposition")
+        raise NotPSDError("TriangularLinearOperator does not allow an inverse root decomposition")
 
     def _size(self) -> torch.Size:
         return self._tensor.shape
@@ -105,21 +105,21 @@ class TriangularLazyTensor(LazyTensor, _TriangularLazyTensorBase):
         # already triangular, can just call inv_matmul for the solve
         return self.inv_matmul(rhs)
 
-    def _sum_batch(self, dim: int) -> "TriangularLazyTensor":
-        return TriangularLazyTensor(self._tensor._sum_batch(dim), upper=self.upper)
+    def _sum_batch(self, dim: int) -> "TriangularLinearOperator":
+        return TriangularLinearOperator(self._tensor._sum_batch(dim), upper=self.upper)
 
-    def _transpose_nonbatch(self) -> "TriangularLazyTensor":
-        return TriangularLazyTensor(self._tensor._transpose_nonbatch(), upper=not self.upper)
+    def _transpose_nonbatch(self) -> "TriangularLinearOperator":
+        return TriangularLinearOperator(self._tensor._transpose_nonbatch(), upper=not self.upper)
 
-    def abs(self) -> "TriangularLazyTensor":
-        return TriangularLazyTensor(self._tensor.abs(), upper=self.upper)
+    def abs(self) -> "TriangularLinearOperator":
+        return TriangularLinearOperator(self._tensor.abs(), upper=self.upper)
 
-    def add_diag(self, added_diag: Tensor) -> "TriangularLazyTensor":
-        from .added_diag_linear_operator import AddedDiagLazyTensor
+    def add_diag(self, added_diag: Tensor) -> "TriangularLinearOperator":
+        from .added_diag_linear_operator import AddedDiagLinearOperator
 
         shape = _mul_broadcast_shape(self._diag.shape, added_diag.shape)
-        added_diag_lt = AddedDiagLazyTensor(self._tensor.expand(shape), added_diag.expand(shape))
-        return TriangularLazyTensor(added_diag_lt, upper=self.upper)
+        added_diag_lt = AddedDiagLinearOperator(self._tensor.expand(shape), added_diag.expand(shape))
+        return TriangularLinearOperator(added_diag_lt, upper=self.upper)
 
     def diag(self) -> Tensor:
         return self._tensor.diag()
@@ -128,13 +128,13 @@ class TriangularLazyTensor(LazyTensor, _TriangularLazyTensorBase):
     def evaluate(self) -> Tensor:
         return self._tensor.evaluate()
 
-    def exp(self) -> "TriangularLazyTensor":
-        return TriangularLazyTensor(self._tensor.exp(), upper=self.upper)
+    def exp(self) -> "TriangularLinearOperator":
+        return TriangularLinearOperator(self._tensor.exp(), upper=self.upper)
 
     def inv_matmul(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
-        if isinstance(self._tensor, NonLazyTensor):
+        if isinstance(self._tensor, DenseLinearOperator):
             res = torch.triangular_solve(right_tensor, self.evaluate(), upper=self.upper).solution
-        elif isinstance(self._tensor, BatchRepeatLazyTensor):
+        elif isinstance(self._tensor, BatchRepeatLinearOperator):
             res = self._tensor.base_lazy_tensor.inv_matmul(right_tensor, left_tensor)
             # TODO: Proper broadcasting
             res = res.expand(self._tensor.batch_repeat + res.shape[-2:])
@@ -168,10 +168,10 @@ class TriangularLazyTensor(LazyTensor, _TriangularLazyTensorBase):
         return inv_quad_term, logdet_term
 
     @cached
-    def inverse(self) -> "TriangularLazyTensor":
+    def inverse(self) -> "TriangularLinearOperator":
         eye = torch.eye(self._tensor.size(-1), device=self._tensor.device, dtype=self._tensor.dtype)
         inv = self.inv_matmul(eye)
-        return TriangularLazyTensor(inv, upper=self.upper)
+        return TriangularLinearOperator(inv, upper=self.upper)
 
     def _expand_batch(self, batch_shape):
         if len(batch_shape) == 0:

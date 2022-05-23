@@ -4,13 +4,13 @@ from typing import Optional
 import torch
 
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .root_linear_operator import RootLazyTensor
+from ._linear_operator import LinearOperator
+from .root_linear_operator import RootLinearOperator
 
 
-class ConstantMulLazyTensor(LazyTensor):
+class ConstantMulLinearOperator(LinearOperator):
     """
-    A LazyTensor that multiplies a base LazyTensor by a scalar constant:
+    A LinearOperator that multiplies a base LinearOperator by a scalar constant:
 
     ```
     constant_mul_lazy_tensor = constant * base_lazy_tensor
@@ -18,10 +18,10 @@ class ConstantMulLazyTensor(LazyTensor):
 
     .. note::
 
-        To element-wise multiply two lazy tensors, see :class:`linear_operator.lazy.MulLazyTensor`
+        To element-wise multiply two lazy tensors, see :class:`linear_operator.lazy.MulLinearOperator`
 
     Args:
-        base_lazy_tensor (LazyTensor) or (b x n x m)): The base_lazy tensor
+        base_lazy_tensor (LinearOperator) or (b x n x m)): The base_lazy tensor
         constant (Tensor): The constant
 
     If `base_lazy_tensor` represents a matrix (non-batch), then `constant` must be a
@@ -35,18 +35,18 @@ class ConstantMulLazyTensor(LazyTensor):
 
     Example::
 
-        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLazyTensor([1, 2, 3])
+        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLinearOperator([1, 2, 3])
         >>> constant = torch.tensor(1.2)
-        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
+        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLinearOperator(base_base_lazy_tensor, constant)
         >>> new_base_lazy_tensor.evaluate()
         >>> # Returns:
         >>> # [[ 1.2, 2.4, 3.6 ]
         >>> #  [ 2.4, 1.2, 2.4 ]
         >>> #  [ 3.6, 2.4, 1.2 ]]
         >>>
-        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLazyTensor([[1, 2, 3], [2, 3, 4]])
+        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLinearOperator([[1, 2, 3], [2, 3, 4]])
         >>> constant = torch.tensor([1.2, 0.5])
-        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
+        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLinearOperator(base_base_lazy_tensor, constant)
         >>> new_base_lazy_tensor.evaluate()
         >>> # Returns:
         >>> # [[[ 1.2, 2.4, 3.6 ]
@@ -61,7 +61,7 @@ class ConstantMulLazyTensor(LazyTensor):
         if not torch.is_tensor(constant):
             constant = torch.tensor(constant, device=base_lazy_tensor.device, dtype=base_lazy_tensor.dtype)
 
-        super(ConstantMulLazyTensor, self).__init__(base_lazy_tensor, constant)
+        super(ConstantMulLinearOperator, self).__init__(base_lazy_tensor, constant)
         self.base_lazy_tensor = base_lazy_tensor
         self._constant = constant
 
@@ -78,7 +78,7 @@ class ConstantMulLazyTensor(LazyTensor):
     def _get_indices(self, row_index, col_index, *batch_indices):
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
-        # It prevents constructing an InterpolatedLazyTensor when one isn't needed
+        # It prevents constructing an InterpolatedLinearOperator when one isn't needed
         # This affects runntimes by up to 5x on simple exact GPs
         # Run __getitem__ on the base_lazy_tensor and the constant
         base_lazy_tensor = self.base_lazy_tensor._get_indices(row_index, col_index, *batch_indices)
@@ -88,7 +88,7 @@ class ConstantMulLazyTensor(LazyTensor):
     def _getitem(self, row_index, col_index, *batch_indices):
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
-        # It prevents constructing an InterpolatedLazyTensor when one isn't needed
+        # It prevents constructing an InterpolatedLinearOperator when one isn't needed
         # This affects runntimes by up to 5x on simple exact GPs
         # Run __getitem__ on the base_lazy_tensor and the constant
         base_lazy_tensor = self.base_lazy_tensor._getitem(row_index, col_index, *batch_indices)
@@ -131,7 +131,7 @@ class ConstantMulLazyTensor(LazyTensor):
         return res
 
     def _transpose_nonbatch(self):
-        return ConstantMulLazyTensor(self.base_lazy_tensor._transpose_nonbatch(), self._constant)
+        return ConstantMulLinearOperator(self.base_lazy_tensor._transpose_nonbatch(), self._constant)
 
     @property
     def expanded_constant(self):
@@ -140,7 +140,7 @@ class ConstantMulLazyTensor(LazyTensor):
             constant = self._constant.view(*self._constant.shape, 1, 1)
         except RuntimeError:
             raise RuntimeError(
-                "ConstantMulLazyTensor of size {} received an invalid constant of size {}.".format(
+                "ConstantMulLinearOperator of size {} received an invalid constant of size {}.".format(
                     self.base_lazy_tensor.shape, self._constant.shape
                 )
             )
@@ -160,6 +160,6 @@ class ConstantMulLazyTensor(LazyTensor):
     def root_decomposition(self, method: Optional[str] = None):
         if torch.all(self._constant >= 0):
             base_root = self.base_lazy_tensor.root_decomposition(method=method).root
-            return RootLazyTensor(ConstantMulLazyTensor(base_root, self._constant**0.5))
+            return RootLinearOperator(ConstantMulLinearOperator(base_root, self._constant**0.5))
 
         return super().root_decomposition(method=method)

@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import IdentityLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import IdentityLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestIdentityLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def _test_matmul(self, rhs):
         lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
         lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
@@ -69,7 +69,7 @@ class TestIdentityLazyTensor(LazyTensorTestCase, unittest.TestCase):
         self.assertAllClose(res_logdet, actual_logdet, **self.tolerances["logdet"])
 
     def create_lazy_tensor(self):
-        return IdentityLazyTensor(5)
+        return IdentityLinearOperator(5)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return torch.eye(5)
@@ -155,9 +155,9 @@ class TestIdentityLazyTensor(LazyTensorTestCase, unittest.TestCase):
         self.assertAllClose(V.evaluate(), torch.eye(lazy_tensor.size(-1)).expand(lazy_tensor.shape))
 
 
-class TestIdentityLazyTensorBatch(TestIdentityLazyTensor):
+class TestIdentityLinearOperatorBatch(TestIdentityLinearOperator):
     def create_lazy_tensor(self):
-        return IdentityLazyTensor(5, batch_shape=torch.Size([3, 6]))
+        return IdentityLinearOperator(5, batch_shape=torch.Size([3, 6]))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return torch.eye(5).expand(3, 6, 5, 5)

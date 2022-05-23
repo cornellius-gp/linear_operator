@@ -4,14 +4,14 @@ import unittest
 
 import torch
 
-from linear_operator.operators import LowRankRootLazyTensor
-from linear_operator.test.linear_operator_test_case import RectangularLazyTensorTestCase
+from linear_operator.operators import LowRankRootLinearOperator
+from linear_operator.test.linear_operator_test_case import RectangularLinearOperatorTestCase
 
 
-class TestLowRankRootLazyTensor(RectangularLazyTensorTestCase, unittest.TestCase):
+class TestLowRankRootLinearOperator(RectangularLinearOperatorTestCase, unittest.TestCase):
     def create_lazy_tensor(self):
         root = torch.randn(3, 1, requires_grad=True)
-        return LowRankRootLazyTensor(root)
+        return LowRankRootLinearOperator(root)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         root = lazy_tensor.root.tensor
@@ -19,15 +19,15 @@ class TestLowRankRootLazyTensor(RectangularLazyTensorTestCase, unittest.TestCase
         return res
 
 
-class TestLowRankRootLazyTensorBatch(TestLowRankRootLazyTensor):
+class TestLowRankRootLinearOperatorBatch(TestLowRankRootLinearOperator):
     seed = 1
 
     def create_lazy_tensor(self):
         root = torch.randn(3, 5, 2)
-        return LowRankRootLazyTensor(root)
+        return LowRankRootLinearOperator(root)
 
 
-class TestLowRankRootLazyTensorMultiBatch(TestLowRankRootLazyTensor):
+class TestLowRankRootLinearOperatorMultiBatch(TestLowRankRootLinearOperator):
     seed = 1
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -35,7 +35,7 @@ class TestLowRankRootLazyTensorMultiBatch(TestLowRankRootLazyTensor):
 
     def create_lazy_tensor(self):
         root = torch.randn(4, 3, 5, 2)
-        return LowRankRootLazyTensor(root)
+        return LowRankRootLinearOperator(root)
 
 
 if __name__ == "__main__":

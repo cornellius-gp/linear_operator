@@ -19,8 +19,8 @@ class PivotedCholesky(Function):
         if error_tol is None:
             error_tol = settings.preconditioner_tolerance.value()
 
-        # Need to get diagonals. This is easy if it's a LazyTensor, since
-        # LazyTensor.diag() operates in batch mode.
+        # Need to get diagonals. This is easy if it's a LinearOperator, since
+        # LinearOperator.diag() operates in batch mode.
         matrix_diag = matrix._approx_diag()
 
         # Make sure max_iter isn't bigger than the matrix

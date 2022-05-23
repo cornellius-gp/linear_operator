@@ -5,16 +5,16 @@ import torch
 from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.getitem import _compute_getitem_size
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 
 
-class ZeroLazyTensor(LazyTensor):
+class ZeroLinearOperator(LinearOperator):
     """
-    Special LazyTensor representing zero.
+    Special LinearOperator representing zero.
     """
 
     def __init__(self, *sizes, dtype=None, device=None):
-        super(ZeroLazyTensor, self).__init__(*sizes)
+        super(ZeroLinearOperator, self).__init__(*sizes)
         self.sizes = list(sizes)
 
         self._dtype = dtype or torch.get_default_dtype()
@@ -33,11 +33,11 @@ class ZeroLazyTensor(LazyTensor):
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
-        return ZeroLazyTensor(*new_size)
+        return ZeroLinearOperator(*new_size)
 
     def _getitem(self, row_index, col_index, *batch_indices):
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
-        return ZeroLazyTensor(*new_size)
+        return ZeroLinearOperator(*new_size)
 
     def _matmul(self, rhs):
         rhs_size_ind = -2 if rhs.ndimension() > 1 else -1
@@ -58,16 +58,16 @@ class ZeroLazyTensor(LazyTensor):
         return self.__class__(*sizes, dtype=self._dtype, device=self._device)
 
     def _quad_form_derivative(self, left_vecs, right_vecs):
-        raise RuntimeError("Backwards through a ZeroLazyTensor is not possible")
+        raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
     def _root_decomposition(self):
-        raise RuntimeError("ZeroLazyTensors are not positive definite!")
+        raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _root_inv_decomposition(self, initial_vectors=None):
-        raise RuntimeError("ZeroLazyTensors are not positive definite!")
+        raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _root_decomposition_size(self):
-        raise RuntimeError("ZeroLazyTensors are not positive definite!")
+        raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _size(self):
         return torch.Size(self.sizes)
@@ -99,7 +99,7 @@ class ZeroLazyTensor(LazyTensor):
         return self.__class__(*sizes, dtype=self._dtype, device=self._device)
 
     def add_diag(self, diag):
-        from .diag_linear_operator import DiagLazyTensor
+        from .diag_linear_operator import DiagLinearOperator
 
         if self.size(-1) != self.size(-2):
             raise RuntimeError("add_diag only defined for square matrices")
@@ -127,10 +127,10 @@ class ZeroLazyTensor(LazyTensor):
                     "Got size ({})".format(self.size(), diag.size())
                 )
 
-        res = DiagLazyTensor(diag)
+        res = DiagLinearOperator(diag)
         if res.size() != self.size():
             raise RuntimeError(
-                "Diag dimensions are incompatible with the base LazyTensor dimensions. "
+                "Diag dimensions are incompatible with the base LinearOperator dimensions. "
                 "Diag size corresponds to a {} Tensor - expected {}".format(res.size(), self.size())
             )
         return res
@@ -146,13 +146,13 @@ class ZeroLazyTensor(LazyTensor):
         return torch.zeros(*self.sizes)
 
     def inv_matmul(self, right_tensor, left_tensor=None):
-        raise RuntimeError("ZeroLazyTensors are not invertible!")
+        raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def inv_quad(self, tensor):
-        raise RuntimeError("ZeroLazyTensors are not invertible!")
+        raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
-        raise RuntimeError("ZeroLazyTensors are not invertible!")
+        raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def logdet(self):
         return torch.log(torch.tensor(0.0))
@@ -168,7 +168,7 @@ class ZeroLazyTensor(LazyTensor):
         else:
             *batch_shape, m, n = tensor.shape
             output_shape = (*batch_shape, new_m, n)
-        return ZeroLazyTensor(*output_shape, dtype=tensor.dtype, device=tensor.device)
+        return ZeroLinearOperator(*output_shape, dtype=tensor.dtype, device=tensor.device)
 
     def mul(self, other):
         shape = _mul_broadcast_shape(self.shape, other.shape)
@@ -180,7 +180,7 @@ class ZeroLazyTensor(LazyTensor):
         sizes[dim1] = sizes[dim2]
         sizes[dim2] = tmp
 
-        return ZeroLazyTensor(*sizes)
+        return ZeroLinearOperator(*sizes)
 
     def __add__(self, other):
         return other

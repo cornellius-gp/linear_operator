@@ -24,7 +24,7 @@ def _ensure_symmetric_grad(grad):
     return res
 
 
-class RectangularLazyTensorTestCase(BaseTestCase):
+class RectangularLinearOperatorTestCase(BaseTestCase):
 
     tolerances = {
         "matmul": {"rtol": 1e-3},
@@ -89,7 +89,7 @@ class RectangularLazyTensorTestCase(BaseTestCase):
     def test_matmul_vec(self):
         lazy_tensor = self.create_lazy_tensor()
 
-        # We skip this test if we're dealing with batch LazyTensors
+        # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
         if lazy_tensor.ndimension() > 2:
             return
@@ -100,7 +100,7 @@ class RectangularLazyTensorTestCase(BaseTestCase):
     def test_rmatmul_vec(self):
         lazy_tensor = self.create_lazy_tensor()
 
-        # We skip this test if we're dealing with batch LazyTensors
+        # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
         if lazy_tensor.ndimension() > 2:
             return
@@ -315,7 +315,7 @@ class RectangularLazyTensorTestCase(BaseTestCase):
         right_vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 2)
 
         deriv_custom = lazy_tensor._quad_form_derivative(left_vecs, right_vecs)
-        deriv_auto = linear_operator.operators.LazyTensor._quad_form_derivative(
+        deriv_auto = linear_operator.operators.LinearOperator._quad_form_derivative(
             lazy_tensor_clone, left_vecs, right_vecs
         )
 
@@ -344,14 +344,14 @@ class RectangularLazyTensorTestCase(BaseTestCase):
                 self.assertAllClose(res, actual, **self.tolerances["transpose"])
 
 
-class LazyTensorTestCase(RectangularLazyTensorTestCase):
+class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     should_test_sample = False
     skip_slq_tests = False
     should_call_cg = True
     should_call_lanczos = True
     should_call_lanczos_diagonalization = True
     tolerances = {
-        **RectangularLazyTensorTestCase.tolerances,
+        **RectangularLinearOperatorTestCase.tolerances,
         "cholesky": {"rtol": 1e-3, "atol": 1e-5},
         "diag": {"rtol": 1e-2, "atol": 1e-5},
         "inv_matmul": {"rtol": 0.02, "atol": 1e-5},
@@ -596,7 +596,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         lazy_tensor = self.create_lazy_tensor()
         rhs = torch.randn(lazy_tensor.size(-1))
 
-        # We skip this test if we're dealing with batch LazyTensors
+        # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
         if lazy_tensor.ndimension() > 2:
             return
@@ -608,7 +608,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         rhs = torch.randn(lazy_tensor.size(-1))
         lhs = torch.randn(6, lazy_tensor.size(-1))
 
-        # We skip this test if we're dealing with batch LazyTensors
+        # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
         if lazy_tensor.ndimension() > 2:
             return
@@ -718,13 +718,13 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
             lazy_tensor = self.create_lazy_tensor()
             rootdecomp = lazy_tensor.root_decomposition()
 
-            if isinstance(rootdecomp, linear_operator.lazy.CholLazyTensor):
+            if isinstance(rootdecomp, linear_operator.lazy.CholLinearOperator):
                 chol = lazy_tensor.root_decomposition().root.clone()
                 linear_operator.utils.memoize.clear_cache_hook(lazy_tensor)
                 linear_operator.utils.memoize.add_to_cache(
                     lazy_tensor,
                     "root_decomposition",
-                    linear_operator.lazy.RootLazyTensor(chol),
+                    linear_operator.lazy.RootLinearOperator(chol),
                 )
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)
@@ -846,7 +846,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
                 evals_unsorted, evecs_unsorted = lazy_tensor.symeig(eigenvectors=True)
                 evecs_unsorted = evecs_unsorted.evaluate()
 
-            # since LazyTensor.symeig does not sort evals, we do this here for the check
+            # since LinearOperator.symeig does not sort evals, we do this here for the check
             evals, idxr = torch.sort(evals_unsorted, dim=-1, descending=False)
             evecs = torch.gather(
                 evecs_unsorted,
@@ -897,7 +897,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         U_unsorted, S_unsorted, V_unsorted = lazy_tensor.svd()
         U_unsorted, V_unsorted = U_unsorted.evaluate(), V_unsorted.evaluate()
 
-        # since LazyTensor.svd does not sort the singular values, we do this here for the check
+        # since LinearOperator.svd does not sort the singular values, we do this here for the check
         S, idxr = torch.sort(S_unsorted, dim=-1, descending=True)
         idxr = idxr.unsqueeze(-2).expand(U_unsorted.shape)
         U = torch.gather(U_unsorted, dim=-1, index=idxr)

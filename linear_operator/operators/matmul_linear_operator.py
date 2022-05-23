@@ -5,9 +5,9 @@ import torch
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .dense_linear_operator import NonLazyTensor, lazify
-from .diag_linear_operator import DiagLazyTensor
+from ._linear_operator import LinearOperator
+from .dense_linear_operator import DenseLinearOperator, lazify
+from .diag_linear_operator import DiagLinearOperator
 
 
 def _inner_repeat(tensor, amt):
@@ -18,7 +18,7 @@ def _outer_repeat(tensor, amt):
     return tensor.unsqueeze(-1).repeat(1, amt).view(-1)
 
 
-class MatmulLazyTensor(LazyTensor):
+class MatmulLinearOperator(LinearOperator):
     def __init__(self, left_lazy_tensor, right_lazy_tensor):
         left_lazy_tensor = lazify(left_lazy_tensor)
         right_lazy_tensor = lazify(right_lazy_tensor)
@@ -72,7 +72,7 @@ class MatmulLazyTensor(LazyTensor):
         left_tensor = self.left_lazy_tensor._getitem(row_index, _noop_index, *batch_indices)
         right_tensor = self.right_lazy_tensor._getitem(_noop_index, col_index, *batch_indices)
 
-        res = MatmulLazyTensor(left_tensor, right_tensor)
+        res = MatmulLinearOperator(left_tensor, right_tensor)
         return res
 
     def _matmul(self, right_lazy_tensor):
@@ -104,9 +104,13 @@ class MatmulLazyTensor(LazyTensor):
         return self.__class__(self.right_lazy_tensor._transpose_nonbatch(), self.left_lazy_tensor._transpose_nonbatch())
 
     def diag(self):
-        if isinstance(self.left_lazy_tensor, NonLazyTensor) and isinstance(self.right_lazy_tensor, NonLazyTensor):
+        if isinstance(self.left_lazy_tensor, DenseLinearOperator) and isinstance(
+            self.right_lazy_tensor, DenseLinearOperator
+        ):
             return (self.left_lazy_tensor.tensor * self.right_lazy_tensor.tensor.transpose(-1, -2)).sum(-1)
-        elif isinstance(self.left_lazy_tensor, DiagLazyTensor) or isinstance(self.right_lazy_tensor, DiagLazyTensor):
+        elif isinstance(self.left_lazy_tensor, DiagLinearOperator) or isinstance(
+            self.right_lazy_tensor, DiagLinearOperator
+        ):
             return self.left_lazy_tensor.diag() * self.right_lazy_tensor.diag()
         else:
             return super().diag()

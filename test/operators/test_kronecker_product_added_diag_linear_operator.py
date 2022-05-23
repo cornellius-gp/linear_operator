@@ -7,21 +7,21 @@ import torch
 
 from linear_operator import settings
 from linear_operator.operators import (
-    ConstantDiagLazyTensor,
-    DiagLazyTensor,
-    KroneckerProductAddedDiagLazyTensor,
-    KroneckerProductDiagLazyTensor,
-    KroneckerProductLazyTensor,
-    NonLazyTensor,
+    ConstantDiagLinearOperator,
+    DenseLinearOperator,
+    DiagLinearOperator,
+    KroneckerProductAddedDiagLinearOperator,
+    KroneckerProductDiagLinearOperator,
+    KroneckerProductLinearOperator,
 )
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestKroneckerProductAddedDiagLazyTensor(unittest.TestCase, LazyTensorTestCase):
+class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOperatorTestCase):
     # this lazy tensor has an explicit inverse so we don't need to run these
     skip_slq_tests = True
     tolerances = {
-        **LazyTensorTestCase.tolerances,
+        **LinearOperatorTestCase.tolerances,
         # symeig (used in Kronecker algebra) yields less precise solves
         "grad": {"rtol": 0.03, "atol": 1e-4},
         "inv_matmul": {"rtol": 0.02, "atol": 1e-4},
@@ -36,9 +36,11 @@ class TestKroneckerProductAddedDiagLazyTensor(unittest.TestCase, LazyTensorTestC
         b.requires_grad_(True)
         c.requires_grad_(True)
         d.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLazyTensor(NonLazyTensor(a), NonLazyTensor(b), NonLazyTensor(c))
-        diag_lazy_tensor = DiagLazyTensor(d)
-        return KroneckerProductAddedDiagLazyTensor(kp_lazy_tensor, diag_lazy_tensor)
+        kp_lazy_tensor = KroneckerProductLinearOperator(
+            DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
+        )
+        diag_lazy_tensor = DiagLinearOperator(d)
+        return KroneckerProductAddedDiagLinearOperator(kp_lazy_tensor, diag_lazy_tensor)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         tensor = lazy_tensor._lazy_tensor.evaluate()
@@ -46,7 +48,7 @@ class TestKroneckerProductAddedDiagLazyTensor(unittest.TestCase, LazyTensorTestC
         return tensor + diag.diag()
 
 
-class TestKroneckerProductAddedKroneckerDiagLazyTensor(TestKroneckerProductAddedDiagLazyTensor):
+class TestKroneckerProductAddedKroneckerDiagLinearOperator(TestKroneckerProductAddedDiagLinearOperator):
     # this lazy tensor has an explicit inverse so we don't need to run these
     skip_slq_tests = True
     should_call_cg = False
@@ -65,14 +67,18 @@ class TestKroneckerProductAddedKroneckerDiagLazyTensor(TestKroneckerProductAdded
         d.requires_grad_(True)
         e.requires_grad_(True)
         f.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLazyTensor(NonLazyTensor(a), NonLazyTensor(b), NonLazyTensor(c))
-        diag_lazy_tensor = KroneckerProductDiagLazyTensor(
-            DiagLazyTensor(d), ConstantDiagLazyTensor(e, diag_shape=2), ConstantDiagLazyTensor(f, diag_shape=4)
+        kp_lazy_tensor = KroneckerProductLinearOperator(
+            DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return KroneckerProductAddedDiagLazyTensor(kp_lazy_tensor, diag_lazy_tensor)
+        diag_lazy_tensor = KroneckerProductDiagLinearOperator(
+            DiagLinearOperator(d),
+            ConstantDiagLinearOperator(e, diag_shape=2),
+            ConstantDiagLinearOperator(f, diag_shape=4),
+        )
+        return KroneckerProductAddedDiagLinearOperator(kp_lazy_tensor, diag_lazy_tensor)
 
 
-class TestKroneckerProductAddedKroneckerConstDiagLazyTensor(TestKroneckerProductAddedKroneckerDiagLazyTensor):
+class TestKroneckerProductAddedKroneckerConstDiagLinearOperator(TestKroneckerProductAddedKroneckerDiagLinearOperator):
     should_call_lanczos = True
 
     def create_lazy_tensor(self):
@@ -88,16 +94,18 @@ class TestKroneckerProductAddedKroneckerConstDiagLazyTensor(TestKroneckerProduct
         d.requires_grad_(True)
         e.requires_grad_(True)
         f.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLazyTensor(NonLazyTensor(a), NonLazyTensor(b), NonLazyTensor(c))
-        diag_lazy_tensor = KroneckerProductDiagLazyTensor(
-            ConstantDiagLazyTensor(d, diag_shape=3),
-            ConstantDiagLazyTensor(e, diag_shape=2),
-            ConstantDiagLazyTensor(f, diag_shape=4),
+        kp_lazy_tensor = KroneckerProductLinearOperator(
+            DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return KroneckerProductAddedDiagLazyTensor(kp_lazy_tensor, diag_lazy_tensor)
+        diag_lazy_tensor = KroneckerProductDiagLinearOperator(
+            ConstantDiagLinearOperator(d, diag_shape=3),
+            ConstantDiagLinearOperator(e, diag_shape=2),
+            ConstantDiagLinearOperator(f, diag_shape=4),
+        )
+        return KroneckerProductAddedDiagLinearOperator(kp_lazy_tensor, diag_lazy_tensor)
 
 
-class TestKroneckerProductAddedConstDiagLazyTensor(TestKroneckerProductAddedDiagLazyTensor):
+class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAddedDiagLinearOperator):
     should_call_cg = False
     should_call_lanczos = False
 
@@ -108,12 +116,14 @@ class TestKroneckerProductAddedConstDiagLazyTensor(TestKroneckerProductAddedDiag
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLazyTensor(NonLazyTensor(a), NonLazyTensor(b), NonLazyTensor(c))
-        diag_lazy_tensor = ConstantDiagLazyTensor(
+        kp_lazy_tensor = KroneckerProductLinearOperator(
+            DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
+        )
+        diag_lazy_tensor = ConstantDiagLinearOperator(
             torch.tensor([0.25], dtype=torch.float, requires_grad=True),
             kp_lazy_tensor.shape[-1],
         )
-        return KroneckerProductAddedDiagLazyTensor(kp_lazy_tensor, diag_lazy_tensor)
+        return KroneckerProductAddedDiagLinearOperator(kp_lazy_tensor, diag_lazy_tensor)
 
     def test_if_cholesky_used(self):
         lazy_tensor = self.create_lazy_tensor()

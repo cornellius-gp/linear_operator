@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import NonLazyTensor
+from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 
 
@@ -23,7 +23,7 @@ class TestDiagonalization(BaseTestCase, unittest.TestCase):
 
         for method in ["symeig", "lanczos"]:
             # Forward
-            evals, evecs = NonLazyTensor(mat).diagonalization(method=method)
+            evals, evecs = DenseLinearOperator(mat).diagonalization(method=method)
             evecs = evecs.evaluate()
             res = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-1, -2))
             self.assertAllClose(res, mat)

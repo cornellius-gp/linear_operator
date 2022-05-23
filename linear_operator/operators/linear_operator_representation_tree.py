@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-class LazyTensorRepresentationTree(object):
+class LinearOperatorRepresentationTree(object):
     def __init__(self, lazy_tsr):
         self._cls = lazy_tsr.__class__
         self._kwargs = lazy_tsr._kwargs

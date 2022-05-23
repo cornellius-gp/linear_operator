@@ -18,7 +18,7 @@ def _compute_getitem_size(obj, indices):
         The length of indices must match the dimensionality of obj
 
     Args:
-        obj - tensor or LazyTensor
+        obj - tensor or LinearOperator
         indices - tuple of ints, slices, tensors
 
     Returns:
@@ -97,7 +97,7 @@ def _convert_indices_to_tensors(obj, indices):
         The length of indices must match the dimensionality of obj
 
     Args:
-        obj - tensor or LazyTensor
+        obj - tensor or LinearOperator
         indices - tuple of slices, tensors, ints
 
     Returns:

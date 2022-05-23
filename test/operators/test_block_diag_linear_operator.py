@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import BlockDiagLazyTensor, NonLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import BlockDiagLinearOperator, DenseLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestBlockDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestBlockDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -16,7 +16,7 @@ class TestBlockDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(8, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
-        return BlockDiagLazyTensor(NonLazyTensor(blocks))
+        return BlockDiagLinearOperator(DenseLinearOperator(blocks))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
@@ -26,7 +26,7 @@ class TestBlockDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):
         return actual
 
 
-class TestBlockDiagLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -34,7 +34,7 @@ class TestBlockDiagLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
-        return BlockDiagLazyTensor(NonLazyTensor(blocks), block_dim=2)
+        return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
@@ -45,7 +45,7 @@ class TestBlockDiagLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         return actual
 
 
-class TestBlockDiagLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBlockDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -56,7 +56,7 @@ class TestBlockDiagLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
-        return BlockDiagLazyTensor(NonLazyTensor(blocks), block_dim=1)
+        return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor

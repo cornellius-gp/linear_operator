@@ -5,24 +5,24 @@ from abc import abstractmethod
 import torch
 
 from ..utils.getitem import _is_noop_index, _noop_index
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 from .dense_linear_operator import lazify
 
 
-class BlockLazyTensor(LazyTensor):
+class BlockLinearOperator(LinearOperator):
     """
-    An abstract LazyTensor class for block tensors.
+    An abstract LinearOperator class for block tensors.
     Super classes will determine how the different blocks are layed out
     (e.g. block diagonal, sum over blocks, etc.)
 
-    BlockLazyTensors represent the groups of blocks as a batched Tensor.
-    The :attr:block_dim` attribute specifies which dimension of the base LazyTensor
+    BlockLinearOperators represent the groups of blocks as a batched Tensor.
+    The :attr:block_dim` attribute specifies which dimension of the base LinearOperator
     specifies the blocks.
     For example, (with `block_dim=-3` a `k x n x n` tensor represents `k` `n x n` blocks.
     A `b x k x n x n` tensor represents `k` `b x n x n` blocks.
 
     Args:
-        - :attr:`base_lazy_tensor` (LazyTensor or Tensor):
+        - :attr:`base_lazy_tensor` (LinearOperator or Tensor):
             Must be at least 3 dimenional.
         - :attr:`block_dim` (int):
             The dimension that specifies blocks.
@@ -49,7 +49,7 @@ class BlockLazyTensor(LazyTensor):
                 positive_block_dim,
             )
 
-        super(BlockLazyTensor, self).__init__(lazify(base_lazy_tensor))
+        super(BlockLinearOperator, self).__init__(lazify(base_lazy_tensor))
         self.base_lazy_tensor = base_lazy_tensor
 
     @abstractmethod
@@ -145,9 +145,9 @@ class BlockLazyTensor(LazyTensor):
     def _mul_constant(self, other):
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the block structure
-        from .constant_mul_linear_operator import ConstantMulLazyTensor
+        from .constant_mul_linear_operator import ConstantMulLinearOperator
 
-        return self.__class__(ConstantMulLazyTensor(self.base_lazy_tensor, other))
+        return self.__class__(ConstantMulLinearOperator(self.base_lazy_tensor, other))
 
     def _transpose_nonbatch(self):
         return self.__class__(self.base_lazy_tensor._transpose_nonbatch())

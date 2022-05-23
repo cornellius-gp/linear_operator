@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import CholLazyTensor, TriangularLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import CholLinearOperator, TriangularLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestCholLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
     should_call_cg = False
@@ -21,14 +21,14 @@ class TestCholLazyTensor(LazyTensorTestCase, unittest.TestCase):
             dtype=torch.float,
             requires_grad=True,
         )
-        return CholLazyTensor(TriangularLazyTensor(chol))
+        return CholLinearOperator(TriangularLinearOperator(chol))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         chol = lazy_tensor.root.evaluate()
         return chol.matmul(chol.transpose(-1, -2))
 
 
-class TestCholLazyTensorBatch(TestCholLazyTensor):
+class TestCholLinearOperatorBatch(TestCholLinearOperator):
     seed = 0
 
     def create_lazy_tensor(self):
@@ -41,10 +41,10 @@ class TestCholLazyTensorBatch(TestCholLazyTensor):
         )
         chol.add_(torch.eye(5).unsqueeze(0))
         chol.requires_grad_(True)
-        return CholLazyTensor(TriangularLazyTensor(chol))
+        return CholLinearOperator(TriangularLinearOperator(chol))
 
 
-class TestCholLazyTensorMultiBatch(TestCholLazyTensor):
+class TestCholLinearOperatorMultiBatch(TestCholLinearOperator):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -63,7 +63,7 @@ class TestCholLazyTensorMultiBatch(TestCholLazyTensor):
         chol[2].mul_(0.5)
         chol.add_(torch.eye(5).unsqueeze_(0).unsqueeze_(0))
         chol.requires_grad_(True)
-        return CholLazyTensor(TriangularLazyTensor(chol))
+        return CholLinearOperator(TriangularLinearOperator(chol))
 
 
 if __name__ == "__main__":

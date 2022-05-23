@@ -5,7 +5,7 @@ import unittest
 import torch
 
 from linear_operator import settings
-from linear_operator.operators import NonLazyTensor
+from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 
 
@@ -36,7 +36,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
 
         # Forward
         with settings.terminate_cg_by_size(False):
-            res = NonLazyTensor(mat).inv_matmul(vec)
+            res = DenseLinearOperator(mat).inv_matmul(vec)
             actual = mat_copy.inverse().matmul(vec_copy)
             self.assertAllClose(res, actual)
 
@@ -56,7 +56,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
 
         # Forward
         with settings.terminate_cg_by_size(False):
-            res = NonLazyTensor(mat).inv_matmul(vecs)
+            res = DenseLinearOperator(mat).inv_matmul(vecs)
             actual = mat_copy.inverse().matmul(vecs_copy)
             self.assertAllClose(res, actual)
 

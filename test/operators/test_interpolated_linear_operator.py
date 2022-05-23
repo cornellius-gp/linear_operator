@@ -4,16 +4,16 @@ import unittest
 
 import torch
 
-from linear_operator.operators import InterpolatedLazyTensor, NonLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
+from linear_operator.operators import DenseLinearOperator, InterpolatedLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
-class TestInterpolatedLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
     should_test_sample = True
 
     def test_quad_form_derivative(self):
-        # InterpolatedLazyTensor's representation includes int variables (the interp. indices),
+        # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
 
@@ -28,9 +28,9 @@ class TestInterpolatedLazyTensor(LazyTensorTestCase, unittest.TestCase):
         base_tensor = torch.randn(6, 6)
         base_tensor = base_tensor.t().matmul(base_tensor)
         base_tensor.requires_grad = True
-        base_lazy_tensor = NonLazyTensor(base_tensor)
+        base_lazy_tensor = DenseLinearOperator(base_tensor)
 
-        return InterpolatedLazyTensor(
+        return InterpolatedLinearOperator(
             base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
@@ -45,12 +45,12 @@ class TestInterpolatedLazyTensor(LazyTensorTestCase, unittest.TestCase):
         return actual
 
 
-class TestInterpolatedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
     def test_quad_form_derivative(self):
-        # InterpolatedLazyTensor's representation includes int variables (the interp. indices),
+        # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
 
@@ -65,9 +65,9 @@ class TestInterpolatedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         base_tensor = torch.randn(5, 6, 6)
         base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
         base_tensor.requires_grad = True
-        base_lazy_tensor = NonLazyTensor(base_tensor)
+        base_lazy_tensor = DenseLinearOperator(base_tensor)
 
-        return InterpolatedLazyTensor(
+        return InterpolatedLinearOperator(
             base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
@@ -89,14 +89,14 @@ class TestInterpolatedLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         return actual
 
 
-class TestInterpolatedLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
     skip_slq_tests = True
 
     def test_quad_form_derivative(self):
-        # InterpolatedLazyTensor's representation includes int variables (the interp. indices),
+        # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
 
@@ -110,9 +110,9 @@ class TestInterpolatedLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase
 
         base_tensor = torch.randn(5, 6, 6)
         base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
-        base_lazy_tensor = NonLazyTensor(base_tensor)
+        base_lazy_tensor = DenseLinearOperator(base_tensor)
 
-        return InterpolatedLazyTensor(
+        return InterpolatedLinearOperator(
             base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
@@ -145,9 +145,9 @@ def empty_method(self):
     pass
 
 
-class TestInterpolatedLazyTensorRectangular(RectangularLazyTensorTestCase, unittest.TestCase):
+class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCase, unittest.TestCase):
     def create_lazy_tensor(self):
-        itplzt = InterpolatedLazyTensor(NonLazyTensor(torch.rand(3, 4)))
+        itplzt = InterpolatedLinearOperator(DenseLinearOperator(torch.rand(3, 4)))
         return itplzt
 
     def evaluate_lazy_tensor(self, lazy_tensor):

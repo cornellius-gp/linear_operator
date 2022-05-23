@@ -4,20 +4,20 @@ import torch
 
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
-from .block_linear_operator import BlockLazyTensor
+from .block_linear_operator import BlockLinearOperator
 
 
-class SumBatchLazyTensor(BlockLazyTensor):
+class SumBatchLinearOperator(BlockLinearOperator):
     """
     Represents a lazy tensor that is actually the sum of several lazy tensors blocks.
-    The :attr:`block_dim` attribute specifies which dimension of the base LazyTensor
+    The :attr:`block_dim` attribute specifies which dimension of the base LinearOperator
     specifies the blocks.
     For example, (with `block_dim=-3` a `k x n x n` tensor represents `k` `n x n` blocks (a `n x n` matrix).
     A `b x k x n x n` tensor represents `k` `b x n x n` blocks (a `b x n x n` batch matrix).
 
     Args:
-        :attr:`base_lazy_tensor` (LazyTensor):
-            A `k x n x n` LazyTensor, or a `b x k x n x n` LazyTensor.
+        :attr:`base_lazy_tensor` (LinearOperator):
+            A `k x n x n` LinearOperator, or a `b x k x n x n` LinearOperator.
         :attr:`block_dim` (int):
             The dimension that specifies the blocks.
     """
@@ -58,4 +58,4 @@ class SumBatchLazyTensor(BlockLazyTensor):
         return diag
 
     def evaluate(self):
-        return self.base_lazy_tensor.evaluate().sum(dim=-3)  # BlockLazyTensors always use dim3 for the block_dim
+        return self.base_lazy_tensor.evaluate().sum(dim=-3)  # BlockLinearOperators always use dim3 for the block_dim

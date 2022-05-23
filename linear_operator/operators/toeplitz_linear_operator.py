@@ -3,10 +3,10 @@
 import torch
 
 from ..utils.toeplitz import sym_toeplitz_derivative_quadratic_form, sym_toeplitz_matmul
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 
 
-class ToeplitzLazyTensor(LazyTensor):
+class ToeplitzLinearOperator(LinearOperator):
     def __init__(self, column):
         """
         Args:
@@ -16,7 +16,7 @@ class ToeplitzLazyTensor(LazyTensor):
                 If `column` is `b_1 x b_2 x ... x b_k x n`, then this represents a batch
                 `b_1 x b_2 x ... x b_k` of Toeplitz matrices.
         """
-        super(ToeplitzLazyTensor, self).__init__(column)
+        super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
 
     def _expand_batch(self, batch_shape):
@@ -50,12 +50,12 @@ class ToeplitzLazyTensor(LazyTensor):
         return torch.Size((*self.column.shape, self.column.size(-1)))
 
     def _transpose_nonbatch(self):
-        return ToeplitzLazyTensor(self.column)
+        return ToeplitzLinearOperator(self.column)
 
     def add_jitter(self, jitter_val=1e-3):
         jitter = torch.zeros_like(self.column)
         jitter.narrow(-1, 0, 1).fill_(jitter_val)
-        return ToeplitzLazyTensor(self.column.add(jitter))
+        return ToeplitzLinearOperator(self.column.add(jitter))
 
     def diag(self):
         """

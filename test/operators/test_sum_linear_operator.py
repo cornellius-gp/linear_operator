@@ -4,18 +4,18 @@ import unittest
 
 import torch
 
-from linear_operator.operators import ToeplitzLazyTensor, lazify
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import ToeplitzLinearOperator, lazify
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestSumLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestSumLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         c1 = torch.tensor([5, 1, 2, 0], dtype=torch.float, requires_grad=True)
-        t1 = ToeplitzLazyTensor(c1)
+        t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([6, 0, 1, -1], dtype=torch.float, requires_grad=True)
-        t2 = ToeplitzLazyTensor(c2)
+        t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
     def evaluate_lazy_tensor(self, lazy_tensor):
@@ -23,14 +23,14 @@ class TestSumLazyTensor(LazyTensorTestCase, unittest.TestCase):
         return sum(tensors)
 
 
-class TestSumLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestSumLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         c1 = torch.tensor([[2, 0.5, 0, 0], [5, 1, 2, 0]], dtype=torch.float, requires_grad=True)
-        t1 = ToeplitzLazyTensor(c1)
+        t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([[2, 0.5, 0, 0], [6, 0, 1, -1]], dtype=torch.float, requires_grad=True)
-        t2 = ToeplitzLazyTensor(c2)
+        t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
     def evaluate_lazy_tensor(self, lazy_tensor):
@@ -38,7 +38,7 @@ class TestSumLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         return sum(tensors)
 
 
-class TestSumLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     skip_slq_tests = True
@@ -49,13 +49,13 @@ class TestSumLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
             dtype=torch.float,
             requires_grad=True,
         )
-        t1 = ToeplitzLazyTensor(c1)
+        t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor(
             [[[2, 0.5, 0, 0], [5, 1, 2, 0]], [[2, 0.5, 0, 0], [6, 0, 1, -1]]],
             dtype=torch.float,
             requires_grad=True,
         )
-        t2 = ToeplitzLazyTensor(c2)
+        t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
     def evaluate_lazy_tensor(self, lazy_tensor):
@@ -63,7 +63,7 @@ class TestSumLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         return sum(tensors)
 
 
-class TestSumLazyTensorBroadcasting(unittest.TestCase):
+class TestSumLinearOperatorBroadcasting(unittest.TestCase):
     def test_broadcast_same_shape(self):
         test1 = lazify(torch.randn(30, 30))
 

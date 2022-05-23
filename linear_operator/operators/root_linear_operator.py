@@ -5,12 +5,12 @@ import torch
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _equal_indices, _noop_index
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .dense_linear_operator import NonLazyTensor, lazify
-from .matmul_linear_operator import MatmulLazyTensor
+from ._linear_operator import LinearOperator
+from .dense_linear_operator import DenseLinearOperator, lazify
+from .matmul_linear_operator import MatmulLinearOperator
 
 
-class RootLazyTensor(LazyTensor):
+class RootLinearOperator(LinearOperator):
     def __init__(self, root):
         root = lazify(root)
         super().__init__(root)
@@ -48,7 +48,7 @@ class RootLazyTensor(LazyTensor):
             res = self.__class__(left_tensor)
         else:
             right_tensor = self.root._getitem(col_index, _noop_index, *batch_indices)
-            res = MatmulLazyTensor(left_tensor, right_tensor.transpose(-1, -2))
+            res = MatmulLinearOperator(left_tensor, right_tensor.transpose(-1, -2))
 
         return res
 
@@ -85,7 +85,7 @@ class RootLazyTensor(LazyTensor):
         return self
 
     def diag(self):
-        if isinstance(self.root, NonLazyTensor):
+        if isinstance(self.root, DenseLinearOperator):
             return (self.root.tensor**2).sum(-1)
         else:
             return super().diag()

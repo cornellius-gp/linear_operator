@@ -8,12 +8,12 @@ from torch import Tensor
 from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.getitem import _compute_getitem_size, _is_noop_index
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .diag_linear_operator import ConstantDiagLazyTensor
-from .zero_linear_operator import ZeroLazyTensor
+from ._linear_operator import LinearOperator
+from .diag_linear_operator import ConstantDiagLinearOperator
+from .zero_linear_operator import ZeroLinearOperator
 
 
-class IdentityLazyTensor(ConstantDiagLazyTensor):
+class IdentityLinearOperator(ConstantDiagLinearOperator):
     def __init__(self, diag_shape, batch_shape=torch.Size([]), dtype=None, device=None):
         """
         Identity matrix lazy tensor. Supports arbitrary batch sizes.
@@ -24,7 +24,7 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
                 of `n x n` identity matrices
         """
         one = torch.tensor(1.0, dtype=dtype, device=device)
-        LazyTensor.__init__(self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device)
+        LinearOperator.__init__(self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device)
         self.diag_values = one.expand(torch.Size([*batch_shape, 1]))
         self.diag_shape = diag_shape
         self._batch_shape = batch_shape
@@ -61,7 +61,7 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         return self._maybe_reshape_rhs(rhs)
 
     def _expand_batch(self, batch_shape):
-        return IdentityLazyTensor(
+        return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
         )
 
@@ -70,7 +70,7 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             if len(batch_indices):
                 new_batch_shape = _compute_getitem_size(self, (*batch_indices, row_index, col_index))[:-2]
-                res = IdentityLazyTensor(
+                res = IdentityLinearOperator(
                     diag_shape=self.diag_shape, batch_shape=new_batch_shape, dtype=self._dtype, device=self._device
                 )
                 return res
@@ -83,21 +83,21 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         return self._maybe_reshape_rhs(rhs)
 
     def _mul_constant(self, constant):
-        return ConstantDiagLazyTensor(self.diag_values * constant, diag_shape=self.diag_shape)
+        return ConstantDiagLinearOperator(self.diag_values * constant, diag_shape=self.diag_shape)
 
     def _mul_matrix(self, other):
         return other
 
     def _permute_batch(self, *dims):
         batch_shape = self.diag_values.permute(*dims, -1).shape[:-1]
-        return IdentityLazyTensor(
+        return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self._dtype, device=self._device
         )
 
     def _prod_batch(self, dim):
         batch_shape = list(self.batch_shape)
         del batch_shape[dim]
-        return IdentityLazyTensor(
+        return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=torch.Size(batch_shape), dtype=self.dtype, device=self.device
         )
 
@@ -149,7 +149,7 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         return inv_quad_term, logdet_term
 
     def log(self):
-        return ZeroLazyTensor(
+        return ZeroLinearOperator(
             *self._batch_shape, self.diag_shape, self.diag_shape, dtype=self._dtype, device=self._device
         )
 
@@ -178,7 +178,7 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         """
         This method operates similarly to :func:`torch.Tensor.type`.
         """
-        return IdentityLazyTensor(
+        return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=self.batch_shape, dtype=dtype, device=self.device
         )
 
@@ -187,8 +187,8 @@ class IdentityLazyTensor(ConstantDiagLazyTensor):
         return base_samples
 
     @cached(name="svd")
-    def _svd(self) -> Tuple[LazyTensor, Tensor, LazyTensor]:
+    def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
         return self, self._diag, self
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LazyTensor]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         return self._diag, self

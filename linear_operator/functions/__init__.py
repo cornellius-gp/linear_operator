@@ -125,7 +125,7 @@ def pivoted_cholesky(mat, rank, error_tol=None, return_pivots=None):
     residual after each Cholesky iteration. See `Harbrecht et al., 2012`_.
 
     :param mat: The matrix :math:`\mathbf K` to decompose
-    :type mat: ~linear_operator.lazy.LazyTensor or ~torch.Tensor
+    :type mat: ~linear_operator.lazy.LinearOperator or ~torch.Tensor
     :param int rank: The size of the partial pivoted Cholesky factor.
     :param error_tol: Defines an optional stopping criterion.
         If the residual of the factorization is less than :attr:`error_tol`, then the

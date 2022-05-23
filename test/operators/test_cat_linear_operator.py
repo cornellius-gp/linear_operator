@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import CatLazyTensor, NonLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import CatLinearOperator, DenseLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestCatLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestCatLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
 
     def create_lazy_tensor(self):
@@ -19,17 +19,17 @@ class TestCatLazyTensor(LazyTensorTestCase, unittest.TestCase):
         slice2_mat = self.psd_mat[2:4, :].requires_grad_()
         slice3_mat = self.psd_mat[4:6, :].requires_grad_()
 
-        slice1 = NonLazyTensor(slice1_mat)
-        slice2 = NonLazyTensor(slice2_mat)
-        slice3 = NonLazyTensor(slice3_mat)
+        slice1 = DenseLinearOperator(slice1_mat)
+        slice2 = DenseLinearOperator(slice2_mat)
+        slice3 = DenseLinearOperator(slice3_mat)
 
-        return CatLazyTensor(slice1, slice2, slice3, dim=-2)
+        return CatLinearOperator(slice1, slice2, slice3, dim=-2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return self.psd_mat.detach().clone().requires_grad_()
 
 
-class TestCatLazyTensorColumn(LazyTensorTestCase, unittest.TestCase):
+class TestCatLinearOperatorColumn(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
 
     def create_lazy_tensor(self):
@@ -40,17 +40,17 @@ class TestCatLazyTensorColumn(LazyTensorTestCase, unittest.TestCase):
         slice2_mat = self.psd_mat[:, 2:4].requires_grad_()
         slice3_mat = self.psd_mat[:, 4:6].requires_grad_()
 
-        slice1 = NonLazyTensor(slice1_mat)
-        slice2 = NonLazyTensor(slice2_mat)
-        slice3 = NonLazyTensor(slice3_mat)
+        slice1 = DenseLinearOperator(slice1_mat)
+        slice2 = DenseLinearOperator(slice2_mat)
+        slice3 = DenseLinearOperator(slice3_mat)
 
-        return CatLazyTensor(slice1, slice2, slice3, dim=-1)
+        return CatLinearOperator(slice1, slice2, slice3, dim=-1)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return self.psd_mat.detach().clone().requires_grad_()
 
 
-class TestCatLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestCatLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
@@ -61,17 +61,17 @@ class TestCatLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         slice2_mat = self.psd_mat[..., 2:4, :].requires_grad_()
         slice3_mat = self.psd_mat[..., 4:6, :].requires_grad_()
 
-        slice1 = NonLazyTensor(slice1_mat)
-        slice2 = NonLazyTensor(slice2_mat)
-        slice3 = NonLazyTensor(slice3_mat)
+        slice1 = DenseLinearOperator(slice1_mat)
+        slice2 = DenseLinearOperator(slice2_mat)
+        slice3 = DenseLinearOperator(slice3_mat)
 
-        return CatLazyTensor(slice1, slice2, slice3, dim=-2)
+        return CatLinearOperator(slice1, slice2, slice3, dim=-2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return self.psd_mat.detach().clone().requires_grad_()
 
 
-class TestCatLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestCatLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     skip_slq_tests = True
@@ -84,17 +84,17 @@ class TestCatLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         slice2_mat = self.psd_mat[..., 2:4, :].requires_grad_()
         slice3_mat = self.psd_mat[..., 4:6, :].requires_grad_()
 
-        slice1 = NonLazyTensor(slice1_mat)
-        slice2 = NonLazyTensor(slice2_mat)
-        slice3 = NonLazyTensor(slice3_mat)
+        slice1 = DenseLinearOperator(slice1_mat)
+        slice2 = DenseLinearOperator(slice2_mat)
+        slice3 = DenseLinearOperator(slice3_mat)
 
-        return CatLazyTensor(slice1, slice2, slice3, dim=-2)
+        return CatLinearOperator(slice1, slice2, slice3, dim=-2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return self.psd_mat.detach().clone().requires_grad_()
 
 
-class TestCatLazyTensorBatchCat(LazyTensorTestCase, unittest.TestCase):
+class TestCatLinearOperatorBatchCat(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     skip_slq_tests = True
@@ -107,11 +107,11 @@ class TestCatLazyTensorBatchCat(LazyTensorTestCase, unittest.TestCase):
         slice2_mat = self.psd_mat[2:3, ...].requires_grad_()
         slice3_mat = self.psd_mat[3:, ...].requires_grad_()
 
-        slice1 = NonLazyTensor(slice1_mat)
-        slice2 = NonLazyTensor(slice2_mat)
-        slice3 = NonLazyTensor(slice3_mat)
+        slice1 = DenseLinearOperator(slice1_mat)
+        slice2 = DenseLinearOperator(slice2_mat)
+        slice3 = DenseLinearOperator(slice3_mat)
 
-        return CatLazyTensor(slice1, slice2, slice3, dim=0)
+        return CatLinearOperator(slice1, slice2, slice3, dim=0)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return self.psd_mat.detach().clone().requires_grad_()

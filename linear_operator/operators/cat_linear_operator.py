@@ -6,8 +6,8 @@ from .. import settings
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _to_helper
 from ..utils.deprecation import bool_compat
 from ..utils.getitem import _noop_index
-from ._linear_operator import LazyTensor, delazify
-from .dense_linear_operator import NonLazyTensor, lazify
+from ._linear_operator import LinearOperator, delazify
+from .dense_linear_operator import DenseLinearOperator, lazify
 
 
 def cat(inputs, dim=0, output_device=None):
@@ -16,8 +16,8 @@ def cat(inputs, dim=0, output_device=None):
 
     inputs = [lazify(i) for i in inputs]
 
-    if all(isinstance(i, NonLazyTensor) for i in inputs):
-        # Dont form a CatLazyTensor if all tensors are NonLazyTensor
+    if all(isinstance(i, DenseLinearOperator) for i in inputs):
+        # Dont form a CatLinearOperator if all tensors are DenseLinearOperator
         return lazify(torch.cat([delazify(i) for i in inputs], dim=dim))
 
     if output_device is None and all(i.device == inputs[0].device for i in inputs):
@@ -25,33 +25,33 @@ def cat(inputs, dim=0, output_device=None):
     elif output_device is None:
         raise RuntimeError("Trying to concat lazy tensors on different devices without specifying an output device.")
 
-    return CatLazyTensor(*inputs, dim=dim, output_device=output_device)
+    return CatLinearOperator(*inputs, dim=dim, output_device=output_device)
 
 
-class CatLazyTensor(LazyTensor):
+class CatLinearOperator(LinearOperator):
     r"""
-    A `LazyTensor` that represents the concatenation of other lazy tensors.
-    Each LazyTensor must have the same shape except in the concatenating
+    A `LinearOperator` that represents the concatenation of other lazy tensors.
+    Each LinearOperator must have the same shape except in the concatenating
     dimension.
 
     Args:
-        - :attr:`lazy_tensors` (list of LazyTensors):
-            A list of LazyTensors whose sizes are the same except in
+        - :attr:`lazy_tensors` (list of LinearOperators):
+            A list of LinearOperators whose sizes are the same except in
             concatenating dimension :attr:`dim`
         - :attr:`dim` (int):
             The concatenating dimension which can be a batch dimension.
         - :attr:`output_device` (torch.device):
-            The CatLazyTensor will appear to appear on :attr:`output_device`
+            The CatLinearOperator will appear to appear on :attr:`output_device`
             and place any output `torch.Tensors` on :attr:`output_device`
     """
 
     def _check_args(self, *lazy_tensors, dim=0, output_device=None):
         if len(lazy_tensors) == 0:
-            raise RuntimeError("List of LazyTensors must be non-empty")
+            raise RuntimeError("List of LinearOperators must be non-empty")
         elif len(lazy_tensors) == 1:
-            raise RuntimeError("Why are we trying to concatenate a single LazyTensor?")
-        if not all([isinstance(t, LazyTensor) for t in lazy_tensors]):
-            raise RuntimeError("CatLazyTensor requires a list of all LazyTensors")
+            raise RuntimeError("Why are we trying to concatenate a single LinearOperator?")
+        if not all([isinstance(t, LinearOperator) for t in lazy_tensors]):
+            raise RuntimeError("CatLinearOperator requires a list of all LinearOperators")
 
         rep_tensor = lazy_tensors[0]
         rep_tensor_noncat_shape = list(rep_tensor.shape)
@@ -64,7 +64,7 @@ class CatLazyTensor(LazyTensor):
             t_noncat_shape = list(t.shape)
             del t_noncat_shape[dim]
             if t_noncat_shape != rep_tensor_noncat_shape:
-                raise RuntimeError("All LazyTensors must have the same size in " "the non-concatenation dimension")
+                raise RuntimeError("All LinearOperators must have the same size in " "the non-concatenation dimension")
 
     def __init__(self, *lazy_tensors, dim=0, output_device=None):
         # Make sure index is negative index
@@ -100,11 +100,11 @@ class CatLazyTensor(LazyTensor):
     def _split_slice(self, slice_idx):
         """
         Splits a slice(a, b, None) in to a list of slices [slice(a1, b1, None), slice(a2, b2, None), ...]
-        so that each slice in the list slices in to a single tensor that we have concatenated with this LazyTensor.
+        so that each slice in the list slices in to a single tensor that we have concatenated with this LinearOperator.
         """
         if slice_idx.step is not None:
             # TODO: Add support for this eventually.
-            raise RuntimeError("Slicing a CatLazyTensor with a step is not currently supported!")
+            raise RuntimeError("Slicing a CatLinearOperator with a step is not currently supported!")
         start_idx = slice_idx.start if slice_idx.start is not None else 0
         stop_idx = slice_idx.stop if slice_idx.stop is not None else self.size(self.cat_dim)
 
@@ -130,7 +130,7 @@ class CatLazyTensor(LazyTensor):
         if batch_dim < 0:
             if batch_shape[batch_dim] != self.batch_shape[batch_dim]:
                 raise RuntimeError(
-                    f"Trying to expand a CatLazyTensor in dimension {self.cat_dim}, but this is the concatenated "
+                    f"Trying to expand a CatLinearOperator in dimension {self.cat_dim}, but this is the concatenated "
                     f"dimension.\nCurrent shape: {self.shape} - expanded shape: {batch_shape + self.matrix_shape}."
                 )
             lazy_tensors = []
@@ -154,11 +154,11 @@ class CatLazyTensor(LazyTensor):
         does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=bool_compat, device=self.device)
         torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
-        # Get the LazyTensors that will comprise the new LazyTensor
+        # Get the LinearOperators that will comprise the new LinearOperator
         lazy_tensor_indices = target_tensors[does_switch_tensor[:-1]].tolist()
         lazy_tensors = [self.lazy_tensors[idx] for idx in lazy_tensor_indices]
 
-        # Get the new set of indices for each of the LazyTensors
+        # Get the new set of indices for each of the LinearOperators
         switch_tensor = does_switch_tensor.nonzero(as_tuple=False).squeeze(-1)
         split_sizes = (switch_tensor[1:] - switch_tensor[:-1]).tolist()
         sub_indices = zip(
@@ -207,11 +207,11 @@ class CatLazyTensor(LazyTensor):
             does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=bool_compat, device=self.device)
             torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
-            # Get the LazyTensors that will comprise the new LazyTensor
+            # Get the LinearOperators that will comprise the new LinearOperator
             lazy_tensor_indices = target_tensors[does_switch_tensor[:-1]].tolist()
             lazy_tensors = [self.lazy_tensors[idx] for idx in lazy_tensor_indices]
 
-            # Get the new set of indices for each of the LazyTensors
+            # Get the new set of indices for each of the LinearOperators
             switch_tensor = does_switch_tensor.nonzero(as_tuple=False).squeeze(-1)
             split_sizes = (switch_tensor[1:] - switch_tensor[:-1]).tolist()
             sub_indices = zip(
@@ -366,9 +366,9 @@ class CatLazyTensor(LazyTensor):
 
     def to(self, *args, **kwargs):
         """
-        Returns a new CatLazyTensor with device as the output_device and dtype
+        Returns a new CatLinearOperator with device as the output_device and dtype
         as the dtype.
-        Warning: this does not move the LazyTensors in this CatLazyTensor to
+        Warning: this does not move the LinearOperators in this CatLinearOperator to
         device.
         """
         device, dtype = _to_helper(*args, **kwargs)
@@ -383,8 +383,8 @@ class CatLazyTensor(LazyTensor):
 
     def all_to(self, device_id):
         """
-        Create a new CatLazyTensor with all LazyTensors in CatLazyTensor moved
-        to one device device. The new CatLazyTensor also has device_id as the
+        Create a new CatLinearOperator with all LinearOperators in CatLinearOperator moved
+        to one device device. The new CatLinearOperator also has device_id as the
         output_device.
         """
         new_args = []

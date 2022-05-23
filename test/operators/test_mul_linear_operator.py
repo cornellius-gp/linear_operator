@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from linear_operator.operators import RootLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import RootLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
 def make_random_mat(size, rank, batch_shape=torch.Size(())):
@@ -13,13 +13,13 @@ def make_random_mat(size, rank, batch_shape=torch.Size(())):
     return res
 
 
-class TestMulLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestMulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 10
 
     def create_lazy_tensor(self):
         mat1 = make_random_mat(6, 6)
         mat2 = make_random_mat(6, 6)
-        res = RootLazyTensor(mat1) * RootLazyTensor(mat2)
+        res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(2.0))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
@@ -31,13 +31,13 @@ class TestMulLazyTensor(LazyTensorTestCase, unittest.TestCase):
         return res
 
 
-class TestMulLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestMulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 2
 
     def create_lazy_tensor(self):
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
-        res = RootLazyTensor(mat1) * RootLazyTensor(mat2)
+        res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(2.0))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
@@ -49,14 +49,14 @@ class TestMulLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         return res
 
 
-class TestMulLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
     skip_slq_tests = True
 
     def create_lazy_tensor(self):
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
-        res = RootLazyTensor(mat1) * RootLazyTensor(mat2)
+        res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(0.5))
 
     def evaluate_lazy_tensor(self, lazy_tensor):

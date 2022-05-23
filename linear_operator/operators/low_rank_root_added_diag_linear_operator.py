@@ -5,31 +5,39 @@ import torch
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.memoize import cached
 from . import delazify
-from .added_diag_linear_operator import AddedDiagLazyTensor
-from .diag_linear_operator import ConstantDiagLazyTensor, DiagLazyTensor
-from .low_rank_root_linear_operator import LowRankRootLazyTensor
-from .sum_batch_linear_operator import SumBatchLazyTensor
+from .added_diag_linear_operator import AddedDiagLinearOperator
+from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from .low_rank_root_linear_operator import LowRankRootLinearOperator
+from .sum_batch_linear_operator import SumBatchLinearOperator
 
 
-class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
+class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def __init__(self, *lazy_tensors, preconditioner_override=None):
         if len(lazy_tensors) > 2:
-            raise RuntimeError("An AddedDiagLazyTensor can only have two components")
+            raise RuntimeError("An AddedDiagLinearOperator can only have two components")
 
-        if isinstance(lazy_tensors[0], DiagLazyTensor) and not isinstance(lazy_tensors[1], LowRankRootLazyTensor):
-            raise RuntimeError("A LowRankRootAddedDiagLazyTensor can only be created with a LowRankLazyTensor base!")
-        elif isinstance(lazy_tensors[1], DiagLazyTensor) and not isinstance(lazy_tensors[0], LowRankRootLazyTensor):
-            raise RuntimeError("A LowRankRootAddedDiagLazyTensor can only be created with a LowRankLazyTensor base!")
+        if isinstance(lazy_tensors[0], DiagLinearOperator) and not isinstance(
+            lazy_tensors[1], LowRankRootLinearOperator
+        ):
+            raise RuntimeError(
+                "A LowRankRootAddedDiagLinearOperator can only be created with a LowRankLinearOperator base!"
+            )
+        elif isinstance(lazy_tensors[1], DiagLinearOperator) and not isinstance(
+            lazy_tensors[0], LowRankRootLinearOperator
+        ):
+            raise RuntimeError(
+                "A LowRankRootAddedDiagLinearOperator can only be created with a LowRankLinearOperator base!"
+            )
 
         super().__init__(*lazy_tensors, preconditioner_override=preconditioner_override)
 
     @property
     @cached(name="chol_cap_mat")
     def chol_cap_mat(self):
-        A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLazyTensor
+        A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._lazy_tensor.root
         V = self._lazy_tensor.root.transpose(-2, -1)
-        C = ConstantDiagLazyTensor(torch.ones(*V.batch_shape, 1, device=V.device, dtype=V.dtype), V.shape[-2])
+        C = ConstantDiagLinearOperator(torch.ones(*V.batch_shape, 1, device=V.device, dtype=V.dtype), V.shape[-2])
 
         cap_mat = delazify(C + V.matmul(A_inv.matmul(U)))
         chol_cap_mat = psd_safe_cholesky(cap_mat)
@@ -44,7 +52,7 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
         if constant > 0:
             res = super()._mul_constant(constant)
         else:
-            res = AddedDiagLazyTensor(
+            res = AddedDiagLinearOperator(
                 self._lazy_tensor._mul_constant(constant), self._diag_tensor._mul_constant(constant)
             )
         return res
@@ -53,7 +61,7 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
         return None, None, None
 
     def _solve(self, rhs, preconditioner=None, num_tridiag=0):
-        A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLazyTensor
+        A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._lazy_tensor.root
         V = self._lazy_tensor.root.transpose(-2, -1)
         chol_cap_mat = self.chol_cap_mat
@@ -67,7 +75,7 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
         return solve
 
     def _sum_batch(self, dim):
-        return SumBatchLazyTensor(self, dim)
+        return SumBatchLinearOperator(self, dim)
 
     def _logdet(self):
         chol_cap_mat = self.chol_cap_mat
@@ -78,17 +86,17 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
         return logdet_term
 
     def __add__(self, other):
-        from .diag_linear_operator import DiagLazyTensor
+        from .diag_linear_operator import DiagLinearOperator
 
-        if isinstance(other, DiagLazyTensor):
+        if isinstance(other, DiagLinearOperator):
             return self.__class__(self._lazy_tensor, self._diag_tensor + other)
         else:
-            return AddedDiagLazyTensor(self._lazy_tensor + other, self._diag_tensor)
+            return AddedDiagLinearOperator(self._lazy_tensor + other, self._diag_tensor)
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:
             raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LazyTensors. "
+                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
                 "Got a {} of size {}.".format(self.__class__.__name__, self.size())
             )
 
@@ -96,18 +104,18 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
             if self.dim() == 2 and inv_quad_rhs.dim() == 1:
                 if self.shape[-1] != inv_quad_rhs.numel():
                     raise RuntimeError(
-                        "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                        "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                             self.shape, inv_quad_rhs.shape
                         )
                     )
             elif self.dim() != inv_quad_rhs.dim():
                 raise RuntimeError(
-                    "LazyTensor (size={}) and right-hand-side Tensor (size={}) should have the same number "
+                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
                     "of dimensions.".format(self.shape, inv_quad_rhs.shape)
                 )
             elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
                 raise RuntimeError(
-                    "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                         self.shape, inv_quad_rhs.shape
                     )
                 )
@@ -128,14 +136,14 @@ class LowRankRootAddedDiagLazyTensor(AddedDiagLazyTensor):
     def inv_matmul(self, right_tensor, left_tensor=None):
         if not self.is_square:
             raise RuntimeError(
-                "inv_matmul only operates on (batches of) square (positive semi-definite) LazyTensors. "
+                "inv_matmul only operates on (batches of) square (positive semi-definite) LinearOperators. "
                 "Got a {} of size {}.".format(self.__class__.__name__, self.size())
             )
 
         if self.dim() == 2 and right_tensor.dim() == 1:
             if self.shape[-1] != right_tensor.numel():
                 raise RuntimeError(
-                    "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                         self.shape, right_tensor.shape
                     )
                 )

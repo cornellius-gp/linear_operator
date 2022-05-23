@@ -6,20 +6,20 @@ import torch
 from torch import Tensor
 
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
-from .block_linear_operator import BlockLazyTensor
+from ._linear_operator import LinearOperator
+from .block_linear_operator import BlockLinearOperator
 
 
-class BlockDiagLazyTensor(BlockLazyTensor):
+class BlockDiagLinearOperator(BlockLinearOperator):
     """
     Represents a lazy tensor that is the block diagonal of square matrices.
-    The :attr:`block_dim` attribute specifies which dimension of the base LazyTensor
+    The :attr:`block_dim` attribute specifies which dimension of the base LinearOperator
     specifies the blocks.
     For example, (with `block_dim=-3` a `k x n x n` tensor represents `k` `n x n` blocks (a `kn x kn` matrix).
     A `b x k x n x n` tensor represents `k` `b x n x n` blocks (a `b x kn x kn` batch matrix).
 
     Args:
-        :attr:`base_lazy_tensor` (LazyTensor or Tensor):
+        :attr:`base_lazy_tensor` (LinearOperator or Tensor):
             Must be at least 3 dimensional.
         :attr:`block_dim` (int):
             The dimension that specifies the blocks.
@@ -39,10 +39,10 @@ class BlockDiagLazyTensor(BlockLazyTensor):
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
-        from .triangular_linear_operator import TriangularLazyTensor
+        from .triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_lazy_tensor.cholesky(upper=upper))
-        return TriangularLazyTensor(chol, upper=upper)
+        return TriangularLinearOperator(chol, upper=upper)
 
     def _cholesky_solve(self, rhs, upper: bool = False):
         rhs = self._add_batch_dim(rhs)
@@ -116,7 +116,7 @@ class BlockDiagLazyTensor(BlockLazyTensor):
         return inv_quad_res, logdet_res
 
     @cached(name="svd")
-    def _svd(self) -> Tuple["LazyTensor", Tensor, "LazyTensor"]:
+    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
         U, S, V = self.base_lazy_tensor.svd()
         # Doesn't make much sense to sort here, o/w we lose the structure
         S = S.reshape(*S.shape[:-2], S.shape[-2:].numel())
@@ -125,7 +125,7 @@ class BlockDiagLazyTensor(BlockLazyTensor):
         V = self.__class__(V)
         return U, S, V
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LazyTensor]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals, evecs = self.base_lazy_tensor.symeig(eigenvectors=eigenvectors)
         # Doesn't make much sense to sort here, o/w we lose the structure
         evals = evals.reshape(*evals.shape[:-2], evals.shape[-2:].numel())

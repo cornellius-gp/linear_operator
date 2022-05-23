@@ -2,10 +2,10 @@ import torch
 
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 
 
-class KeOpsLazyTensor(LazyTensor):
+class KeOpsLinearOperator(LinearOperator):
     def __init__(self, x1, x2, covar_func, **params):
         super().__init__(x1, x2, covar_func=covar_func, **params)
 
@@ -33,7 +33,7 @@ class KeOpsLazyTensor(LazyTensor):
         return torch.Size(self.covar_mat.shape)
 
     def _transpose_nonbatch(self):
-        return KeOpsLazyTensor(self.x2, self.x1, self.covar_func)
+        return KeOpsLinearOperator(self.x2, self.x1, self.covar_func)
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         x1_ = self.x1[(*batch_indices, row_index)]

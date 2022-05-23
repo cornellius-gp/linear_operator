@@ -3,19 +3,19 @@
 import torch
 
 from ..utils.memoize import cached
-from .block_linear_operator import BlockLazyTensor
+from .block_linear_operator import BlockLinearOperator
 
 
-class BlockInterleavedLazyTensor(BlockLazyTensor):
+class BlockInterleavedLinearOperator(BlockLinearOperator):
     """
     Represents a lazy tensor that is the block diagonal of square matrices.
-    The :attr:`block_dim` attribute specifies which dimension of the base LazyTensor
+    The :attr:`block_dim` attribute specifies which dimension of the base LinearOperator
     specifies the blocks.
     For example, (with `block_dim=-3` a `k x n x n` tensor represents `k` `n x n` blocks (a `kn x kn` matrix).
     A `b x k x n x n` tensor represents `k` `b x n x n` blocks (a `b x kn x kn` batch matrix).
 
     Args:
-        :attr:`base_lazy_tensor` (LazyTensor or Tensor):
+        :attr:`base_lazy_tensor` (LinearOperator or Tensor):
             Must be at least 3 dimensional.
         :attr:`block_dim` (int):
             The dimension that specifies the blocks.
@@ -36,10 +36,10 @@ class BlockInterleavedLazyTensor(BlockLazyTensor):
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
-        from .triangular_linear_operator import TriangularLazyTensor
+        from .triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_lazy_tensor.cholesky(upper=upper))
-        return TriangularLazyTensor(chol, upper=upper)
+        return TriangularLinearOperator(chol, upper=upper)
 
     def _cholesky_solve(self, rhs, upper: bool = False):
         rhs = self._add_batch_dim(rhs)

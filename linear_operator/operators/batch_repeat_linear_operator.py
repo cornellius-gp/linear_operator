@@ -9,19 +9,19 @@ from torch import Tensor
 from .. import settings
 from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 
 
-class BatchRepeatLazyTensor(LazyTensor):
+class BatchRepeatLinearOperator(LinearOperator):
     def __init__(self, base_lazy_tensor, batch_repeat=torch.Size((1,))):
         if settings.debug.on():
             if not isinstance(batch_repeat, torch.Size):
                 raise RuntimeError(
                     "batch_repeat must be a torch.Size, got a {} instead".format(batch_repeat.__class__.__name__)
                 )
-            if isinstance(base_lazy_tensor, BatchRepeatLazyTensor):
+            if isinstance(base_lazy_tensor, BatchRepeatLinearOperator):
                 raise RuntimeError(
-                    "BatchRepeatLazyTensor recieved the following args:\n"
+                    "BatchRepeatLinearOperator recieved the following args:\n"
                     "base_lazy_tensor: {} (size: {}), batch_repeat: {}.".format(
                         base_lazy_tensor, base_lazy_tensor.shape, batch_repeat
                     )
@@ -38,14 +38,14 @@ class BatchRepeatLazyTensor(LazyTensor):
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
-        from .triangular_linear_operator import TriangularLazyTensor
+        from .triangular_linear_operator import TriangularLinearOperator
 
         res = self.base_lazy_tensor.cholesky(upper=upper)._tensor
         res = res.repeat(*self.batch_repeat, 1, 1)
-        return TriangularLazyTensor(res, upper=upper)
+        return TriangularLinearOperator(res, upper=upper)
 
     def _cholesky_solve(self, rhs, upper: bool = False):
-        # TODO: Figure out how to deal with this with TriangularLazyTensor if returned by _cholesky
+        # TODO: Figure out how to deal with this with TriangularLinearOperator if returned by _cholesky
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
         if rhs.shape != output_shape:
             rhs = rhs.expand(*output_shape)
@@ -89,7 +89,7 @@ class BatchRepeatLazyTensor(LazyTensor):
         num_base_batch_dims = len(self.base_lazy_tensor.batch_shape)
 
         for arg in self.base_lazy_tensor._args:
-            if torch.is_tensor(arg) or isinstance(arg, LazyTensor):
+            if torch.is_tensor(arg) or isinstance(arg, LinearOperator):
                 arg_base_shape_len = max(arg.dim() - num_base_batch_dims, 0)
                 args.append(arg.repeat(*self.batch_repeat, *[1 for _ in range(arg_base_shape_len)]))
             else:
@@ -234,19 +234,19 @@ class BatchRepeatLazyTensor(LazyTensor):
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:
             raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LazyTensors. "
+                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
                 "Got a {} of size {}.".format(self.__class__.__name__, self.size())
             )
 
         if inv_quad_rhs is not None:
             if self.dim() != inv_quad_rhs.dim():
                 raise RuntimeError(
-                    "LazyTensor (size={}) and right-hand-side Tensor (size={}) should have the same number "
+                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
                     "of dimensions.".format(self.shape, inv_quad_rhs.shape)
                 )
             elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
                 raise RuntimeError(
-                    "LazyTensor (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                         self.shape, inv_quad_rhs.shape
                     )
                 )
@@ -274,7 +274,7 @@ class BatchRepeatLazyTensor(LazyTensor):
         if len(sizes) < 3 or tuple(sizes[-2:]) != (1, 1):
             raise RuntimeError(
                 "Invalid repeat arguments {}. Currently, repeat only works to create repeated "
-                "batches of a 2D LazyTensor.".format(tuple(sizes))
+                "batches of a 2D LinearOperator.".format(tuple(sizes))
             )
 
         padded_batch_repeat = tuple(1 for _ in range(len(sizes) - 2 - len(self.batch_repeat))) + self.batch_repeat
@@ -287,14 +287,14 @@ class BatchRepeatLazyTensor(LazyTensor):
         )
 
     @cached(name="svd")
-    def _svd(self) -> Tuple["LazyTensor", Tensor, "LazyTensor"]:
+    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
         U_, S_, V_ = self.base_lazy_tensor.svd()
         U = U_.repeat(*self.batch_repeat, 1, 1)
         S = S_.repeat(*self.batch_repeat, 1)
         V = V_.repeat(*self.batch_repeat, 1, 1)
         return U, S, V
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LazyTensor]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals, evecs = self.base_lazy_tensor.symeig(eigenvectors=eigenvectors)
         evals = evals.repeat(*self.batch_repeat, 1)
         if eigenvectors:

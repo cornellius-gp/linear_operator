@@ -5,27 +5,27 @@ import unittest
 import torch
 
 import linear_operator.utils.toeplitz as toeplitz
-from linear_operator.operators import ToeplitzLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import ToeplitzLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestToeplitzLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
 
     def create_lazy_tensor(self):
         toeplitz_column = torch.tensor([4, 0.5, 0, 1], dtype=torch.float, requires_grad=True)
-        return ToeplitzLazyTensor(toeplitz_column)
+        return ToeplitzLinearOperator(toeplitz_column)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return toeplitz.sym_toeplitz(lazy_tensor.column)
 
 
-class TestToeplitzLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         toeplitz_column = torch.tensor([[2, -1, 0.5, 0.25], [4, 0.5, 0, 1]], dtype=torch.float, requires_grad=True)
-        return ToeplitzLazyTensor(toeplitz_column)
+        return ToeplitzLinearOperator(toeplitz_column)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return torch.cat(
@@ -36,14 +36,14 @@ class TestToeplitzLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         )
 
 
-class TestToeplitzLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestToeplitzLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         toeplitz_column = torch.tensor([[2, -1, 0.5, 0.25], [4, 0.5, 0, 1]], dtype=torch.float)
         toeplitz_column = toeplitz_column.repeat(3, 1, 1)
         toeplitz_column.requires_grad_(True)
-        return ToeplitzLazyTensor(toeplitz_column)
+        return ToeplitzLinearOperator(toeplitz_column)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         return torch.cat(

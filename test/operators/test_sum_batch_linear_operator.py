@@ -4,11 +4,11 @@ import unittest
 
 import torch
 
-from linear_operator.operators import NonLazyTensor, SumBatchLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import DenseLinearOperator, SumBatchLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestSumBatchLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestSumBatchLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 6
     should_test_sample = True
 
@@ -16,14 +16,14 @@ class TestSumBatchLazyTensor(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(12, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.requires_grad_(True)
-        return SumBatchLazyTensor(NonLazyTensor(blocks))
+        return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
         return blocks.sum(0)
 
 
-class TestSumBatchLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestSumBatchLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 6
     should_test_sample = True
 
@@ -31,14 +31,14 @@ class TestSumBatchLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.requires_grad_(True)
-        return SumBatchLazyTensor(NonLazyTensor(blocks))
+        return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor
         return blocks.view(2, 6, 4, 4).sum(1)
 
 
-class TestSumBatchLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestSumBatchLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 6
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False
@@ -48,7 +48,7 @@ class TestSumBatchLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
         blocks = torch.randn(2, 3, 6, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.detach_()
-        return SumBatchLazyTensor(NonLazyTensor(blocks), block_dim=1)
+        return SumBatchLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         blocks = lazy_tensor.base_lazy_tensor.tensor

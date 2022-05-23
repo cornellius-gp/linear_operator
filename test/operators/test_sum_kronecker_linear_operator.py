@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from linear_operator.operators import KroneckerProductLazyTensor, NonLazyTensor, SumKroneckerLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase
+from linear_operator.operators import DenseLinearOperator, KroneckerProductLinearOperator, SumKroneckerLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
 def kron(a, b):
@@ -18,7 +18,7 @@ def kron(a, b):
     return torch.cat(res, -2)
 
 
-class TestSumKroneckerLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestSumKroneckerLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_call_lanczos = True
     should_call_cg = False
@@ -34,10 +34,10 @@ class TestSumKroneckerLazyTensor(LazyTensorTestCase, unittest.TestCase):
         b.requires_grad_(True)
         c.requires_grad_(True)
         d.requires_grad_(True)
-        kp_lt_1 = KroneckerProductLazyTensor(NonLazyTensor(a), NonLazyTensor(b))
-        kp_lt_2 = KroneckerProductLazyTensor(NonLazyTensor(c), NonLazyTensor(d))
+        kp_lt_1 = KroneckerProductLinearOperator(DenseLinearOperator(a), DenseLinearOperator(b))
+        kp_lt_2 = KroneckerProductLinearOperator(DenseLinearOperator(c), DenseLinearOperator(d))
 
-        return SumKroneckerLazyTensor(kp_lt_1, kp_lt_2)
+        return SumKroneckerLinearOperator(kp_lt_1, kp_lt_2)
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         res1 = kron(

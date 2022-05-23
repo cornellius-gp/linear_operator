@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import NonLazyTensor
+from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.utils import approx_equal
 
 
@@ -22,7 +22,7 @@ class TestMatmulNonBatch(unittest.TestCase):
 
     def test_matmul_vec(self):
         # Forward
-        res = NonLazyTensor(self.mat).matmul(self.vec)
+        res = DenseLinearOperator(self.mat).matmul(self.vec)
         actual = self.mat_copy.matmul(self.vec_copy)
         self.assertTrue(approx_equal(res, actual))
 
@@ -35,7 +35,7 @@ class TestMatmulNonBatch(unittest.TestCase):
 
     def test_matmul_multiple_vecs(self):
         # Forward
-        res = NonLazyTensor(self.mat).matmul(self.vecs)
+        res = DenseLinearOperator(self.mat).matmul(self.vecs)
         actual = self.mat_copy.matmul(self.vecs_copy)
         self.assertTrue(approx_equal(res, actual))
 
@@ -58,7 +58,7 @@ class TestMatmulBatch(unittest.TestCase):
 
     def test_matmul_multiple_vecs(self):
         # Forward
-        res = NonLazyTensor(self.mats).matmul(self.vecs)
+        res = DenseLinearOperator(self.mats).matmul(self.vecs)
         actual = self.mats_copy.matmul(self.vecs_copy)
         self.assertTrue(approx_equal(res, actual))
 
@@ -81,7 +81,7 @@ class TestMatmulMultiBatch(unittest.TestCase):
 
     def test_matmul_multiple_vecs(self):
         # Forward
-        res = NonLazyTensor(self.mats).matmul(self.vecs)
+        res = DenseLinearOperator(self.mats).matmul(self.vecs)
         actual = self.mats_copy.matmul(self.vecs_copy)
         self.assertTrue(approx_equal(res, actual))
 

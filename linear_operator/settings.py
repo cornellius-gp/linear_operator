@@ -383,8 +383,8 @@ class _use_eval_tolerance(_feature_flag):
 
 class max_cholesky_size(_value_context):
     """
-    If the size of of a LazyTensor is less than `max_cholesky_size`,
-    then `root_decomposition` and `inv_matmul` of LazyTensor will use Cholesky rather than Lanczos/CG.
+    If the size of of a LinearOperator is less than `max_cholesky_size`,
+    then `root_decomposition` and `inv_matmul` of LinearOperator will use Cholesky rather than Lanczos/CG.
 
     (Default: 800)
     """
@@ -442,7 +442,7 @@ class memory_efficient(_feature_flag):
 
 class min_preconditioning_size(_value_context):
     """
-    If the size of of a LazyTensor is less than `min_preconditioning_size`,
+    If the size of of a LinearOperator is less than `min_preconditioning_size`,
     then we won't use pivoted Cholesky based preconditioning.
 
     (Default: 2000)

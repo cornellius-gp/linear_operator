@@ -6,7 +6,7 @@ import torch
 
 
 def apply_permutation(
-    matrix: Union["LazyTensor", torch.Tensor],  # noqa: F821
+    matrix: Union["LinearOperator", torch.Tensor],  # noqa: F821
     left_permutation: Optional[torch.Tensor] = None,
     right_permutation: Optional[torch.Tensor] = None,
 ):
@@ -30,7 +30,7 @@ def apply_permutation(
     Broadcasting rules apply.
 
     :param matrix: :math:`\mathbf K`
-    :type matrix: ~linear_operator.lazy.LazyTensor or ~torch.Tensor (... x n x n)
+    :type matrix: ~linear_operator.lazy.LinearOperator or ~torch.Tensor (... x n x n)
     :param left_permutation: vector representing :math:`\boldsymbol{\Pi}_\text{left}`
     :type left_permutation: ~torch.Tensor, optional (... x <= n)
     :param right_permutation: vector representing :math:`\boldsymbol{\Pi}_\text{right}`

@@ -5,51 +5,51 @@ import unittest
 import torch
 
 from linear_operator import lazify
-from linear_operator.operators import BatchRepeatLazyTensor, ToeplitzLazyTensor
-from linear_operator.test.linear_operator_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
+from linear_operator.operators import BatchRepeatLinearOperator, ToeplitzLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
-class TestBatchRepeatLazyTensor(LazyTensorTestCase, unittest.TestCase):
+class TestBatchRepeatLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         toeplitz_column = torch.tensor([4, 0.1, 0.05, 0.01, 0.0], dtype=torch.float)
         toeplitz_column.detach_()
-        return BatchRepeatLazyTensor(ToeplitzLazyTensor(toeplitz_column), torch.Size((3,)))
+        return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((3,)))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         evaluated = lazy_tensor.base_lazy_tensor.evaluate()
         return evaluated.repeat(*lazy_tensor.batch_repeat, 1, 1)
 
 
-class TestBatchRepeatLazyTensorNonSquare(RectangularLazyTensorTestCase, unittest.TestCase):
+class TestBatchRepeatLinearOperatorNonSquare(RectangularLinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         rand_mat = torch.randn(25, 12, dtype=torch.float)
         rand_mat.detach_()
-        return BatchRepeatLazyTensor(lazify(rand_mat), torch.Size((10,)))
+        return BatchRepeatLinearOperator(lazify(rand_mat), torch.Size((10,)))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         evaluated = lazy_tensor.base_lazy_tensor.evaluate()
         return evaluated.repeat(*lazy_tensor.batch_repeat, 1, 1)
 
 
-class TestBatchRepeatLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBatchRepeatLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_lazy_tensor(self):
         toeplitz_column = torch.tensor([[4, 0, 0, 1], [3, 0, -0.5, -1]], dtype=torch.float)
         toeplitz_column.detach_()
-        return BatchRepeatLazyTensor(ToeplitzLazyTensor(toeplitz_column), torch.Size((3,)))
-        return BatchRepeatLazyTensor(ToeplitzLazyTensor(toeplitz_column), torch.Size((3,)))
+        return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((3,)))
+        return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((3,)))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         evaluated = lazy_tensor.base_lazy_tensor.evaluate()
         return evaluated.repeat(*lazy_tensor.batch_repeat, 1, 1)
 
 
-class TestBatchRepeatLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase):
+class TestBatchRepeatLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     skip_slq_tests = True
@@ -59,7 +59,7 @@ class TestBatchRepeatLazyTensorMultiBatch(LazyTensorTestCase, unittest.TestCase)
             [[[4, 0, 0, 1], [3, 0, -0.5, -1]], [[2, 0.1, 0.01, 0.0], [3, 0, -0.1, -2]]], dtype=torch.float
         )
         toeplitz_column.detach_()
-        return BatchRepeatLazyTensor(ToeplitzLazyTensor(toeplitz_column), torch.Size((2, 3, 1, 4)))
+        return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((2, 3, 1, 4)))
 
     def evaluate_lazy_tensor(self, lazy_tensor):
         evaluated = lazy_tensor.base_lazy_tensor.evaluate()

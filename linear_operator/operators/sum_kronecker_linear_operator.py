@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from .kronecker_product_linear_operator import KroneckerProductLazyTensor
-from .sum_linear_operator import SumLazyTensor
+from .kronecker_product_linear_operator import KroneckerProductLinearOperator
+from .sum_linear_operator import SumLinearOperator
 
 
-class SumKroneckerLazyTensor(SumLazyTensor):
+class SumKroneckerLinearOperator(SumLinearOperator):
     r"""
     Returns the sum of two Kronecker product lazy tensors. Solves and log-determinants
     are computed using the eigen-decomposition of the right lazy tensor; that is,
@@ -31,7 +31,7 @@ class SumKroneckerLazyTensor(SumLazyTensor):
         lt2_inv_root_mm_lt2 = [
             rm.transpose(-1, -2).matmul(lt).matmul(rm) for rm, lt in zip(lt2_inv_roots, lt1.lazy_tensors)
         ]
-        inv_root_times_lt1 = KroneckerProductLazyTensor(*lt2_inv_root_mm_lt2).add_jitter(1.0)
+        inv_root_times_lt1 = KroneckerProductLinearOperator(*lt2_inv_root_mm_lt2).add_jitter(1.0)
         return inv_root_times_lt1
 
     def _solve(self, rhs, preconditioner=None, num_tridiag=0):
@@ -39,7 +39,7 @@ class SumKroneckerLazyTensor(SumLazyTensor):
         # root decomposition may not be trustworthy if it uses a different method than
         # root_inv_decomposition. so ensure that we call this locally
         lt2_inv_roots = [lt.root_inv_decomposition().root for lt in self.lazy_tensors[1].lazy_tensors]
-        lt2_inv_root = KroneckerProductLazyTensor(*lt2_inv_roots)
+        lt2_inv_root = KroneckerProductLinearOperator(*lt2_inv_roots)
 
         # now we compute L^{-1} M L^{-T} z
         # where M = (C^{-1/2}AC^{-1/2} \kron D^{-1/2} B D^{-1/2} + I_|C| \kron I_|D|)
@@ -56,7 +56,7 @@ class SumKroneckerLazyTensor(SumLazyTensor):
 
     def _root_decomposition(self):
         inner_mat = self._sum_formulation
-        lt2_root = KroneckerProductLazyTensor(
+        lt2_root = KroneckerProductLinearOperator(
             *[lt.root_decomposition().root for lt in self.lazy_tensors[1].lazy_tensors]
         )
         inner_mat_root = inner_mat.root_decomposition().root

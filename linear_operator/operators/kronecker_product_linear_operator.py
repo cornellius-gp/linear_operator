@@ -10,14 +10,14 @@ from torch import Tensor
 from .. import settings
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape
 from ..utils.memoize import cached
-from ._linear_operator import LazyTensor
+from ._linear_operator import LinearOperator
 from .dense_linear_operator import lazify
-from .diag_linear_operator import ConstantDiagLazyTensor, DiagLazyTensor
-from .triangular_linear_operator import TriangularLazyTensor, _TriangularLazyTensorBase
+from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
 
 
 def _kron_diag(*lts) -> Tensor:
-    """Compute diagonal of a KroneckerProductLazyTensor from the diagonals of the constituiting tensors"""
+    """Compute diagonal of a KroneckerProductLinearOperator from the diagonals of the constituiting tensors"""
     lead_diag = lts[0].diag()
     if len(lts) == 1:  # base case:
         return lead_diag
@@ -59,7 +59,7 @@ def _t_matmul(lazy_tensors, kp_shape, rhs):
     return res
 
 
-class KroneckerProductLazyTensor(LazyTensor):
+class KroneckerProductLinearOperator(LinearOperator):
     r"""
     Returns the Kronecker product of the given lazy tensors
 
@@ -71,35 +71,35 @@ class KroneckerProductLazyTensor(LazyTensor):
         try:
             lazy_tensors = tuple(lazify(lazy_tensor) for lazy_tensor in lazy_tensors)
         except TypeError:
-            raise RuntimeError("KroneckerProductLazyTensor is intended to wrap lazy tensors.")
+            raise RuntimeError("KroneckerProductLinearOperator is intended to wrap lazy tensors.")
         for prev_lazy_tensor, curr_lazy_tensor in zip(lazy_tensors[:-1], lazy_tensors[1:]):
             if prev_lazy_tensor.batch_shape != curr_lazy_tensor.batch_shape:
                 raise RuntimeError(
-                    "KroneckerProductLazyTensor expects lazy tensors with the "
+                    "KroneckerProductLinearOperator expects lazy tensors with the "
                     "same batch shapes. Got {}.".format([lv.batch_shape for lv in lazy_tensors])
                 )
         super().__init__(*lazy_tensors)
         self.lazy_tensors = lazy_tensors
 
     def __add__(self, other):
-        if isinstance(other, (KroneckerProductDiagLazyTensor, ConstantDiagLazyTensor)):
-            from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLazyTensor
+        if isinstance(other, (KroneckerProductDiagLinearOperator, ConstantDiagLinearOperator)):
+            from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 
-            return KroneckerProductAddedDiagLazyTensor(self, other)
-        if isinstance(other, KroneckerProductLazyTensor):
-            from .sum_kronecker_linear_operator import SumKroneckerLazyTensor
+            return KroneckerProductAddedDiagLinearOperator(self, other)
+        if isinstance(other, KroneckerProductLinearOperator):
+            from .sum_kronecker_linear_operator import SumKroneckerLinearOperator
 
-            return SumKroneckerLazyTensor(self, other)
-        if isinstance(other, DiagLazyTensor):
+            return SumKroneckerLinearOperator(self, other)
+        if isinstance(other, DiagLinearOperator):
             return self.add_diag(other.diag())
         return super().__add__(other)
 
     def add_diag(self, diag):
         r"""
-        Adds a diagonal to a KroneckerProductLazyTensor
+        Adds a diagonal to a KroneckerProductLinearOperator
         """
 
-        from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLazyTensor
+        from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 
         if not self.is_square:
             raise RuntimeError("add_diag only defined for square matrices")
@@ -107,30 +107,30 @@ class KroneckerProductLazyTensor(LazyTensor):
         diag_shape = diag.shape
         if len(diag_shape) == 0:
             # interpret scalar tensor as constant diag
-            diag_tensor = ConstantDiagLazyTensor(diag.unsqueeze(-1), diag_shape=self.shape[-1])
+            diag_tensor = ConstantDiagLinearOperator(diag.unsqueeze(-1), diag_shape=self.shape[-1])
         elif diag_shape[-1] == 1:
             # interpret single-trailing element as constant diag
-            diag_tensor = ConstantDiagLazyTensor(diag, diag_shape=self.shape[-1])
+            diag_tensor = ConstantDiagLinearOperator(diag, diag_shape=self.shape[-1])
         else:
             try:
                 expanded_diag = diag.expand(self.shape[:-1])
             except RuntimeError:
                 raise RuntimeError(
-                    "add_diag for LazyTensor of size {} received invalid diagonal of size {}.".format(
+                    "add_diag for LinearOperator of size {} received invalid diagonal of size {}.".format(
                         self.shape, diag_shape
                     )
                 )
-            diag_tensor = DiagLazyTensor(expanded_diag)
+            diag_tensor = DiagLinearOperator(expanded_diag)
 
-        return KroneckerProductAddedDiagLazyTensor(self, diag_tensor)
+        return KroneckerProductAddedDiagLinearOperator(self, diag_tensor)
 
     def diag(self):
         r"""
-        As :func:`torch.diag`, returns the diagonal of the matrix :math:`K` this LazyTensor represents as a vector.
+        As :func:`torch.diag`, returns the diagonal of the matrix :math:`K` this LinearOperator represents as a vector.
 
         :rtype: torch.tensor
         :return: The diagonal of :math:`K`. If :math:`K` is :math:`n \times n`, this will be a length
-            n vector. If this LazyTensor represents a batch (e.g., is :math:`b \times n \times n`), this will be a
+            n vector. If this LinearOperator represents a batch (e.g., is :math:`b \times n \times n`), this will be a
             :math:`b \times n` matrix of diagonals, one for each matrix in the batch.
         """
         if settings.debug.on():
@@ -163,7 +163,7 @@ class KroneckerProductLazyTensor(LazyTensor):
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.lazy_tensors]
-        return KroneckerProductTriangularLazyTensor(*chol_factors, upper=upper)
+        return KroneckerProductTriangularLinearOperator(*chol_factors, upper=upper)
 
     def _expand_batch(self, batch_shape):
         return self.__class__(*[lazy_tensor._expand_batch(batch_shape) for lazy_tensor in self.lazy_tensors])
@@ -198,7 +198,7 @@ class KroneckerProductLazyTensor(LazyTensor):
         perm_batch = tuple(range(len(batch_shape)))
         y = rhs.clone().expand(*batch_shape, *rhs.shape[-2:])
         for n, q in zip(tsr_shapes, self.lazy_tensors):
-            # for KroneckerProductTriangularLazyTensor this inv_matmul is very cheap
+            # for KroneckerProductTriangularLinearOperator this inv_matmul is very cheap
             y = q.inv_matmul(y.reshape(*batch_shape, n, -1))
             y = y.reshape(*batch_shape, n, n_rows // n, -1).permute(*perm_batch, -2, -3, -1)
         res = y.reshape(*batch_shape, n_rows, -1)
@@ -212,7 +212,7 @@ class KroneckerProductLazyTensor(LazyTensor):
             # TODO: make this more efficient
             evals, _ = self.diagonalization()
             evals_repeated = evals.unsqueeze(0).repeat(num_tridiag, *[1] * evals.ndim)
-            lazy_evals = DiagLazyTensor(evals_repeated)
+            lazy_evals = DiagLinearOperator(evals_repeated)
             batch_repeated_evals = lazy_evals.evaluate()
             return res, batch_repeated_evals
 
@@ -242,27 +242,27 @@ class KroneckerProductLazyTensor(LazyTensor):
 
     @cached(name="root_decomposition")
     def root_decomposition(self, method: Optional[str] = None):
-        from linear_operator.operators import RootLazyTensor
+        from linear_operator.operators import RootLinearOperator
 
         # return a dense root decomposition if the matrix is small
         if self.shape[-1] <= settings.max_cholesky_size.value():
             return super().root_decomposition(method=method)
 
         root_list = [lt.root_decomposition(method=method).root for lt in self.lazy_tensors]
-        kronecker_root = KroneckerProductLazyTensor(*root_list)
-        return RootLazyTensor(kronecker_root)
+        kronecker_root = KroneckerProductLinearOperator(*root_list)
+        return RootLinearOperator(kronecker_root)
 
     @cached(name="root_inv_decomposition")
     def root_inv_decomposition(self, method=None, initial_vectors=None, test_vectors=None):
-        from linear_operator.operators import RootLazyTensor
+        from linear_operator.operators import RootLinearOperator
 
         # return a dense root decomposition if the matrix is small
         if self.shape[-1] <= settings.max_cholesky_size.value():
             return super().root_inv_decomposition()
 
         root_list = [lt.root_inv_decomposition().root for lt in self.lazy_tensors]
-        kronecker_root = KroneckerProductLazyTensor(*root_list)
-        return RootLazyTensor(kronecker_root)
+        kronecker_root = KroneckerProductLinearOperator(*root_list)
+        return RootLinearOperator(kronecker_root)
 
     @cached(name="size")
     def _size(self):
@@ -271,21 +271,21 @@ class KroneckerProductLazyTensor(LazyTensor):
         return torch.Size((*self.lazy_tensors[0].batch_shape, left_size, right_size))
 
     @cached(name="svd")
-    def _svd(self) -> Tuple[LazyTensor, Tensor, LazyTensor]:
+    def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
         U, S, V = [], [], []
         for lt in self.lazy_tensors:
             U_, S_, V_ = lt.svd()
             U.append(U_)
             S.append(S_)
             V.append(V_)
-        S = KroneckerProductLazyTensor(*[DiagLazyTensor(S_) for S_ in S]).diag()
-        U = KroneckerProductLazyTensor(*U)
-        V = KroneckerProductLazyTensor(*V)
+        S = KroneckerProductLinearOperator(*[DiagLinearOperator(S_) for S_ in S]).diag()
+        U = KroneckerProductLinearOperator(*U)
+        V = KroneckerProductLinearOperator(*V)
         return U, S, V
 
     def _symeig(
         self, eigenvectors: bool = False, return_evals_as_lazy: bool = False
-    ) -> Tuple[Tensor, Optional[LazyTensor]]:
+    ) -> Tuple[Tensor, Optional[LinearOperator]]:
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
@@ -294,13 +294,13 @@ class KroneckerProductLazyTensor(LazyTensor):
             evals_, evecs_ = lt.symeig(eigenvectors=eigenvectors)
             evals.append(evals_)
             evecs.append(evecs_)
-        evals = KroneckerProductDiagLazyTensor(*[DiagLazyTensor(evals_) for evals_ in evals])
+        evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])
 
         if not return_evals_as_lazy:
             evals = evals.diag()
 
         if eigenvectors:
-            evecs = KroneckerProductLazyTensor(*evecs)
+            evecs = KroneckerProductLinearOperator(*evecs)
         else:
             evecs = None
         return evals, evecs
@@ -320,10 +320,12 @@ class KroneckerProductLazyTensor(LazyTensor):
         return self.__class__(*(lazy_tensor._transpose_nonbatch() for lazy_tensor in self.lazy_tensors), **self._kwargs)
 
 
-class KroneckerProductTriangularLazyTensor(KroneckerProductLazyTensor, _TriangularLazyTensorBase):
+class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _TriangularLinearOperatorBase):
     def __init__(self, *lazy_tensors, upper=False):
-        if not all(isinstance(lt, TriangularLazyTensor) for lt in lazy_tensors):
-            raise RuntimeError("Components of KroneckerProductTriangularLazyTensor must be TriangularLazyTensor.")
+        if not all(isinstance(lt, TriangularLinearOperator) for lt in lazy_tensors):
+            raise RuntimeError(
+                "Components of KroneckerProductTriangularLinearOperator must be TriangularLinearOperator."
+            )
         super().__init__(*lazy_tensors)
         self.upper = upper
 
@@ -352,41 +354,41 @@ class KroneckerProductTriangularLazyTensor(KroneckerProductLazyTensor, _Triangul
             res = self._transpose_nonbatch().inv_matmul(w)
         return res
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LazyTensor]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         raise NotImplementedError("_symeig not applicable to triangular lazy tensors")
 
 
-class KroneckerProductDiagLazyTensor(DiagLazyTensor, KroneckerProductTriangularLazyTensor):
+class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTriangularLinearOperator):
     def __init__(self, *lazy_tensors):
-        if not all(isinstance(lt, DiagLazyTensor) for lt in lazy_tensors):
-            raise RuntimeError("Components of KroneckerProductDiagLazyTensor must be DiagLazyTensor.")
-        super(KroneckerProductTriangularLazyTensor, self).__init__(*lazy_tensors)
+        if not all(isinstance(lt, DiagLinearOperator) for lt in lazy_tensors):
+            raise RuntimeError("Components of KroneckerProductDiagLinearOperator must be DiagLinearOperator.")
+        super(KroneckerProductTriangularLinearOperator, self).__init__(*lazy_tensors)
         self.upper = False
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.lazy_tensors]
-        return KroneckerProductDiagLazyTensor(*chol_factors)
+        return KroneckerProductDiagLinearOperator(*chol_factors)
 
     @property
     def _diag(self):
         return _kron_diag(*self.lazy_tensors)
 
     def _expand_batch(self, batch_shape):
-        return KroneckerProductTriangularLazyTensor._expand_batch(self, batch_shape)
+        return KroneckerProductTriangularLinearOperator._expand_batch(self, batch_shape)
 
     def _mul_constant(self, constant):
-        return DiagLazyTensor(self._diag * constant.unsqueeze(-1))
+        return DiagLinearOperator(self._diag * constant.unsqueeze(-1))
 
     def _quad_form_derivative(self, left_vecs, right_vecs):
-        return KroneckerProductTriangularLazyTensor._quad_form_derivative(self, left_vecs, right_vecs)
+        return KroneckerProductTriangularLinearOperator._quad_form_derivative(self, left_vecs, right_vecs)
 
     def sqrt(self):
         return self.__class__(*[lt.sqrt() for lt in self.lazy_tensors])
 
     def _symeig(
         self, eigenvectors: bool = False, return_evals_as_lazy: bool = False
-    ) -> Tuple[Tensor, Optional[LazyTensor]]:
+    ) -> Tuple[Tensor, Optional[LinearOperator]]:
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
@@ -395,13 +397,13 @@ class KroneckerProductDiagLazyTensor(DiagLazyTensor, KroneckerProductTriangularL
             evals_, evecs_ = lt.symeig(eigenvectors=eigenvectors)
             evals.append(evals_)
             evecs.append(evecs_)
-        evals = KroneckerProductDiagLazyTensor(*[DiagLazyTensor(evals_) for evals_ in evals])
+        evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])
 
         if not return_evals_as_lazy:
             evals = evals.diag()
 
         if eigenvectors:
-            evecs = KroneckerProductDiagLazyTensor(*evecs)
+            evecs = KroneckerProductDiagLinearOperator(*evecs)
         else:
             evecs = None
         return evals, evecs
