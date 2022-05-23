@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from . import beta_features, lazy, settings, utils
+from . import beta_features, operators, settings, utils
 from .functions import (  # Deprecated
     dsmm,
     inv_matmul,
@@ -11,13 +11,13 @@ from .functions import (  # Deprecated
     root_decomposition,
     root_inv_decomposition,
 )
-from .lazy import cat, delazify, lazify
+from .operators import cat, delazify, lazify
 
 __version__ = "0.0.1"
 
 __all__ = [
     # Submodules
-    "lazy",
+    "operators",
     "utils",
     # Functions
     "cat",

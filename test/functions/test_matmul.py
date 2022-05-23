@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.lazy import NonLazyTensor
+from linear_operator.operators import NonLazyTensor
 from linear_operator.test.utils import approx_equal
 
 

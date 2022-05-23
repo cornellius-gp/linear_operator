@@ -29,7 +29,7 @@ class RootDecomposition(Function):
         :return: :attr:`R`, such that :math:`R R^T \approx A`, and :attr:`R_inv`, such that
             :math:`R_{inv} R_{inv}^T \approx A^{-1}` (will only be populated if self.inverse = True)
         """
-        from ..lazy import lazify
+        from ..operators import lazify
 
         ctx.representation_tree = representation_tree
         ctx.device = device

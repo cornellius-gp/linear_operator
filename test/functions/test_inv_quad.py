@@ -7,7 +7,7 @@ import unittest
 import torch
 
 import linear_operator
-from linear_operator.lazy import NonLazyTensor
+from linear_operator.operators import NonLazyTensor
 
 
 class TestInvQuadNonBatch(unittest.TestCase):

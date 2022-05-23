@@ -7,7 +7,7 @@ from .. import settings
 
 
 def _solve(lazy_tsr, rhs):
-    from ..lazy import CholLazyTensor, TriangularLazyTensor
+    from ..operators import CholLazyTensor, TriangularLazyTensor
 
     if isinstance(lazy_tsr, (CholLazyTensor, TriangularLazyTensor)):
         # May want to do this for some KroneckerProductLazyTensors and possibly

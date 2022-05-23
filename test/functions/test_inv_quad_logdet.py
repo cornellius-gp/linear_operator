@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
-from linear_operator.lazy import NonLazyTensor
+from linear_operator.operators import NonLazyTensor
 from linear_operator.test.base_test_case import BaseTestCase
 
 
