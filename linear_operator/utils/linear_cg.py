@@ -321,9 +321,11 @@ def linear_cg(
         warnings.warn(
             "CG terminated in {} iterations with average residual norm {}"
             " which is larger than the tolerance of {} specified by"
-            " gpytorch.settings.cg_tolerance."
+            " linear_operator.settings.cg_tolerance."
             " If performance is affected, consider raising the maximum number of CG iterations by running code in"
-            " a gpytorch.settings.max_cg_iterations(value) context.".format(k + 1, residual_norm.mean(), tolerance),
+            " a linear_operator.settings.max_cg_iterations(value) context.".format(
+                k + 1, residual_norm.mean(), tolerance
+            ),
             NumericalWarning,
         )
 

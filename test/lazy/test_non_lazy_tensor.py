@@ -4,9 +4,9 @@ import unittest
 
 import torch
 
-import gpytorch
-from gpytorch.lazy import NonLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
+import linear_operator
+from linear_operator.lazy import NonLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase
 
 
 class TestNonLazyTensor(LazyTensorTestCase, unittest.TestCase):
@@ -24,7 +24,7 @@ class TestNonLazyTensor(LazyTensorTestCase, unittest.TestCase):
     def test_root_decomposition_exact(self):
         lazy_tensor = self.create_lazy_tensor()
         test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-        with gpytorch.settings.fast_computations(covar_root_decomposition=False):
+        with linear_operator.settings.fast_computations(covar_root_decomposition=False):
             root_approx = lazy_tensor.root_decomposition()
             res = root_approx.matmul(test_mat)
             actual = lazy_tensor.matmul(test_mat)
@@ -46,7 +46,7 @@ class TestNonLazyTensorBatch(LazyTensorTestCase, unittest.TestCase):
     def test_root_decomposition_exact(self):
         lazy_tensor = self.create_lazy_tensor()
         test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-        with gpytorch.settings.fast_computations(covar_root_decomposition=False):
+        with linear_operator.settings.fast_computations(covar_root_decomposition=False):
             root_approx = lazy_tensor.root_decomposition()
             res = root_approx.matmul(test_mat)
             actual = lazy_tensor.matmul(test_mat)

@@ -5,7 +5,7 @@ from itertools import product
 
 import torch
 
-from gpytorch.utils.getitem import _compute_getitem_size, _convert_indices_to_tensors
+from linear_operator.utils.getitem import _compute_getitem_size, _convert_indices_to_tensors
 
 
 class TestGetitem(unittest.TestCase):

@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import KroneckerProductLazyTensor, NonLazyTensor, SumKroneckerLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
+from linear_operator.lazy import KroneckerProductLazyTensor, NonLazyTensor, SumKroneckerLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase
 
 
 def kron(a, b):

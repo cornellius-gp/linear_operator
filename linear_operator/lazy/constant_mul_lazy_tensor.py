@@ -18,7 +18,7 @@ class ConstantMulLazyTensor(LazyTensor):
 
     .. note::
 
-        To element-wise multiply two lazy tensors, see :class:`gpytorch.lazy.MulLazyTensor`
+        To element-wise multiply two lazy tensors, see :class:`linear_operator.lazy.MulLazyTensor`
 
     Args:
         base_lazy_tensor (LazyTensor) or (b x n x m)): The base_lazy tensor
@@ -35,18 +35,18 @@ class ConstantMulLazyTensor(LazyTensor):
 
     Example::
 
-        >>> base_base_lazy_tensor = gpytorch.lazy.ToeplitzLazyTensor([1, 2, 3])
+        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLazyTensor([1, 2, 3])
         >>> constant = torch.tensor(1.2)
-        >>> new_base_lazy_tensor = gpytorch.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
+        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
         >>> new_base_lazy_tensor.evaluate()
         >>> # Returns:
         >>> # [[ 1.2, 2.4, 3.6 ]
         >>> #  [ 2.4, 1.2, 2.4 ]
         >>> #  [ 3.6, 2.4, 1.2 ]]
         >>>
-        >>> base_base_lazy_tensor = gpytorch.lazy.ToeplitzLazyTensor([[1, 2, 3], [2, 3, 4]])
+        >>> base_base_lazy_tensor = linear_operator.lazy.ToeplitzLazyTensor([[1, 2, 3], [2, 3, 4]])
         >>> constant = torch.tensor([1.2, 0.5])
-        >>> new_base_lazy_tensor = gpytorch.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
+        >>> new_base_lazy_tensor = linear_operator.lazy.ConstantMulLazyTensor(base_base_lazy_tensor, constant)
         >>> new_base_lazy_tensor.evaluate()
         >>> # Returns:
         >>> # [[[ 1.2, 2.4, 3.6 ]

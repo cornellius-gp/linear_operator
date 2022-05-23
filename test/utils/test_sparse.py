@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from gpytorch.utils.sparse import sparse_eye, sparse_getitem, to_sparse
+from linear_operator.utils.sparse import sparse_eye, sparse_getitem, to_sparse
 
 
 class TestSparse(unittest.TestCase):

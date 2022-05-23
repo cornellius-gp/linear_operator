@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.test.utils import approx_equal
-from gpytorch.utils.interpolation import Interpolation, left_interp, left_t_interp
+from linear_operator.test.utils import approx_equal
+from linear_operator.utils.interpolation import Interpolation, left_interp, left_t_interp
 
 
 class TestCubicInterpolation(unittest.TestCase):

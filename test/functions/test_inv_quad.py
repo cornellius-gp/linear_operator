@@ -6,8 +6,8 @@ import unittest
 
 import torch
 
-import gpytorch
-from gpytorch.lazy import NonLazyTensor
+import linear_operator
+from linear_operator.lazy import NonLazyTensor
 
 
 class TestInvQuadNonBatch(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
     def test_inv_quad_vector(self):
         # Forward pass
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vec_clone).mul(self.vec_clone).sum()
-        with gpytorch.settings.num_trace_samples(1000):
+        with linear_operator.settings.num_trace_samples(1000):
             non_lazy_tsr = NonLazyTensor(self.mat)
             res_inv_quad = non_lazy_tsr.inv_quad(self.vec)
 
@@ -55,7 +55,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
     def test_inv_quad_many_vectors(self):
         # Forward pass
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vecs_clone).mul(self.vecs_clone).sum()
-        with gpytorch.settings.num_trace_samples(1000):
+        with linear_operator.settings.num_trace_samples(1000):
             non_lazy_tsr = NonLazyTensor(self.mat)
             res_inv_quad = non_lazy_tsr.inv_quad(self.vecs)
         self.assertAlmostEqual(res_inv_quad.item(), actual_inv_quad.item(), places=1)
@@ -99,7 +99,7 @@ class TestInvQuadBatch(unittest.TestCase):
             .sum(2)
             .sum(1)
         )
-        with gpytorch.settings.num_trace_samples(2000):
+        with linear_operator.settings.num_trace_samples(2000):
             non_lazy_tsr = NonLazyTensor(self.mats)
             res_inv_quad = non_lazy_tsr.inv_quad(self.vecs)
 
@@ -149,7 +149,7 @@ class TestInvQuadMultiBatch(unittest.TestCase):
             .sum(-1)
         )
 
-        with gpytorch.settings.num_trace_samples(2000):
+        with linear_operator.settings.num_trace_samples(2000):
             non_lazy_tsr = NonLazyTensor(self.mats)
             res_inv_quad = non_lazy_tsr.inv_quad(self.vecs)
 

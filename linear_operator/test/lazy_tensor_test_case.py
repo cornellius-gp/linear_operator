@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 
 import torch
 
-import gpytorch
-from gpytorch.settings import linalg_dtypes
-from gpytorch.utils.errors import CachingError
-from gpytorch.utils.memoize import get_from_cache
+import linear_operator
+from linear_operator.settings import linalg_dtypes
+from linear_operator.utils.errors import CachingError
+from linear_operator.utils.memoize import get_from_cache
 
 from .base_test_case import BaseTestCase
 
@@ -243,16 +243,16 @@ class RectangularLazyTensorTestCase(BaseTestCase):
             res, actual = lazy_tensor[index], evaluated[index]
             self.assertAllClose(res, actual)
             index = (torch.tensor([0, 0, 1, 2]), slice(None, None, None))
-            res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (slice(None, None, None), torch.tensor([0, 0, 1, 2]))
-            res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (torch.tensor([0, 0, 1, 2]), Ellipsis)
-            res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (Ellipsis, torch.tensor([0, 0, 1, 2]))
-            res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (Ellipsis, torch.tensor([0, 0, 1, 2]), torch.tensor([0, 1, 0, 2]))
             res, actual = lazy_tensor[index], evaluated[index]
@@ -276,14 +276,14 @@ class RectangularLazyTensorTestCase(BaseTestCase):
                     torch.tensor([0, 1, 0, 2]),
                     slice(None, None, None),
                 )
-                res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+                res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (
                     *batch_index,
                     slice(None, None, None),
                     torch.tensor([0, 1, 2, 1]),
                 )
-                res, actual = gpytorch.delazify(lazy_tensor[index]), evaluated[index]
+                res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (*batch_index, slice(None, None, None), slice(None, None, None))
                 res, actual = lazy_tensor[index].evaluate(), evaluated[index]
@@ -293,7 +293,7 @@ class RectangularLazyTensorTestCase(BaseTestCase):
             res = lazy_tensor.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
             actual = evaluated.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
             self.assertAllClose(res, actual)
-            res = gpytorch.delazify(
+            res = linear_operator.delazify(
                 lazy_tensor.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
             )
             actual = evaluated.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
@@ -315,7 +315,7 @@ class RectangularLazyTensorTestCase(BaseTestCase):
         right_vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 2)
 
         deriv_custom = lazy_tensor._quad_form_derivative(left_vecs, right_vecs)
-        deriv_auto = gpytorch.lazy.LazyTensor._quad_form_derivative(lazy_tensor_clone, left_vecs, right_vecs)
+        deriv_auto = linear_operator.lazy.LazyTensor._quad_form_derivative(lazy_tensor_clone, left_vecs, right_vecs)
 
         for dc, da in zip(deriv_custom, deriv_auto):
             self.assertAllClose(dc, da)
@@ -381,9 +381,11 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
             lhs.requires_grad_(True)
             lhs_copy = lhs.clone().detach().requires_grad_(True)
 
-        _wrapped_cg = MagicMock(wraps=gpytorch.utils.linear_cg)
-        with patch("gpytorch.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
-            with gpytorch.settings.max_cholesky_size(math.inf if cholesky else 0), gpytorch.settings.cg_tolerance(1e-4):
+        _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
+        with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
+            with linear_operator.settings.max_cholesky_size(
+                math.inf if cholesky else 0
+            ), linear_operator.settings.cg_tolerance(1e-4):
                 # Perform the inv_matmul
                 if lhs is not None:
                     res = lazy_tensor.inv_matmul(rhs, lhs)
@@ -421,12 +423,14 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
             vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 3, requires_grad=True)
             vecs_copy = vecs.clone().detach().requires_grad_(True)
 
-            _wrapped_cg = MagicMock(wraps=gpytorch.utils.linear_cg)
-            with patch("gpytorch.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
-                with gpytorch.settings.num_trace_samples(256), gpytorch.settings.max_cholesky_size(
+            _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
+            with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
+                with linear_operator.settings.num_trace_samples(256), linear_operator.settings.max_cholesky_size(
                     math.inf if cholesky else 0
-                ), gpytorch.settings.cg_tolerance(1e-5):
-                    with gpytorch.settings.min_preconditioning_size(4), gpytorch.settings.max_preconditioner_size(2):
+                ), linear_operator.settings.cg_tolerance(1e-5):
+                    with linear_operator.settings.min_preconditioning_size(
+                        4
+                    ), linear_operator.settings.max_preconditioner_size(2):
                         res_inv_quad, res_logdet = lazy_tensor.inv_quad_logdet(
                             inv_quad_rhs=vecs, logdet=True, reduce_inv_quad=reduce_inv_quad
                         )
@@ -658,7 +662,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True)
 
     def test_prod(self):
-        with gpytorch.settings.fast_computations(covar_root_decomposition=False):
+        with linear_operator.settings.fast_computations(covar_root_decomposition=False):
             lazy_tensor = self.create_lazy_tensor()
             evaluated = self.evaluate_lazy_tensor(lazy_tensor)
 
@@ -668,11 +672,11 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
                 self.assertAllClose(lazy_tensor.prod(-4).evaluate(), evaluated.prod(-4), **self.tolerances["prod"])
 
     def test_root_decomposition(self, cholesky=False):
-        _wrapped_lanczos = MagicMock(wraps=gpytorch.utils.lanczos.lanczos_tridiag)
-        with patch("gpytorch.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
+        _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
+        with patch("linear_operator.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
             lazy_tensor = self.create_lazy_tensor()
             test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-            with gpytorch.settings.max_cholesky_size(math.inf if cholesky else 0):
+            with linear_operator.settings.max_cholesky_size(math.inf if cholesky else 0):
                 root_approx = lazy_tensor.root_decomposition()
                 res = root_approx.matmul(test_mat)
                 actual = lazy_tensor.matmul(test_mat)
@@ -685,11 +689,11 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
                 self.assertFalse(lanczos_mock.called)
 
     def test_diagonalization(self, symeig=False):
-        _wrapped_lanczos = MagicMock(wraps=gpytorch.utils.lanczos.lanczos_tridiag)
-        with patch("gpytorch.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
+        _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
+        with patch("linear_operator.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
             lazy_tensor = self.create_lazy_tensor()
             test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-            with gpytorch.settings.max_cholesky_size(math.inf if symeig else 0):
+            with linear_operator.settings.max_cholesky_size(math.inf if symeig else 0):
                 evals, evecs = lazy_tensor.diagonalization()
                 evecs = evecs.evaluate()
                 approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-2, -1))
@@ -708,17 +712,17 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
 
     def _test_triangular_lazy_tensor_inv_quad_logdet(self):
         # now we need to test that a second cholesky isn't being called in the inv_quad_logdet
-        with gpytorch.settings.max_cholesky_size(math.inf):
+        with linear_operator.settings.max_cholesky_size(math.inf):
             lazy_tensor = self.create_lazy_tensor()
             rootdecomp = lazy_tensor.root_decomposition()
 
-            if isinstance(rootdecomp, gpytorch.lazy.CholLazyTensor):
+            if isinstance(rootdecomp, linear_operator.lazy.CholLazyTensor):
                 chol = lazy_tensor.root_decomposition().root.clone()
-                gpytorch.utils.memoize.clear_cache_hook(lazy_tensor)
-                gpytorch.utils.memoize.add_to_cache(
+                linear_operator.utils.memoize.clear_cache_hook(lazy_tensor)
+                linear_operator.utils.memoize.add_to_cache(
                     lazy_tensor,
                     "root_decomposition",
-                    gpytorch.lazy.RootLazyTensor(chol),
+                    linear_operator.lazy.RootLazyTensor(chol),
                 )
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)
@@ -768,7 +772,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         lhs_copy = lhs.clone().detach().requires_grad_(True)
 
         # Perform forward pass
-        with gpytorch.settings.max_cg_iterations(200):
+        with linear_operator.settings.max_cg_iterations(200):
             sqrt_inv_matmul_res, inv_quad_res = lazy_tensor.sqrt_inv_matmul(rhs, lhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
@@ -806,7 +810,7 @@ class LazyTensorTestCase(RectangularLazyTensorTestCase):
         rhs_copy = rhs.clone().detach().requires_grad_(True)
 
         # Perform forward pass
-        with gpytorch.settings.max_cg_iterations(200):
+        with linear_operator.settings.max_cg_iterations(200):
             sqrt_inv_matmul_res = lazy_tensor.sqrt_inv_matmul(rhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))

@@ -18,7 +18,7 @@ def minres(matmul_closure, rhs, eps=1e-25, shifts=None, value=None, max_iter=Non
     :param float value: (default None) The multiplicative constant :math:`\alpha`. If set to None,
         then :math:`\alpha=0`.
     :param int max_iter: (default None) The maximum number of minres iterations. If set to None, then
-        uses the constant stored in :obj:`gpytorch.settings.max_cg_iterations`.
+        uses the constant stored in :obj:`linear_operator.settings.max_cg_iterations`.
     :rtype: torch.Tensor
     :return: The solves :math:`\mathbf x`. The shape will correspond to the size of `rhs` and `shifts`.
     """

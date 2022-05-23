@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 
-import gpytorch
+import linear_operator
 
 from .. import settings, utils
 from ..functions._diagonalization import Diagonalization
@@ -36,9 +36,9 @@ _TYPES_DICT = {torch.float: "float", torch.half: "half", torch.double: "double"}
 
 class LazyTensor(ABC):
     r"""
-    Base class for LazyTensors in GPyTorch.
+    Base class for LazyTensors.
 
-    In GPyTorch, nearly all covariance matrices for Gaussian processes are handled internally as some variety of
+    Nearly all covariance matrices for Gaussian processes are handled internally as some variety of
     LazyTensor. A LazyTensor is an object that represents a tensor object, similar to :class:`torch.tensor`, but
     typically differs in two ways:
 
@@ -49,34 +49,34 @@ class LazyTensor(ABC):
        the full matrix. Using the above example, performing :math:`KM=X(X^{\top}M)` requires only :math:`O(nd)` time,
        rather than the :math:`O(n^2)` time required if we were storing :math:`K` directly.
 
-    In order to define a new LazyTensor class that can be used as a covariance matrix in GPyTorch, a user must define
+    In order to define a new LazyTensor class that can be used as a covariance matrix, a user must define
     at a minimum the following methods (in each example, :math:`K` denotes the matrix that the LazyTensor represents)
 
-    * :func:`~gpytorch.lazy.LazyTensor._matmul`, which performs a matrix multiplication :math:`KM`
-    * :func:`~gpytorch.lazy.LazyTensor._size`, which returns a :class:`torch.Size` containing the dimensions of
+    * :func:`~linear_operator.lazy.LazyTensor._matmul`, which performs a matrix multiplication :math:`KM`
+    * :func:`~linear_operator.lazy.LazyTensor._size`, which returns a :class:`torch.Size` containing the dimensions of
       :math:`K`.
-    * :func:`~gpytorch.lazy.LazyTensor._transpose_nonbatch`, which returns a transposed version of the LazyTensor
+    * :func:`~linear_operator.lazy.LazyTensor._transpose_nonbatch`, which returns a transposed version of the LazyTensor
 
     In addition to these, the following methods should be implemented for maximum efficiency
 
-    * :func:`~gpytorch.lazy.LazyTensor._quad_form_derivative`, which computes the derivative of a quadratic form
+    * :func:`~linear_operator.lazy.LazyTensor._quad_form_derivative`, which computes the derivative of a quadratic form
       with the LazyTensor (e.g. :math:`d (a^T X b) / dX`).
-    * :func:`~gpytorch.lazy.LazyTensor._get_indices`, which returns a :class:`torch.Tensor` containing elements that
+    * :func:`~linear_operator.lazy.LazyTensor._get_indices`, which returns a :class:`torch.Tensor` containing elements that
       are given by various tensor indices.
-    * :func:`~gpytorch.lazy.LazyTensor._expand_batch`, which expands the batch dimensions of LazyTensors.
-    * :func:`~gpytorch.lazy.LazyTensor._check_args`, which performs error checking on the arguments supplied to the
+    * :func:`~linear_operator.lazy.LazyTensor._expand_batch`, which expands the batch dimensions of LazyTensors.
+    * :func:`~linear_operator.lazy.LazyTensor._check_args`, which performs error checking on the arguments supplied to the
       LazyTensor constructor.
 
     In addition to these, a LazyTensor *may* need to define the following functions if it does anything interesting
     with the batch dimensions (e.g. sums along them, adds additional ones, etc):
-    :func:`~gpytorch.lazy.LazyTensor._unsqueeze_batch`, :func:`~gpytorch.lazy.LazyTensor._getitem`, and
-    :func:`~gpytorch.lazy.LazyTensor._permute_batch`.
+    :func:`~linear_operator.lazy.LazyTensor._unsqueeze_batch`, :func:`~linear_operator.lazy.LazyTensor._getitem`, and
+    :func:`~linear_operator.lazy.LazyTensor._permute_batch`.
     See the documentation for these methods for details.
 
     .. note::
         The base LazyTensor class provides default implementations of many other operations in order to mimic the
         behavior of a standard tensor as closely as possible. For example, we provide default implementations of
-        :func:`~gpytorch.lazy.LazyTensor.__getitem__`, :func:`~gpytorch.lazy.LazyTensor.__add__`, etc that either
+        :func:`~linear_operator.lazy.LazyTensor.__getitem__`, :func:`~linear_operator.lazy.LazyTensor.__add__`, etc that either
         make use of other lazy tensors or exploit the functions that **must** be defined above.
 
         Rather than overriding the public methods, we recommend that you override the private versions associated
@@ -119,8 +119,8 @@ class LazyTensor(ABC):
 
         ..note::
             This method is intended to be used only internally by various Functions that support backpropagation
-            (e.g., :class:`gpytorch.functions.Matmul`). Once this method is defined, it is strongly recommended that
-            one use :func:`~gpytorch.lazy.LazyTensor.matmul` instead, which makes use of this method properly.
+            (e.g., :class:`linear_operator.functions.Matmul`). Once this method is defined, it is strongly recommended that
+            one use :func:`~linear_operator.lazy.LazyTensor.matmul` instead, which makes use of this method properly.
 
         Args:
             rhs (:obj:`torch.tensor`): the matrix :math:`M` to multiply with.
@@ -136,7 +136,7 @@ class LazyTensor(ABC):
         Returns the size of the resulting Tensor that the lazy tensor represents.
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.size`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.size`,
             which does some additional work. Calling this method directly is discouraged.
 
         Returns:
@@ -151,7 +151,7 @@ class LazyTensor(ABC):
         Implement this method, rather than transpose() or t().
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.transpose`, which
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.transpose`, which
             does some additional work. Calling this method directly is discouraged.
         """
         raise NotImplementedError(
@@ -169,7 +169,7 @@ class LazyTensor(ABC):
         in a special way (e.g. BlockDiagLazyTensor, SumBatchLazyTensor)
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.unsqueeze`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.unsqueeze`,
             which does some additional work. Calling this method directly is discouraged.
 
         Args:
@@ -203,7 +203,7 @@ class LazyTensor(ABC):
             override this method rather than __getitem__ (so that you don't have to repeat the extra work)
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.__getitem__`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.__getitem__`,
             which does some additional work. Calling this method directly is discouraged.
 
         This method has a number of restrictions on the type of arguments that are passed in to reduce
@@ -261,7 +261,7 @@ class LazyTensor(ABC):
         in a special way (e.g. BlockDiagLazyTensor, SumBatchLazyTensor)
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.unsqueeze`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.unsqueeze`,
             which does some additional work. Calling this method directly is discouraged.
         """
         components = [component.unsqueeze(dim) for component in self._args]
@@ -276,7 +276,7 @@ class LazyTensor(ABC):
         Expands along batch dimensions.
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.expand`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.expand`,
             which does some additional work. Calling this method directly is discouraged.
         """
         current_shape = torch.Size([1 for _ in range(len(batch_shape) - self.dim() + 2)] + list(self.batch_shape))
@@ -292,7 +292,7 @@ class LazyTensor(ABC):
         There will be exactly one index per dimension of the LazyTensor
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.__getitem__`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.__getitem__`,
             which does some additional work. Calling this method directly is discouraged.
 
         Args:
@@ -343,7 +343,7 @@ class LazyTensor(ABC):
 
         ..note::
             This method is intended to be used only internally by various Functions that support backpropagation.
-            For example, this method is used internally by :func:`~gpytorch.lazy.LazyTensor.inv_quad_logdet`. It is
+            For example, this method is used internally by :func:`~linear_operator.lazy.LazyTensor.inv_quad_logdet`. It is
             not likely that users will need to call this method directly.
 
         Returns:
@@ -450,7 +450,7 @@ class LazyTensor(ABC):
     def _inv_matmul_preconditioner(self):
         """
         (Optional) define a preconditioner that can be used for linear systems, but not necessarily
-        for log determinants. By default, this can call :meth:`~gpytorch.lazy.LazyTensor._preconditioner`.
+        for log determinants. By default, this can call :meth:`~linear_operator.lazy.LazyTensor._preconditioner`.
 
         Returns:
             function: a function on x which performs P^{-1}(x)
@@ -459,11 +459,11 @@ class LazyTensor(ABC):
 
         if base_precond is not None:
             return base_precond
-        elif gpytorch.beta_features.default_preconditioner.on():
+        elif linear_operator.beta_features.default_preconditioner.on():
             if hasattr(self, "_default_preconditioner_cache"):
                 U, S, V = self._default_preconditioner_cache
             else:
-                precond_basis_size = min(gpytorch.settings.max_preconditioner_size.value(), self.size(-1))
+                precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
                 random_basis = torch.randn(
                     self.batch_shape + torch.Size((self.size(-2), precond_basis_size)),
                     device=self.device,
@@ -497,11 +497,11 @@ class LazyTensor(ABC):
         Multiplies the LazyTensor by a costant.
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.mul`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.mul`,
             which does some additional work. Calling this method directly is discouraged.
 
         Returns:
-            :obj:`gpytorch.lazy.LazyTensor`
+            :obj:`linear_operator.lazy.LazyTensor`
         """
         from .constant_mul_lazy_tensor import ConstantMulLazyTensor
 
@@ -512,11 +512,11 @@ class LazyTensor(ABC):
         Multiplies the LazyTensor by a (batch of) matrices.
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.mul`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.mul`,
             which does some additional work. Calling this method directly is discouraged.
 
         Returns:
-            :obj:`gpytorch.lazy.LazyTensor`
+            :obj:`linear_operator.lazy.LazyTensor`
         """
         from .mul_lazy_tensor import MulLazyTensor
         from .non_lazy_tensor import NonLazyTensor
@@ -551,11 +551,11 @@ class LazyTensor(ABC):
         Multiply the LazyTensor across a batch dimension (supplied as a positive number).
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.prod`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.prod`,
             which does some additional work. Calling this method directly is discouraged.
 
         Returns:
-            :obj:`gpytorch.lazy.LazyTensor`
+            :obj:`linear_operator.lazy.LazyTensor`
         """
         from .mul_lazy_tensor import MulLazyTensor
         from .root_lazy_tensor import RootLazyTensor
@@ -607,7 +607,7 @@ class LazyTensor(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~gpytorch.lazy.LazyTensor.root_decomposition`, which does some additional work.
+            :func:`~linear_operator.lazy.LazyTensor.root_decomposition`, which does some additional work.
             Calling this method directly is discouraged.
 
         Returns:
@@ -642,7 +642,7 @@ class LazyTensor(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~gpytorch.lazy.LazyTensor.root_inv_decomposition`, which does some additional work.
+            :func:`~linear_operator.lazy.LazyTensor.root_inv_decomposition`, which does some additional work.
             Calling this method directly is discouraged.
 
         Returns:
@@ -685,11 +685,11 @@ class LazyTensor(ABC):
         Sum the LazyTensor across a batch dimension (supplied as a positive number).
 
         ..note::
-            This method is used internally by the related function :func:`~gpytorch.lazy.LazyTensor.sum`,
+            This method is used internally by the related function :func:`~linear_operator.lazy.LazyTensor.sum`,
             which does some additional work. Calling this method directly is discouraged.
 
         Returns:
-            :obj:`gpytorch.lazy.LazyTensor`
+            :obj:`linear_operator.lazy.LazyTensor`
         """
         from .sum_batch_lazy_tensor import SumBatchLazyTensor
 
@@ -1017,7 +1017,7 @@ class LazyTensor(ABC):
     def cpu(self):
         """
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor`: a new LazyTensor identical to ``self``, but on the CPU.
+            :obj:`~linear_operator.lazy.LazyTensor`: a new LazyTensor identical to ``self``, but on the CPU.
         """
         new_args = []
         new_kwargs = {}
@@ -1041,7 +1041,7 @@ class LazyTensor(ABC):
             device_id (:obj:`str`, optional):
                 Device ID of GPU to use.
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor`:
+            :obj:`~linear_operator.lazy.LazyTensor`:
                 a new LazyTensor identical to ``self``, but on the GPU.
         """
         new_args = []
@@ -1100,7 +1100,7 @@ class LazyTensor(ABC):
 
     def dim(self):
         """
-        Alias of :meth:`~gpytorch.lazy.LazyTensor.ndimension`
+        Alias of :meth:`~linear_operator.lazy.LazyTensor.ndimension`
         """
         return self.ndimension()
 
@@ -1391,11 +1391,11 @@ class LazyTensor(ABC):
 
         Args:
             other (:obj:`torch.tensor`): Matrix or vector to multiply with. Can be either a :obj:`torch.tensor`
-                or a :obj:`gpytorch.lazy.LazyTensor`.
+                or a :obj:`linear_operator.lazy.LazyTensor`.
 
         Returns:
             :obj:`torch.tensor`: Tensor or LazyTensor containing the result of the matrix multiplication :math:`KM`,
-            where :math:`K` is the (batched) matrix that this :obj:`gpytorch.lazy.LazyTensor` represents, and :math:`M`
+            where :math:`K` is the (batched) matrix that this :obj:`linear_operator.lazy.LazyTensor` represents, and :math:`M`
             is the (batched) matrix input to this method.
         """
         # TODO: Move this check to MatmulLazyTensor and Matmul (so we can pass the shapes through from there)
@@ -1414,12 +1414,12 @@ class LazyTensor(ABC):
 
         Args:
             other (:obj:`torch.tensor`): Matrix or vector to multiply with. Can be either a :obj:`torch.tensor`
-                or a :obj:`gpytorch.lazy.LazyTensor`.
+                or a :obj:`linear_operator.lazy.LazyTensor`.
 
         Returns:
             :obj:`torch.tensor`: Tensor or LazyTensor containing the result of the matrix multiplication :math:`MK`,
             where :math:`M` is the (batched) matrix input to this method, and :math:`K` is the (batched) matrix that
-            this :obj:`gpytorch.lazy.LazyTensor` represents.
+            this :obj:`linear_operator.lazy.LazyTensor` represents.
         """
         if other.ndim == 1:
             return self.transpose(-1, -2).matmul(other)
@@ -1437,14 +1437,14 @@ class LazyTensor(ABC):
         Multiplies the matrix by a constant, or elementwise the matrix by another matrix
 
         Args:
-            other (:obj:`torch.tensor` or :obj:`~gpytorch.lazy.LazyTensor`): constant or matrix to elementwise
+            other (:obj:`torch.tensor` or :obj:`~linear_operator.lazy.LazyTensor`): constant or matrix to elementwise
             multiply by.
 
         Returns:
-            :obj:`gpytorch.lazy.LazyTensor`: Another lazy tensor representing the result of the multiplication. if
+            :obj:`linear_operator.lazy.LazyTensor`: Another lazy tensor representing the result of the multiplication. if
             other was a constant (or batch of constants), this will likely be a
-            :obj:`gpytorch.lazy.ConstantMulLazyTensor`. If other was
-            another matrix, this will likely be a :obj:`gpytorch.lazy.MulLazyTensor`.
+            :obj:`linear_operator.lazy.ConstantMulLazyTensor`. If other was
+            another matrix, this will likely be a :obj:`linear_operator.lazy.MulLazyTensor`.
         """
         from .non_lazy_tensor import lazify
         from .zero_lazy_tensor import ZeroLazyTensor
@@ -1557,10 +1557,10 @@ class LazyTensor(ABC):
                 Controls the number of groups that are multiplied over (default: None).
 
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor`
+            :obj:`~linear_operator.lazy.LazyTensor`
 
         Example:
-            >>> lazy_tensor = gpytorch.lazy.NonLazyTensor(torch.tensor([
+            >>> lazy_tensor = linear_operator.lazy.NonLazyTensor(torch.tensor([
                     [[2, 4], [1, 2]],
                     [[1, 1], [0, -1]],
                     [[2, 1], [1, 0]],
@@ -1593,7 +1593,7 @@ class LazyTensor(ABC):
         I.e. all calls should be `lazy_tensor.repeat(<size>, 1, 1)`.
 
         Example:
-            >>> lazy_tensor = gpytorch.lazy.ToeplitzLazyTensor(torch.tensor([4. 1., 0.5]))
+            >>> lazy_tensor = linear_operator.lazy.ToeplitzLazyTensor(torch.tensor([4. 1., 0.5]))
             >>> lazy_tensor.repeat(2, 1, 1).evaluate()
             tensor([[[4.0000, 1.0000, 0.5000],
                      [1.0000, 4.0000, 1.0000],
@@ -1628,7 +1628,7 @@ class LazyTensor(ABC):
 
     def representation_tree(self):
         """
-        Returns a :obj:`gpytorch.lazy.LazyTensorRepresentationTree` tree object that recursively encodes the
+        Returns a :obj:`linear_operator.lazy.LazyTensorRepresentationTree` tree object that recursively encodes the
         representation of this lazy tensor. In particular, if the definition of this lazy tensor depends on other
         lazy tensors, the tree is an object that can be used to reconstruct the full structure of this lazy tensor,
         including all subobjects. This is used internally.
@@ -1907,10 +1907,10 @@ class LazyTensor(ABC):
                 Which dimension is being summed over (default=None)
 
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor` or Tensor.
+            :obj:`~linear_operator.lazy.LazyTensor` or Tensor.
 
         Example:
-            >>> lazy_tensor = gpytorch.lazy.NonLazyTensor(torch.tensor([
+            >>> lazy_tensor = linear_operator.lazy.NonLazyTensor(torch.tensor([
                     [[2, 4], [1, 2]],
                     [[1, 1], [0, -1]],
                     [[2, 1], [1, 0]],
@@ -1949,11 +1949,11 @@ class LazyTensor(ABC):
         Does NOT sort the sigular values.
 
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor`:
+            :obj:`~linear_operator.lazy.LazyTensor`:
                 The left singular vectors (`U`).
             :obj:`torch.Tensor`:
                 The singular values (`S`).
-            :obj:`~gpytorch.lazy.LazyTensor`:
+            :obj:`~linear_operator.lazy.LazyTensor`:
                 The right singular vectors (`V`).
         """
         return self._svd()
@@ -1970,7 +1970,7 @@ class LazyTensor(ABC):
         Returns:
             :obj:`torch.Tensor`:
                 The eigenvalues.
-            :obj:`~gpytorch.lazy.LazyTensor`:
+            :obj:`~linear_operator.lazy.LazyTensor`:
                 The eigenvectors. If `eigenvectors=False`, this is None. Otherwise, this LazyTensor
                 contains the orthonormal eigenvectors of the matrix.
         """
@@ -1991,7 +1991,7 @@ class LazyTensor(ABC):
             device (:obj: `torch.device`): Which device to use (GPU or CPU).
             dtype (:obj: `torch.dtype`): Which dtype to use (double, float, or half).
         Returns:
-            :obj:`~gpytorch.lazy.LazyTensor`: New LazyTensor identical to self on specified device
+            :obj:`~linear_operator.lazy.LazyTensor`: New LazyTensor identical to self on specified device
         """
 
         device, dtype = _to_helper(*args, **kwargs)
@@ -2012,7 +2012,7 @@ class LazyTensor(ABC):
 
     def t(self):
         """
-        Alias of :meth:`~gpytorch.lazy.LazyTensor.transpose` for 2D LazyTensor.
+        Alias of :meth:`~linear_operator.lazy.LazyTensor.transpose` for 2D LazyTensor.
         (Tranposes the two dimensions.)
         """
         if self.ndimension() != 2:
@@ -2024,7 +2024,7 @@ class LazyTensor(ABC):
         Transpose the dimensions `dim1` and `dim2` of the LazyTensor.
 
         Example:
-            >>> lazy_tensor = gpytorch.lazy.NonLazyTensor(torch.randn(3, 5))
+            >>> lazy_tensor = linear_operator.lazy.NonLazyTensor(torch.randn(3, 5))
             >>> lazy_tensor.transpose(0, 1)
         """
         ndimension = self.ndimension()
@@ -2146,15 +2146,15 @@ class LazyTensor(ABC):
 
     def __add__(self, other):
         """
-        Return a :obj:`gpytorch.lazy.LazyTensor` that represents the sum of this lazy tensor and another matrix
+        Return a :obj:`linear_operator.lazy.LazyTensor` that represents the sum of this lazy tensor and another matrix
         or lazy tensor.
 
         Args:
-            :attr:`other` (:obj:`torch.tensor` or :obj:`gpytorch.lazy.LazyTensor`):
+            :attr:`other` (:obj:`torch.tensor` or :obj:`linear_operator.lazy.LazyTensor`):
                 Matrix to add to this one.
 
         Returns:
-            :obj:`gpytorch.lazy.SumLazyTensor`:
+            :obj:`linear_operator.lazy.SumLazyTensor`:
                 A sum lazy tensor representing the sum of this lazy tensor and other.
         """
         from torch import Tensor
@@ -2183,15 +2183,15 @@ class LazyTensor(ABC):
 
     def __div__(self, other):
         """
-        Return a :obj:`gpytorch.lazy.LazyTensor` that represents the product of this lazy tensor and
+        Return a :obj:`linear_operator.lazy.LazyTensor` that represents the product of this lazy tensor and
         the elementwise reciprocal of another matrix or lazy tensor.
 
         Args:
-            :attr:`other` (:obj:`torch.tensor` or :obj:`gpytorch.lazy.LazyTensor`):
+            :attr:`other` (:obj:`torch.tensor` or :obj:`linear_operator.lazy.LazyTensor`):
                 Matrix to divide this one by.
 
         Returns:
-            :obj:`gpytorch.lazy.MulLazyTensor`:
+            :obj:`linear_operator.lazy.MulLazyTensor`:
                 Result of division.
         """
         from .zero_lazy_tensor import ZeroLazyTensor
@@ -2204,7 +2204,7 @@ class LazyTensor(ABC):
     def __getitem__(self, index):
         """
         Supports subindexing of the matrix this LazyTensor represents. This may return either another
-        :obj:`gpytorch.lazy.LazyTensor` or a :obj:`torch.tensor` depending on the exact implementation.
+        :obj:`linear_operator.lazy.LazyTensor` or a :obj:`torch.tensor` depending on the exact implementation.
         """
         ndimension = self.ndimension()
 
@@ -2283,7 +2283,7 @@ class LazyTensor(ABC):
             expected_shape = _compute_getitem_size(self, index)
             if expected_shape != res.shape:
                 raise RuntimeError(
-                    "{}.__getitem__ failed! Expected a final shape of size {}, got {}. This is a bug with GPyTorch, "
+                    "{}.__getitem__ failed! Expected a final shape of size {}, got {}. This is a bug with LinearOperator, "
                     "or your custom LazyTensor.".format(self.__class__.__name__, expected_shape, res.shape)
                 )
 
@@ -2304,7 +2304,7 @@ class LazyTensor(ABC):
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional["LazyTensor"]]:
         """Method that allows implementing special-cased symeig computation. Should not be called directly"""
-        from gpytorch.lazy.non_lazy_tensor import NonLazyTensor
+        from linear_operator.lazy.non_lazy_tensor import NonLazyTensor
 
         if settings.verbose_linalg.on():
             settings.verbose_linalg.logger.debug(f"Running symeig on a matrix of size {self.shape}.")

@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import MatmulLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
+from linear_operator.lazy import MatmulLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
 
 
 class TestMatmulLazyTensor(LazyTensorTestCase, unittest.TestCase):

@@ -134,7 +134,7 @@ class _fast_covar_root_decomposition(_feature_flag):
         Setting this to False will compute a complete Cholesky decomposition of covariance matrices.
         This may be infeasible for GPs with structure covariance matrices.
 
-    See also: :class:`gpytorch.settings.max_root_decomposition_size` (to control the
+    See also: :class:`linear_operator.settings.max_root_decomposition_size` (to control the
     size of the low rank decomposition used).
     """
 
@@ -158,7 +158,7 @@ class _fast_log_prob(_feature_flag):
         Setting this to False will compute a complete Cholesky decomposition of covariance matrices.
         This may be infeasible for GPs with structure covariance matrices.
 
-    See also: :class:`gpytorch.settings.num_trace_samples` (to control the
+    See also: :class:`linear_operator.settings.num_trace_samples` (to control the
     stochasticity of the fast `log_prob` estimates).
 
     .. _GPyTorch: Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration:
@@ -265,9 +265,9 @@ class fast_computations:
     Setting any of them to False will use exact computations instead.
 
     See also:
-        * :class:`gpytorch.settings.max_root_decomposition_size`
+        * :class:`linear_operator.settings.max_root_decomposition_size`
             (to control the size of the low rank decomposition used)
-        * :class:`gpytorch.settings.num_trace_samples`
+        * :class:`linear_operator.settings.num_trace_samples`
             (to control the stochasticity of the fast `log_prob` estimates)
 
     .. _GPyTorch Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration:
@@ -488,14 +488,14 @@ class skip_logdet_forward(_feature_flag):
     .. warning:
 
         ADVANCED FEATURE. Use this feature ONLY IF you're using
-        `gpytorch.mlls.MarginalLogLikelihood` as loss functions for optimizing
+        `linear_operator.mlls.MarginalLogLikelihood` as loss functions for optimizing
         hyperparameters/variational parameters.  DO NOT use this feature if you
         need accurate estimates of the MLL (i.e. for model selection, MCMC,
         second order optimizaiton methods, etc.)
 
     This feature does not affect the gradients returned by
-    :meth:`gpytorch.distributions.MultivariateNormal.log_prob`
-    (used by `gpytorch.mlls.MarginalLogLikelihood`).
+    :meth:`linear_operator.distributions.MultivariateNormal.log_prob`
+    (used by `linear_operator.mlls.MarginalLogLikelihood`).
     The gradients remain unbiased estimates, and therefore can be used with SGD.
     However, the actual likelihood value returned by the forward
     pass will skip certain computations (i.e. the logdet computation), and will therefore

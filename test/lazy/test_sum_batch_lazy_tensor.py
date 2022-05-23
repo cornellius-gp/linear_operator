@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import NonLazyTensor, SumBatchLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
+from linear_operator.lazy import NonLazyTensor, SumBatchLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase
 
 
 class TestSumBatchLazyTensor(LazyTensorTestCase, unittest.TestCase):

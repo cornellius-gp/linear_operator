@@ -4,9 +4,9 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import ToeplitzLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
-from gpytorch.utils.toeplitz import sym_toeplitz
+from linear_operator.lazy import ToeplitzLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase
+from linear_operator.utils.toeplitz import sym_toeplitz
 
 
 class TestConstantMulLazyTensor(LazyTensorTestCase, unittest.TestCase):

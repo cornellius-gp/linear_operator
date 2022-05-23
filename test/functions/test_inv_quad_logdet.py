@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import torch
 
-import gpytorch
-from gpytorch.lazy import NonLazyTensor
-from gpytorch.test.base_test_case import BaseTestCase
+import linear_operator
+from linear_operator.lazy import NonLazyTensor
+from linear_operator.test.base_test_case import BaseTestCase
 
 
 class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
@@ -42,14 +42,16 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
                 actual_logdet = logdets.squeeze()
 
         # Compute values with LazyTensor
-        _wrapped_cg = MagicMock(wraps=gpytorch.utils.linear_cg)
-        with gpytorch.settings.num_trace_samples(2000), gpytorch.settings.max_cholesky_size(
+        _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
+        with linear_operator.settings.num_trace_samples(2000), linear_operator.settings.max_cholesky_size(
             0
-        ), gpytorch.settings.cg_tolerance(1e-5), gpytorch.settings.skip_logdet_forward(improper_logdet), patch(
-            "gpytorch.utils.linear_cg", new=_wrapped_cg
-        ) as linear_cg_mock, gpytorch.settings.min_preconditioning_size(
+        ), linear_operator.settings.cg_tolerance(1e-5), linear_operator.settings.skip_logdet_forward(
+            improper_logdet
+        ), patch(
+            "linear_operator.utils.linear_cg", new=_wrapped_cg
+        ) as linear_cg_mock, linear_operator.settings.min_preconditioning_size(
             0
-        ), gpytorch.settings.max_preconditioner_size(
+        ), linear_operator.settings.max_preconditioner_size(
             30
         ):
             lazy_tensor = NonLazyTensor(mat)

@@ -5,8 +5,8 @@ import unittest
 import torch
 from scipy.stats import ortho_group
 
-from gpytorch.test.utils import approx_equal
-from gpytorch.utils.lanczos import lanczos_tridiag
+from linear_operator.test.utils import approx_equal
+from linear_operator.utils.lanczos import lanczos_tridiag
 
 
 class TestLanczos(unittest.TestCase):

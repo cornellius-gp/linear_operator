@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import DiagLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase
+from linear_operator.lazy import DiagLazyTensor
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase
 
 
 class TestDiagLazyTensor(LazyTensorTestCase, unittest.TestCase):

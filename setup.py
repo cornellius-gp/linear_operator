@@ -22,7 +22,7 @@ def find_version(*file_paths):
 
 
 readme = open("README.md").read()
-version = find_version("gpytorch", "__init__.py")
+version = find_version("linear_operator", "__init__.py")
 
 
 torch_min = "1.9"
@@ -55,7 +55,6 @@ setup(
     long_description=readme,
     long_description_content_type="text/markdown",
     author="Geoff Pleiss",
-    url="https://gpytorch.ai",
     author_email="gpleiss@gmail.com",
     project_urls={
         "Documentation": "https://linear_operator.readthedocs.io",

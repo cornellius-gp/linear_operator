@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-import gpytorch
+import linear_operator
 
 
 class TestDSMM(unittest.TestCase):
@@ -14,7 +14,7 @@ class TestDSMM(unittest.TestCase):
         sparse = torch.sparse.FloatTensor(i, v, torch.Size([2, 3]))
         dense = torch.randn(3, 3)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.mm(sparse.to_dense(), dense)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -24,7 +24,7 @@ class TestDSMM(unittest.TestCase):
         sparse = torch.sparse.FloatTensor(i, v, torch.Size([2, 2, 3]))
         dense = torch.randn(2, 3, 3)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -36,7 +36,7 @@ class TestDSMM(unittest.TestCase):
         sparse = torch.sparse.FloatTensor(i, v, torch.Size([2, 2, 2, 3]))
         dense = torch.randn(2, 2, 3, 3)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -48,7 +48,7 @@ class TestDSMM(unittest.TestCase):
         dense_copy = dense.clone().detach().requires_grad_(True)
         grad_output = torch.randn(2, 4)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         res.backward(grad_output)
         actual = torch.mm(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
@@ -62,7 +62,7 @@ class TestDSMM(unittest.TestCase):
         dense_copy = dense.clone().detach().requires_grad_(True)
         grad_output = torch.randn(2, 2, 4)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         res.backward(grad_output)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
@@ -78,7 +78,7 @@ class TestDSMM(unittest.TestCase):
         dense_copy = dense.clone().detach().requires_grad_(True)
         grad_output = torch.randn(2, 2, 2, 4)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         res.backward(grad_output)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
@@ -91,7 +91,7 @@ class TestDSMM(unittest.TestCase):
         dense = torch.randn(4, 2, 3, 4, requires_grad=True)
         dense_copy = dense.clone().detach().requires_grad_(True)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -106,7 +106,7 @@ class TestDSMM(unittest.TestCase):
         dense = torch.randn(4, 2, 3, 4, requires_grad=True)
         dense_copy = dense.clone().detach().requires_grad_(True)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -122,7 +122,7 @@ class TestDSMM(unittest.TestCase):
         dense = torch.randn(3, 4, requires_grad=True)
         dense_copy = dense.clone().detach().requires_grad_(True)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         self.assertLess(torch.norm(res - actual), 1e-5)
 
@@ -138,7 +138,7 @@ class TestDSMM(unittest.TestCase):
         dense = torch.randn(1, 3, 4, requires_grad=True)
         dense_copy = dense.clone().detach().requires_grad_(True)
 
-        res = gpytorch.dsmm(sparse, dense)
+        res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         self.assertLess(torch.norm(res - actual), 1e-5)
 

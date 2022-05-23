@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import LowRankRootLazyTensor
-from gpytorch.test.lazy_tensor_test_case import RectangularLazyTensorTestCase
+from linear_operator.lazy import LowRankRootLazyTensor
+from linear_operator.test.lazy_tensor_test_case import RectangularLazyTensorTestCase
 
 
 class TestLowRankRootLazyTensor(RectangularLazyTensorTestCase, unittest.TestCase):

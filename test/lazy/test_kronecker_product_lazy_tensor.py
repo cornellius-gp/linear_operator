@@ -4,8 +4,13 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import DiagLazyTensor, KroneckerProductDiagLazyTensor, KroneckerProductLazyTensor, NonLazyTensor
-from gpytorch.test.lazy_tensor_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
+from linear_operator.lazy import (
+    DiagLazyTensor,
+    KroneckerProductDiagLazyTensor,
+    KroneckerProductLazyTensor,
+    NonLazyTensor,
+)
+from linear_operator.test.lazy_tensor_test_case import LazyTensorTestCase, RectangularLazyTensorTestCase
 
 from .test_diag_lazy_tensor import TestDiagLazyTensor
 

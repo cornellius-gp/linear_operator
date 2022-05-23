@@ -242,7 +242,7 @@ class KroneckerProductLazyTensor(LazyTensor):
 
     @cached(name="root_decomposition")
     def root_decomposition(self, method: Optional[str] = None):
-        from gpytorch.lazy import RootLazyTensor
+        from linear_operator.lazy import RootLazyTensor
 
         # return a dense root decomposition if the matrix is small
         if self.shape[-1] <= settings.max_cholesky_size.value():
@@ -254,7 +254,7 @@ class KroneckerProductLazyTensor(LazyTensor):
 
     @cached(name="root_inv_decomposition")
     def root_inv_decomposition(self, method=None, initial_vectors=None, test_vectors=None):
-        from gpytorch.lazy import RootLazyTensor
+        from linear_operator.lazy import RootLazyTensor
 
         # return a dense root decomposition if the matrix is small
         if self.shape[-1] <= settings.max_cholesky_size.value():

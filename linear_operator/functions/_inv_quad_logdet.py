@@ -87,7 +87,7 @@ class InvQuadLogdet(Function):
 
                 warnings.warn(
                     "The deterministic probes feature is now deprecated. "
-                    "See https://github.com/cornellius-gp/gpytorch/pull/1836.",
+                    "See https://github.com/cornellius-gp/linear_operator/pull/1836.",
                     DeprecationWarning,
                 )
                 base_samples = settings.deterministic_probes.probe_vectors

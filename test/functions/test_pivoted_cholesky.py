@@ -4,10 +4,10 @@ import unittest
 
 import torch
 
-from gpytorch.functions import pivoted_cholesky
-from gpytorch.test.base_test_case import BaseTestCase
-from gpytorch.utils.cholesky import psd_safe_cholesky
-from gpytorch.utils.permutation import apply_permutation, inverse_permutation
+from linear_operator.functions import pivoted_cholesky
+from linear_operator.test.base_test_case import BaseTestCase
+from linear_operator.utils.cholesky import psd_safe_cholesky
+from linear_operator.utils.permutation import apply_permutation, inverse_permutation
 
 
 def _ensure_symmetric_grad(grad):

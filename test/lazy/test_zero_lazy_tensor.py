@@ -4,8 +4,8 @@ import unittest
 
 import torch
 
-from gpytorch.lazy import ZeroLazyTensor
-from gpytorch.test.utils import approx_equal
+from linear_operator.lazy import ZeroLazyTensor
+from linear_operator.test.utils import approx_equal
 
 
 class TestZeroLazyTensor(unittest.TestCase):

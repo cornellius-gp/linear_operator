@@ -4,9 +4,9 @@ import unittest
 
 import torch
 
-import gpytorch
-from gpytorch.test.base_test_case import BaseTestCase
-from gpytorch.utils.minres import minres
+import linear_operator
+from linear_operator.test.base_test_case import BaseTestCase
+from linear_operator.utils.minres import minres
 
 
 class TestMinres(BaseTestCase, unittest.TestCase):
@@ -25,7 +25,7 @@ class TestMinres(BaseTestCase, unittest.TestCase):
         if shifts is not None:
             shifts = shifts.type_as(rhs)
 
-        with gpytorch.settings.minres_tolerance(1e-6):
+        with linear_operator.settings.minres_tolerance(1e-6):
             solves = minres(matrix, rhs=rhs, value=-1, shifts=shifts)
 
         # Make sure that we're not getting weird batch dim effects

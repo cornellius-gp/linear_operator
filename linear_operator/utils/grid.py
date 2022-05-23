@@ -19,7 +19,7 @@ class ScaleToBounds(torch.nn.Module):
 
     Example:
         >>> train_x = torch.randn(10, 5)
-        >>> module = gpytorch.utils.grid.ScaleToBounds(lower_bound=-1., upper_bound=1.)
+        >>> module = linear_operator.utils.grid.ScaleToBounds(lower_bound=-1., upper_bound=1.)
         >>>
         >>> module.train()
         >>> scaled_train_x = module(train_x)  # Data should be between -0.95 and 0.95
@@ -55,7 +55,7 @@ class ScaleToBounds(torch.nn.Module):
 
 def scale_to_bounds(x, lower_bound, upper_bound):
     """
-    DEPRECATRED: Use :obj:`~gpytorch.utils.grid.ScaleToBounds` instead.
+    DEPRECATRED: Use :obj:`~linear_operator.utils.grid.ScaleToBounds` instead.
 
     :param x: the input data
     :type x: torch.Tensor (... x n x d)
@@ -65,7 +65,8 @@ def scale_to_bounds(x, lower_bound, upper_bound):
     :rtype: torch.Tensor (... x n x d)
     """
     warnings.warn(
-        "The `scale_to_bounds` method is deprecated. Use the `gpytorch.utils.grid.ScaleToBounds` module instead.",
+        "The `scale_to_bounds` method is deprecated. Use the "
+        "`linear_operator.utils.grid.ScaleToBounds` module instead.",
         DeprecationWarning,
     )
     # Scale features so they fit inside grid bounds
