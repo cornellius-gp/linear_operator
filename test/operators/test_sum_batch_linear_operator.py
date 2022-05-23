@@ -12,14 +12,14 @@ class TestSumBatchLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 6
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(12, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.requires_grad_(True)
         return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         return blocks.sum(0)
 
 
@@ -27,14 +27,14 @@ class TestSumBatchLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase)
     seed = 6
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.requires_grad_(True)
         return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         return blocks.view(2, 6, 4, 4).sum(1)
 
 
@@ -44,14 +44,14 @@ class TestSumBatchLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Test
     should_test_sample = False
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(2, 3, 6, 4, 4)
         blocks = blocks.transpose(-1, -2).matmul(blocks)
         blocks.detach_()
         return SumBatchLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         return blocks.sum(-3)
 
 

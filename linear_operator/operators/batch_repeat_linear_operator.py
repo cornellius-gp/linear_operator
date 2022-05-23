@@ -13,34 +13,34 @@ from ._linear_operator import LinearOperator
 
 
 class BatchRepeatLinearOperator(LinearOperator):
-    def __init__(self, base_lazy_tensor, batch_repeat=torch.Size((1,))):
+    def __init__(self, base_linear_op, batch_repeat=torch.Size((1,))):
         if settings.debug.on():
             if not isinstance(batch_repeat, torch.Size):
                 raise RuntimeError(
                     "batch_repeat must be a torch.Size, got a {} instead".format(batch_repeat.__class__.__name__)
                 )
-            if isinstance(base_lazy_tensor, BatchRepeatLinearOperator):
+            if isinstance(base_linear_op, BatchRepeatLinearOperator):
                 raise RuntimeError(
                     "BatchRepeatLinearOperator recieved the following args:\n"
-                    "base_lazy_tensor: {} (size: {}), batch_repeat: {}.".format(
-                        base_lazy_tensor, base_lazy_tensor.shape, batch_repeat
+                    "base_linear_op: {} (size: {}), batch_repeat: {}.".format(
+                        base_linear_op, base_linear_op.shape, batch_repeat
                     )
                 )
 
         # Are we adding batch dimensions to the lazy tensor?
-        # If so, we'll unsqueeze the base_lazy_tensor so it has the same number of dimensions
-        for _ in range(len(batch_repeat) + 2 - base_lazy_tensor.dim()):
-            base_lazy_tensor = base_lazy_tensor.unsqueeze(0)
+        # If so, we'll unsqueeze the base_linear_op so it has the same number of dimensions
+        for _ in range(len(batch_repeat) + 2 - base_linear_op.dim()):
+            base_linear_op = base_linear_op.unsqueeze(0)
 
-        super().__init__(base_lazy_tensor, batch_repeat=batch_repeat)
-        self.base_lazy_tensor = base_lazy_tensor
+        super().__init__(base_linear_op, batch_repeat=batch_repeat)
+        self.base_linear_op = base_linear_op
         self.batch_repeat = batch_repeat
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
         from .triangular_linear_operator import TriangularLinearOperator
 
-        res = self.base_lazy_tensor.cholesky(upper=upper)._tensor
+        res = self.base_linear_op.cholesky(upper=upper)._tensor
         res = res.repeat(*self.batch_repeat, 1, 1)
         return TriangularLinearOperator(res, upper=upper)
 
@@ -51,7 +51,7 @@ class BatchRepeatLinearOperator(LinearOperator):
             rhs = rhs.expand(*output_shape)
 
         rhs = self._move_repeat_batches_to_columns(rhs, output_shape)
-        res = self.base_lazy_tensor._cholesky_solve(rhs, upper=upper)
+        res = self.base_linear_op._cholesky_solve(rhs, upper=upper)
         res = self._move_repeat_batches_back(res, output_shape)
         return res
 
@@ -63,40 +63,40 @@ class BatchRepeatLinearOperator(LinearOperator):
         return batch_repeat
 
     def _expand_batch(self, batch_shape):
-        padding_dims = torch.Size(tuple(1 for _ in range(max(len(batch_shape) + 2 - self.base_lazy_tensor.dim(), 0))))
-        current_batch_shape = padding_dims + self.base_lazy_tensor.batch_shape
+        padding_dims = torch.Size(tuple(1 for _ in range(max(len(batch_shape) + 2 - self.base_linear_op.dim(), 0))))
+        current_batch_shape = padding_dims + self.base_linear_op.batch_shape
         return self.__class__(
-            self.base_lazy_tensor, batch_repeat=self._compute_batch_repeat_size(current_batch_shape, batch_shape)
+            self.base_linear_op, batch_repeat=self._compute_batch_repeat_size(current_batch_shape, batch_shape)
         )
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         # First remove any new batch indices that were added - they aren't necessary
-        num_true_batch_indices = self.base_lazy_tensor.dim() - 2
+        num_true_batch_indices = self.base_linear_op.dim() - 2
         batch_indices = batch_indices[len(batch_indices) - num_true_batch_indices :]
 
         # Now adjust the indices batch_indices that were repeated
         batch_indices = [
-            batch_index.fmod(size) for batch_index, size in zip(batch_indices, self.base_lazy_tensor.batch_shape)
+            batch_index.fmod(size) for batch_index, size in zip(batch_indices, self.base_linear_op.batch_shape)
         ]
 
         # Now call the sub _get_indices method
-        res = self.base_lazy_tensor._get_indices(row_index, col_index, *batch_indices)
+        res = self.base_linear_op._get_indices(row_index, col_index, *batch_indices)
         return res
 
     def _getitem(self, row_index, col_index, *batch_indices):
         args = []
-        kwargs = self.base_lazy_tensor._kwargs
-        num_base_batch_dims = len(self.base_lazy_tensor.batch_shape)
+        kwargs = self.base_linear_op._kwargs
+        num_base_batch_dims = len(self.base_linear_op.batch_shape)
 
-        for arg in self.base_lazy_tensor._args:
+        for arg in self.base_linear_op._args:
             if torch.is_tensor(arg) or isinstance(arg, LinearOperator):
                 arg_base_shape_len = max(arg.dim() - num_base_batch_dims, 0)
                 args.append(arg.repeat(*self.batch_repeat, *[1 for _ in range(arg_base_shape_len)]))
             else:
                 args.append(arg)
 
-        new_lazy_tensor = self.base_lazy_tensor.__class__(*args, **kwargs)
-        return new_lazy_tensor._getitem(row_index, col_index, *batch_indices)
+        new_linear_op = self.base_linear_op.__class__(*args, **kwargs)
+        return new_linear_op._getitem(row_index, col_index, *batch_indices)
 
     def _matmul(self, rhs):
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
@@ -107,12 +107,12 @@ class BatchRepeatLinearOperator(LinearOperator):
                 rhs = rhs.expand(*output_shape)
 
             rhs = self._move_repeat_batches_to_columns(rhs, output_shape)
-            res = self.base_lazy_tensor._matmul(rhs)
+            res = self.base_linear_op._matmul(rhs)
             res = self._move_repeat_batches_back(res, output_shape)
             return res
         else:
             # otherwise, we will rely on base tensor broadcasting
-            res = self.base_lazy_tensor._matmul(rhs)
+            res = self.base_linear_op._matmul(rhs)
             if res.shape != output_shape:
                 res = res.expand(*output_shape)
 
@@ -129,8 +129,8 @@ class BatchRepeatLinearOperator(LinearOperator):
             padded_base_batch_shape, batch_repeat = self.__batch_move_memo
             del self.__batch_move_memo
         else:
-            padding_dims = torch.Size(tuple(1 for _ in range(max(len(output_shape) - self.base_lazy_tensor.dim(), 0))))
-            padded_base_batch_shape = padding_dims + self.base_lazy_tensor.batch_shape
+            padding_dims = torch.Size(tuple(1 for _ in range(max(len(output_shape) - self.base_linear_op.dim(), 0))))
+            padded_base_batch_shape = padding_dims + self.base_linear_op.batch_shape
             batch_repeat = self._compute_batch_repeat_size(padded_base_batch_shape, output_shape[:-2])
 
         # Now we have to move the columns back to their original repeat dimensions
@@ -149,10 +149,10 @@ class BatchRepeatLinearOperator(LinearOperator):
         """
         Takes a rb x m x n tensor, and moves the batches associated with repeating
         So that the tensor is now b x m x nr.
-        This allows us to use the base_lazy_tensor routines.
+        This allows us to use the base_linear_op routines.
         """
-        padding_dims = torch.Size(tuple(1 for _ in range(max(len(output_shape) - self.base_lazy_tensor.dim(), 0))))
-        padded_base_batch_shape = padding_dims + self.base_lazy_tensor.batch_shape
+        padding_dims = torch.Size(tuple(1 for _ in range(max(len(output_shape) - self.base_linear_op.dim(), 0))))
+        padded_base_batch_shape = padding_dims + self.base_linear_op.batch_shape
         batch_repeat = self._compute_batch_repeat_size(padded_base_batch_shape, output_shape[:-2])
 
         # Reshape batch_matrix so that each batch dimension is split in two:
@@ -173,14 +173,14 @@ class BatchRepeatLinearOperator(LinearOperator):
         repeat_dims = range(0, len(batch_repeat) * 2, 2)
         batch_dims = range(1, len(batch_repeat) * 2, 2)
         batch_matrix = batch_matrix.permute(*batch_dims, -2, -1, *repeat_dims).contiguous()
-        batch_matrix = batch_matrix.view(*self.base_lazy_tensor.batch_shape, output_shape[-2], -1)
+        batch_matrix = batch_matrix.view(*self.base_linear_op.batch_shape, output_shape[-2], -1)
 
         self.__batch_move_memo = output_shape, padded_base_batch_shape, batch_repeat
         return batch_matrix
 
     def _permute_batch(self, *dims):
         new_batch_repeat = torch.Size(tuple(self.batch_repeat[dim] for dim in dims))
-        res = self.__class__(self.base_lazy_tensor._permute_batch(*dims), batch_repeat=new_batch_repeat)
+        res = self.__class__(self.base_linear_op._permute_batch(*dims), batch_repeat=new_batch_repeat)
         return res
 
     def _quad_form_derivative(self, left_vectors, right_vectors):
@@ -196,40 +196,40 @@ class BatchRepeatLinearOperator(LinearOperator):
             left_vectors = self._move_repeat_batches_to_columns(left_vectors, left_output_shape)
             right_vectors = self._move_repeat_batches_to_columns(right_vectors, right_output_shape)
 
-            return self.base_lazy_tensor._quad_form_derivative(left_vectors, right_vectors)
+            return self.base_linear_op._quad_form_derivative(left_vectors, right_vectors)
         else:
             return super()._quad_form_derivative(left_vectors, right_vectors)
 
     def _root_decomposition(self):
-        return self.base_lazy_tensor._root_decomposition().repeat(*self.batch_repeat, 1, 1)
+        return self.base_linear_op._root_decomposition().repeat(*self.batch_repeat, 1, 1)
 
     def _root_inv_decomposition(self, initial_vectors=None):
-        return self.base_lazy_tensor._root_inv_decomposition().repeat(*self.batch_repeat, 1, 1)
+        return self.base_linear_op._root_inv_decomposition().repeat(*self.batch_repeat, 1, 1)
 
     def _size(self):
         repeated_batch_shape = torch.Size(
-            size * repeat for size, repeat in zip(self.base_lazy_tensor.batch_shape, self.batch_repeat)
+            size * repeat for size, repeat in zip(self.base_linear_op.batch_shape, self.batch_repeat)
         )
-        res = torch.Size(repeated_batch_shape + self.base_lazy_tensor.matrix_shape)
+        res = torch.Size(repeated_batch_shape + self.base_linear_op.matrix_shape)
         return res
 
     def _transpose_nonbatch(self):
-        return self.__class__(self.base_lazy_tensor._transpose_nonbatch(), batch_repeat=self.batch_repeat)
+        return self.__class__(self.base_linear_op._transpose_nonbatch(), batch_repeat=self.batch_repeat)
 
     def _unsqueeze_batch(self, dim):
-        base_lazy_tensor = self.base_lazy_tensor
+        base_linear_op = self.base_linear_op
         batch_repeat = list(self.batch_repeat)
         batch_repeat.insert(dim, 1)
         batch_repeat = torch.Size(batch_repeat)
         # If the dim only adds a new padded dimension, then we're done
-        # Otherwise we have to also unsqueeze the base_lazy_tensor
-        base_unsqueeze_dim = dim - (len(self.base_lazy_tensor.batch_shape) - len(self.base_lazy_tensor.batch_shape))
+        # Otherwise we have to also unsqueeze the base_linear_op
+        base_unsqueeze_dim = dim - (len(self.base_linear_op.batch_shape) - len(self.base_linear_op.batch_shape))
         if base_unsqueeze_dim > 0:
-            base_lazy_tensor = base_lazy_tensor._unsqueeze_batch(base_unsqueeze_dim)
-        return self.__class__(base_lazy_tensor, batch_repeat=batch_repeat)
+            base_linear_op = base_linear_op._unsqueeze_batch(base_unsqueeze_dim)
+        return self.__class__(base_linear_op, batch_repeat=batch_repeat)
 
     def add_jitter(self, jitter_val=1e-3):
-        return self.__class__(self.base_lazy_tensor.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
+        return self.__class__(self.base_linear_op.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:
@@ -255,7 +255,7 @@ class BatchRepeatLinearOperator(LinearOperator):
             output_shape = _matmul_broadcast_shape(self.shape, inv_quad_rhs.shape)
             inv_quad_rhs = self._move_repeat_batches_to_columns(inv_quad_rhs, output_shape)
 
-        inv_quad_term, logdet_term = self.base_lazy_tensor.inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=False)
+        inv_quad_term, logdet_term = self.base_linear_op.inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=False)
 
         if inv_quad_term is not None and inv_quad_term.numel():
             inv_quad_term = inv_quad_term.view(*inv_quad_term.shape[:-1], -1, 1, self.batch_repeat.numel())
@@ -279,7 +279,7 @@ class BatchRepeatLinearOperator(LinearOperator):
 
         padded_batch_repeat = tuple(1 for _ in range(len(sizes) - 2 - len(self.batch_repeat))) + self.batch_repeat
         return self.__class__(
-            self.base_lazy_tensor,
+            self.base_linear_op,
             batch_repeat=torch.Size(
                 orig_repeat_size * new_repeat_size
                 for orig_repeat_size, new_repeat_size in zip(padded_batch_repeat, sizes[:-2])
@@ -288,14 +288,14 @@ class BatchRepeatLinearOperator(LinearOperator):
 
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
-        U_, S_, V_ = self.base_lazy_tensor.svd()
+        U_, S_, V_ = self.base_linear_op.svd()
         U = U_.repeat(*self.batch_repeat, 1, 1)
         S = S_.repeat(*self.batch_repeat, 1)
         V = V_.repeat(*self.batch_repeat, 1, 1)
         return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
-        evals, evecs = self.base_lazy_tensor.symeig(eigenvectors=eigenvectors)
+        evals, evecs = self.base_linear_op.symeig(eigenvectors=eigenvectors)
         evals = evals.repeat(*self.batch_repeat, 1)
         if eigenvectors:
             evecs = evecs.repeat(*self.batch_repeat, 1, 1)

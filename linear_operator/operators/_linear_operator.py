@@ -335,7 +335,7 @@ class LinearOperator(ABC):
         col_index = col_index.expand(final_shape)
         batch_indices = tuple(index.expand(final_shape) for index in batch_indices)
 
-        base_lazy_tensor = self._getitem(_noop_index, _noop_index, *batch_indices)._expand_batch(final_shape)
+        base_linear_op = self._getitem(_noop_index, _noop_index, *batch_indices)._expand_batch(final_shape)
 
         # Create some interoplation indices and values
         row_interp_indices = torch.arange(0, self.size(-2), dtype=torch.long, device=self.device)
@@ -351,7 +351,7 @@ class LinearOperator(ABC):
 
         res = (
             InterpolatedLinearOperator(
-                base_lazy_tensor,
+                base_linear_op,
                 row_interp_indices,
                 row_interp_values,
                 col_interp_indices,
@@ -555,11 +555,11 @@ class LinearOperator(ABC):
         if isinstance(self, DenseLinearOperator) or isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.evaluate() * other.evaluate())
         else:
-            left_lazy_tensor = self if self._root_decomposition_size() < other._root_decomposition_size() else other
-            right_lazy_tensor = other if left_lazy_tensor is self else self
+            left_linear_op = self if self._root_decomposition_size() < other._root_decomposition_size() else other
+            right_linear_op = other if left_linear_op is self else self
             return MulLinearOperator(
-                left_lazy_tensor.root_decomposition(),
-                right_lazy_tensor.root_decomposition(),
+                left_linear_op.root_decomposition(),
+                right_linear_op.root_decomposition(),
             )
 
     def _preconditioner(self):
@@ -844,7 +844,7 @@ class LinearOperator(ABC):
         # form matrix C = [A B; B^T D], where A = self, B = cross_mat, D = new_mat
         upper_row = CatLinearOperator(A, B, dim=-2, output_device=A.device)
         lower_row = CatLinearOperator(B.transpose(-1, -2), D, dim=-2, output_device=A.device)
-        new_lazy_tensor = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
+        new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
 
         # if the old lazy tensor does not have either a root decomposition or a root inverse decomposition
         # don't create one
@@ -856,7 +856,7 @@ class LinearOperator(ABC):
             )
         )
         if not generate_roots and not has_roots:
-            return new_lazy_tensor
+            return new_linear_op
 
         # Get components for new root Z = [E 0; F G]
         E = self.root_decomposition(**root_decomp_kwargs).root  # E = L, LL^T = A
@@ -884,14 +884,14 @@ class LinearOperator(ABC):
                 # otherwise we use the pseudo-inverse of Z as new inv root
                 new_inv_root = stable_pinverse(new_root).transpose(-2, -1)
             add_to_cache(
-                new_lazy_tensor,
+                new_linear_op,
                 "root_inv_decomposition",
                 RootLinearOperator(lazify(new_inv_root)),
             )
 
-        add_to_cache(new_lazy_tensor, "root_decomposition", RootLinearOperator(lazify(new_root)))
+        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(lazify(new_root)))
 
-        return new_lazy_tensor
+        return new_linear_op
 
     def add_low_rank(
         self,
@@ -928,22 +928,22 @@ class LinearOperator(ABC):
         from .triangular_linear_operator import TriangularLinearOperator
 
         if not isinstance(self, SumLinearOperator):
-            new_lazy_tensor = self + lazify(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2)))
+            new_linear_op = self + lazify(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2)))
         else:
-            new_lazy_tensor = SumLinearOperator(
-                *self.lazy_tensors,
+            new_linear_op = SumLinearOperator(
+                *self.linear_ops,
                 lazify(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2))),
             )
 
             # return as a nonlazy tensor if small enough to reduce memory overhead
-            if new_lazy_tensor.shape[-1] < settings.max_cholesky_size.value():
-                new_lazy_tensor = lazify(new_lazy_tensor.evaluate())
+            if new_linear_op.shape[-1] < settings.max_cholesky_size.value():
+                new_linear_op = lazify(new_linear_op.evaluate())
 
         # if the old lazy tensor does not have either a root decomposition or a root inverse decomposition
         # don't create one
         has_roots = any(_is_in_cache_ignore_args(self, key) for key in ("root_decomposition", "root_inv_decomposition"))
         if not generate_roots and not has_roots:
-            return new_lazy_tensor
+            return new_linear_op
 
         # we are going to compute the following
         # \tilde{A} = A + BB^T = L(I + L^{-1} B B^T L^{-T})L^T
@@ -1001,10 +1001,10 @@ class LinearOperator(ABC):
             updated_root = TriangularLinearOperator(updated_root)
             updated_inv_root = TriangularLinearOperator(updated_inv_root)
 
-        add_to_cache(new_lazy_tensor, "root_decomposition", RootLinearOperator(updated_root))
-        add_to_cache(new_lazy_tensor, "root_inv_decomposition", RootLinearOperator(updated_inv_root))
+        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(updated_root))
+        add_to_cache(new_linear_op, "root_inv_decomposition", RootLinearOperator(updated_inv_root))
 
-        return new_lazy_tensor
+        return new_linear_op
 
     @property
     def batch_dim(self):
@@ -1595,15 +1595,15 @@ class LinearOperator(ABC):
             :obj:`~linear_operator.lazy.LinearOperator`
 
         Example:
-            >>> lazy_tensor = linear_operator.lazy.DenseLinearOperator(torch.tensor([
+            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.tensor([
                     [[2, 4], [1, 2]],
                     [[1, 1], [0, -1]],
                     [[2, 1], [1, 0]],
                     [[3, 2], [2, -1]],
                 ]))
-            >>> lazy_tensor.mul_batch().evaluate()
+            >>> linear_op.mul_batch().evaluate()
             >>> # Returns: torch.Tensor([[12, 8], [0, 0]])
-            >>> lazy_tensor.mul_batch(mul_batch_size=2)
+            >>> linear_op.mul_batch(mul_batch_size=2)
             >>> # Returns: torch.Tensor([[[2, 4], [0, -2]], [[6, 2], [2, 0]]])
         """
         if dim is None:
@@ -1625,11 +1625,11 @@ class LinearOperator(ABC):
         Repeats this tensor along the specified dimensions.
 
         Currently, this only works to create repeated batches of a 2D LinearOperator.
-        I.e. all calls should be `lazy_tensor.repeat(<size>, 1, 1)`.
+        I.e. all calls should be `linear_op.repeat(<size>, 1, 1)`.
 
         Example:
-            >>> lazy_tensor = linear_operator.lazy.ToeplitzLinearOperator(torch.tensor([4. 1., 0.5]))
-            >>> lazy_tensor.repeat(2, 1, 1).evaluate()
+            >>> linear_op = linear_operator.lazy.ToeplitzLinearOperator(torch.tensor([4. 1., 0.5]))
+            >>> linear_op.repeat(2, 1, 1).evaluate()
             tensor([[[4.0000, 1.0000, 0.5000],
                      [1.0000, 4.0000, 1.0000],
                      [0.5000, 1.0000, 4.0000]],
@@ -1945,13 +1945,13 @@ class LinearOperator(ABC):
             :obj:`~linear_operator.lazy.LinearOperator` or Tensor.
 
         Example:
-            >>> lazy_tensor = linear_operator.lazy.DenseLinearOperator(torch.tensor([
+            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.tensor([
                     [[2, 4], [1, 2]],
                     [[1, 1], [0, -1]],
                     [[2, 1], [1, 0]],
                     [[3, 2], [2, -1]],
                 ]))
-            >>> lazy_tensor.sum(0).evaluate()
+            >>> linear_op.sum(0).evaluate()
         """
         # Case: summing everything
         if dim is None:
@@ -2018,7 +2018,7 @@ class LinearOperator(ABC):
 
     def to(self, *args, **kwargs):
         """
-        A device-agnostic method of moving the lazy_tensor to the specified device or dtype.
+        A device-agnostic method of moving the linear_op to the specified device or dtype.
         Note that we do NOT support non_blocking or other `torch.to` options other than
         device and dtype and these options will be silently ignored.
 
@@ -2059,8 +2059,8 @@ class LinearOperator(ABC):
         Transpose the dimensions `dim1` and `dim2` of the LinearOperator.
 
         Example:
-            >>> lazy_tensor = linear_operator.lazy.DenseLinearOperator(torch.randn(3, 5))
-            >>> lazy_tensor.transpose(0, 1)
+            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.randn(3, 5))
+            >>> linear_op.transpose(0, 1)
         """
         ndimension = self.ndimension()
         if dim1 < 0:

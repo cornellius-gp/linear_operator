@@ -11,49 +11,49 @@ from linear_operator.test.linear_operator_test_case import LinearOperatorTestCas
 class TestMatmulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         lhs = torch.randn(5, 6, requires_grad=True)
         rhs = lhs.clone().detach().transpose(-1, -2)
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        return lazy_tensor.left_lazy_tensor.tensor.matmul(lazy_tensor.right_lazy_tensor.tensor)
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.left_linear_op.tensor.matmul(linear_op.right_linear_op.tensor)
 
 
 class TestMatmulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 3
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         lhs = torch.randn(5, 5, 6, requires_grad=True)
         rhs = lhs.clone().detach().transpose(-1, -2)
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        return lazy_tensor.left_lazy_tensor.tensor.matmul(lazy_tensor.right_lazy_tensor.tensor)
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.left_linear_op.tensor.matmul(linear_op.right_linear_op.tensor)
 
 
 class TestMatmulLinearOperatorRectangular(RectangularLinearOperatorTestCase, unittest.TestCase):
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         lhs = torch.randn(5, 3, requires_grad=True)
         rhs = torch.randn(3, 6, requires_grad=True)
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        return lazy_tensor.left_lazy_tensor.tensor.matmul(lazy_tensor.right_lazy_tensor.tensor)
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.left_linear_op.tensor.matmul(linear_op.right_linear_op.tensor)
 
 
 class TestMatmulLinearOperatorRectangularMultiBatch(RectangularLinearOperatorTestCase, unittest.TestCase):
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         lhs = torch.randn(2, 3, 5, 3, requires_grad=True)
         rhs = torch.randn(2, 3, 3, 6, requires_grad=True)
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        return lazy_tensor.left_lazy_tensor.tensor.matmul(lazy_tensor.right_lazy_tensor.tensor)
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.left_linear_op.tensor.matmul(linear_op.right_linear_op.tensor)
 
 
 if __name__ == "__main__":

@@ -17,15 +17,15 @@ class TestAddedDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         tensor = torch.randn(5, 5)
         tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
         diag = torch.tensor([1.0, 2.0, 4.0, 2.0, 3.0], requires_grad=True)
         return AddedDiagLinearOperator(DenseLinearOperator(tensor), DiagLinearOperator(diag))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag = lazy_tensor._diag_tensor._diag
-        tensor = lazy_tensor._lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        diag = linear_op._diag_tensor._diag
+        tensor = linear_op._linear_op.tensor
         return tensor + diag.diag()
 
 
@@ -33,7 +33,7 @@ class TestAddedDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
     seed = 4
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         tensor = torch.randn(3, 5, 5)
         tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
         diag = torch.tensor(
@@ -41,9 +41,9 @@ class TestAddedDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
         )
         return AddedDiagLinearOperator(DenseLinearOperator(tensor), DiagLinearOperator(diag))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag = lazy_tensor._diag_tensor._diag
-        tensor = lazy_tensor._lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        diag = linear_op._diag_tensor._diag
+        tensor = linear_op._linear_op.tensor
         return tensor + torch.diag_embed(diag, dim1=-2, dim2=-1)
 
 
@@ -53,7 +53,7 @@ class TestAddedDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
     should_test_sample = False
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         tensor = torch.randn(4, 3, 5, 5)
         tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
         diag = (
@@ -65,9 +65,9 @@ class TestAddedDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
         )
         return AddedDiagLinearOperator(DenseLinearOperator(tensor), DiagLinearOperator(diag))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag = lazy_tensor._diag_tensor._diag
-        tensor = lazy_tensor._lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        diag = linear_op._diag_tensor._diag
+        tensor = linear_op._linear_op.tensor
         return tensor + torch.diag_embed(diag, dim1=-2, dim2=-1)
 
 

@@ -54,12 +54,12 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
         ), linear_operator.settings.max_preconditioner_size(
             30
         ):
-            lazy_tensor = DenseLinearOperator(mat)
+            linear_op = DenseLinearOperator(mat)
 
             if add_diag:
-                lazy_tensor = lazy_tensor.add_jitter(1.0)
+                linear_op = linear_op.add_jitter(1.0)
 
-            res_inv_quad, res_logdet = lazy_tensor.inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet)
+            res_inv_quad, res_logdet = linear_op.inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet)
 
         # Compare forward pass
         if inv_quad_rhs is not None:

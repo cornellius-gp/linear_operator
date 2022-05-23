@@ -11,7 +11,7 @@ from .warnings import NumericalWarning
 
 
 def contour_integral_quad(
-    lazy_tensor,
+    linear_op,
     rhs,
     inverse=False,
     weights=None,
@@ -24,7 +24,7 @@ def contour_integral_quad(
     Performs :math:`\mathbf K^{1/2} \mathbf b` or :math:`\mathbf K^{-1/2} \mathbf b`
     using contour integral quadrature.
 
-    :param linear_operator.lazy.LinearOperator lazy_tensor: LinearOperator representing :math:`\mathbf K`
+    :param linear_operator.lazy.LinearOperator linear_op: LinearOperator representing :math:`\mathbf K`
     :param torch.Tensor rhs: Right hand side tensor :math:`\mathbf b`
     :param bool inverse: (default False) whether to compute :math:`\mathbf K^{1/2} \mathbf b` (if False)
         or `\mathbf K^{-1/2} \mathbf b` (if True)
@@ -39,8 +39,8 @@ def contour_integral_quad(
     if num_contour_quadrature is None:
         num_contour_quadrature = settings.num_contour_quadrature.value()
 
-    output_batch_shape = _mul_broadcast_shape(lazy_tensor.batch_shape, rhs.shape[:-2])
-    preconditioner, preconditioner_lt, _ = lazy_tensor._preconditioner()
+    output_batch_shape = _mul_broadcast_shape(linear_op.batch_shape, rhs.shape[:-2])
+    preconditioner, preconditioner_lt, _ = linear_op._preconditioner()
 
     def sqrt_precond_matmul(rhs):
         if preconditioner_lt is not None:
@@ -54,14 +54,14 @@ def contour_integral_quad(
 
     if shifts is None:
         # Determine if init_vecs has extra_dimensions
-        num_extra_dims = max(0, rhs.dim() - lazy_tensor.dim())
+        num_extra_dims = max(0, rhs.dim() - linear_op.dim())
         lanczos_init = rhs.__getitem__(
             (*([0] * num_extra_dims), Ellipsis, slice(None, None, None), slice(None, 1, None))
-        ).expand(*lazy_tensor.shape[:-1], 1)
+        ).expand(*linear_op.shape[:-1], 1)
         with warnings.catch_warnings(), torch.no_grad():
             warnings.simplefilter("ignore", NumericalWarning)  # Supress CG stopping warning
             _, lanczos_mat = linear_cg(
-                lambda v: lazy_tensor._matmul(v),
+                lambda v: linear_op._matmul(v),
                 rhs=lanczos_init,
                 n_tridiag=1,
                 max_iter=max_lanczos_iter,
@@ -89,7 +89,7 @@ def contour_integral_quad(
             if approx_eigs.min() <= 0:
                 raise RuntimeError
         except RuntimeError:
-            approx_eigs = lazy_tensor.diag()
+            approx_eigs = linear_op.diag()
 
         max_eig = approx_eigs.max(dim=-1)[0]
         min_eig = approx_eigs.min(dim=-1)[0]
@@ -135,10 +135,10 @@ def contour_integral_quad(
     # Compute the solves at the given shifts
     # Do one more matmul if we don't want to include the inverse
     with torch.no_grad():
-        solves = minres(lambda v: lazy_tensor._matmul(v), rhs, value=-1, shifts=shifts, preconditioner=preconditioner)
+        solves = minres(lambda v: linear_op._matmul(v), rhs, value=-1, shifts=shifts, preconditioner=preconditioner)
     no_shift_solves = solves[0]
     solves = solves[1:]
     if not inverse:
-        solves = lazy_tensor._matmul(solves)
+        solves = linear_op._matmul(solves)
 
     return solves, weights, no_shift_solves, shifts

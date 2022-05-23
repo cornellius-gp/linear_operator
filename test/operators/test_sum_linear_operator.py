@@ -11,30 +11,30 @@ from linear_operator.test.linear_operator_test_case import LinearOperatorTestCas
 class TestSumLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         c1 = torch.tensor([5, 1, 2, 0], dtype=torch.float, requires_grad=True)
         t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([6, 0, 1, -1], dtype=torch.float, requires_grad=True)
         t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 
 class TestSumLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         c1 = torch.tensor([[2, 0.5, 0, 0], [5, 1, 2, 0]], dtype=torch.float, requires_grad=True)
         t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([[2, 0.5, 0, 0], [6, 0, 1, -1]], dtype=torch.float, requires_grad=True)
         t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 
@@ -43,7 +43,7 @@ class TestSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
     # Because these LTs are large, we'll skil the big tests
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         c1 = torch.tensor(
             [[[2, 0.5, 0, 0], [5, 1, 2, 0]], [[2, 0.5, 0, 0], [5, 1, 2, 0]]],
             dtype=torch.float,
@@ -58,8 +58,8 @@ class TestSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
         t2 = ToeplitzLinearOperator(c2)
         return t1 + t2
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 

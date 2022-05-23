@@ -18,7 +18,7 @@ def _constant_kpadlt_constructor(lt, dlt):
     # Each sub-matrix D_i^{-1} has constant diagonal, so we may scale the eigenvalues of the
     # eigendecomposition of K_i by its inverse to get an eigendecomposition of K_i D_i^{-1}.
     sub_evals, sub_evecs = [], []
-    for lt_, dlt_ in zip(lt.lazy_tensors, dlt.lazy_tensors):
+    for lt_, dlt_ in zip(lt.linear_ops, dlt.linear_ops):
         evals_, evecs_ = lt_.diagonalization()
         sub_evals.append(DiagLinearOperator(evals_ / dlt_.diag_values))
         sub_evecs.append(evecs_)
@@ -34,7 +34,7 @@ def _symmetrize_kpadlt_constructor(lt, dlt):
 
     dlt_inv_root = dlt.sqrt().inverse()
     symm_prod = KroneckerProductLinearOperator(
-        *[d.matmul(k).matmul(d) for k, d in zip(lt.lazy_tensors, dlt_inv_root.lazy_tensors)]
+        *[d.matmul(k).matmul(d) for k, d in zip(lt.linear_ops, dlt_inv_root.linear_ops)]
     )
     evals, evecs = symm_prod.diagonalization()
     evals_plus_i = DiagLinearOperator(evals + 1.0)
@@ -43,16 +43,16 @@ def _symmetrize_kpadlt_constructor(lt, dlt):
 
 
 class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
-    def __init__(self, *lazy_tensors, preconditioner_override=None):
-        super().__init__(*lazy_tensors, preconditioner_override=preconditioner_override)
-        if len(lazy_tensors) > 2:
+    def __init__(self, *linear_ops, preconditioner_override=None):
+        super().__init__(*linear_ops, preconditioner_override=preconditioner_override)
+        if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
-        elif isinstance(lazy_tensors[0], DiagLinearOperator):
-            self.diag_tensor = lazy_tensors[0]
-            self.lazy_tensor = lazy_tensors[1]
-        elif isinstance(lazy_tensors[1], DiagLinearOperator):
-            self.diag_tensor = lazy_tensors[1]
-            self.lazy_tensor = lazy_tensors[0]
+        elif isinstance(linear_ops[0], DiagLinearOperator):
+            self.diag_tensor = linear_ops[0]
+            self.linear_op = linear_ops[1]
+        elif isinstance(linear_ops[1], DiagLinearOperator):
+            self.diag_tensor = linear_ops[1]
+            self.linear_op = linear_ops[0]
         else:
             raise RuntimeError(
                 "One of the LinearOperators input to AddedDiagLinearOperator must be a DiagLinearOperator!"
@@ -72,7 +72,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _logdet(self):
         if self._diag_is_constant:
             # symeig requires computing the eigenvectors for it to be differentiable
-            evals, _ = self.lazy_tensor.symeig(eigenvectors=True)
+            evals, _ = self.linear_op.symeig(eigenvectors=True)
             evals_plus_diag = evals + self.diag_tensor.diag()
             return torch.log(evals_plus_diag).sum(dim=-1)
         if self.shape[-1] >= settings.max_cholesky_size.value() and isinstance(
@@ -80,16 +80,16 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         ):
             # If the diagonal has the same Kronecker structure as the full matrix, with each factor being
             # constant, wee can compute the logdet efficiently
-            if len(self.lazy_tensor.lazy_tensors) == len(self.diag_tensor.lazy_tensors) and all(
-                isinstance(dt, ConstantDiagLinearOperator) for dt in self.diag_tensor.lazy_tensors
+            if len(self.linear_op.linear_ops) == len(self.diag_tensor.linear_ops) and all(
+                isinstance(dt, ConstantDiagLinearOperator) for dt in self.diag_tensor.linear_ops
             ):
                 # here the log determinant identity is |D + K| = | D| |I + D^{-1} K|
                 # as D is assumed to have constant components, we can look solely at the diag_values
                 diag_term = self.diag_tensor.diag().clamp(min=1e-7).log().sum(dim=-1)
                 # symeig requires computing the eigenvectors for it to be differentiable
-                evals, _ = self.lazy_tensor.symeig(eigenvectors=True)
+                evals, _ = self.linear_op.symeig(eigenvectors=True)
                 const_times_evals = KroneckerProductLinearOperator(
-                    *[ee * d.diag_values for ee, d in zip(evals.lazy_tensors, self.diag_tensor.lazy_tensors)]
+                    *[ee * d.diag_values for ee, d in zip(evals.linear_ops, self.diag_tensor.linear_ops)]
                 )
                 first_term = (const_times_evals.diag() + 1).log().sum(dim=-1)
                 return diag_term + first_term
@@ -98,7 +98,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
                 # we use the same matrix determinant identity: |K + D| = |D| |I + D^{-1}K|
                 # but have to symmetrize the second matrix because torch.eig may not be
                 # completely differentiable.
-                lt = self.lazy_tensor
+                lt = self.linear_op
                 dlt = self.diag_tensor
                 if isinstance(lt, KroneckerProductAddedDiagLinearOperator):
                     raise NotImplementedError(
@@ -127,7 +127,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         # if the diagonal is constant, we can solve this using the Kronecker-structured eigendecomposition
         # and performing a spectral shift of its eigenvalues
         if self._diag_is_constant:
-            evals, q_matrix = self.lazy_tensor.to(symeig_dtype).diagonalization()
+            evals, q_matrix = self.linear_op.to(symeig_dtype).diagonalization()
             evals_plus_diagonal = evals + self.diag_tensor.diag().to(symeig_dtype)
             evals_root = evals_plus_diagonal.pow(0.5)
             inv_mat_sqrt = DiagLinearOperator(evals_root.reciprocal())
@@ -138,16 +138,14 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         # If the diagonal has the same Kronecker structure as the full matrix, we can perform the solve
         # efficiently by using the Woodbury matrix identity
-        if isinstance(self.lazy_tensor, KroneckerProductAddedDiagLinearOperator):
-            kron_lazy_tensors = self.lazy_tensor.lazy_tensor.lazy_tensors
+        if isinstance(self.linear_op, KroneckerProductAddedDiagLinearOperator):
+            kron_linear_ops = self.linear_op.linear_op.linear_ops
         else:
-            kron_lazy_tensors = self.lazy_tensor.lazy_tensors
+            kron_linear_ops = self.linear_op.linear_ops
         if (
             isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator)
-            and len(kron_lazy_tensors) == len(self.diag_tensor.lazy_tensors)
-            and all(
-                tfull.shape == tdiag.shape for tfull, tdiag in zip(kron_lazy_tensors, self.diag_tensor.lazy_tensors)
-            )
+            and len(kron_linear_ops) == len(self.diag_tensor.linear_ops)
+            and all(tfull.shape == tdiag.shape for tfull, tdiag in zip(kron_linear_ops, self.diag_tensor.linear_ops))
         ):
             # We have
             #   (K + D)^{-1} = K^{-1} - K^{-1} (K D^{-1} + I)^{-1}
@@ -159,13 +157,13 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             # again we perform the solve in double precision for numerical stability issues
             # TODO: Use fp64 registry once #1213 is addressed
             rhs = rhs.to(symeig_dtype)
-            lt = self.lazy_tensor.to(symeig_dtype)
+            lt = self.linear_op.to(symeig_dtype)
             dlt = self.diag_tensor.to(symeig_dtype)
 
             # If each of the diagonal factors is constant, life gets a little easier
             # as we can reuse the eigendecomposition
             # (K + D)^{-1} = D^{-1} Q(\kron d_i^{-1} \Lambda_i + I)^{-1} Q^\top
-            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.lazy_tensors):
+            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
                 res1 = evals_p_i.inv_matmul(evecs._transpose_nonbatch().matmul(rhs))
                 res = dlt.inv_matmul(evecs.matmul(res1))
@@ -202,14 +200,14 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _root_decomposition(self):
         if self._diag_is_constant:
-            evals, q_matrix = self.lazy_tensor.diagonalization()
+            evals, q_matrix = self.linear_op.diagonalization()
             updated_evals = DiagLinearOperator((evals + self.diag_tensor.diag()).pow(0.5))
             return MatmulLinearOperator(q_matrix, updated_evals)
 
         dlt = self.diag_tensor
-        lt = self.lazy_tensor
+        lt = self.linear_op
         if isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator):
-            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.lazy_tensors):
+            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
                 evals_p_i_root = DiagLinearOperator(evals_p_i.diag().sqrt())
                 # here we need to scale the eigenvectors by the constants as
@@ -218,7 +216,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
                 # L = D^{1/2} Q (\kron a_i^{-1} \Lambda_i + I)^{1/2}
                 #       = (\kron a_i^{1/2} Q_i)(\kron a_i^{-1} \Lambda_i + I)^{1/2}
                 scaled_evecs_list = []
-                for evec_, dlt_ in zip(evecs.lazy_tensors, dlt.lazy_tensors):
+                for evec_, dlt_ in zip(evecs.linear_ops, dlt.linear_ops):
                     scaled_evecs_list.append(evec_ * dlt_.diag_values.sqrt())
                 scaled_evecs = KroneckerProductLinearOperator(*scaled_evecs_list)
                 return MatmulLinearOperator(scaled_evecs, evals_p_i_root)
@@ -233,14 +231,14 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _root_inv_decomposition(self, initial_vectors=None):
         if self._diag_is_constant:
-            evals, q_matrix = self.lazy_tensor.diagonalization()
+            evals, q_matrix = self.linear_op.diagonalization()
             inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor.diag()).pow(-0.5))
             return MatmulLinearOperator(q_matrix, inv_sqrt_evals)
 
         dlt = self.diag_tensor
-        lt = self.lazy_tensor
+        lt = self.linear_op
         if isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator):
-            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.lazy_tensors):
+            if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
                 evals_p_i_inv_root = DiagLinearOperator(evals_p_i.diag().reciprocal().sqrt())
                 # here we need to scale the eigenvectors by the constants as
@@ -249,7 +247,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
                 # L^{-1/2} = D^{1/2} Q (\kron a_i^{-1} \Lambda_i + I)^{1/2}
                 #       = (\kron a_i^{1/2} Q_i)(\kron a_i^{-1} \Lambda_i + I)^{-1/2}
                 scaled_evecs_list = []
-                for evec_, dlt_ in zip(evecs.lazy_tensors, dlt.lazy_tensors):
+                for evec_, dlt_ in zip(evecs.linear_ops, dlt.linear_ops):
                     scaled_evecs_list.append(evec_ * dlt_.diag_values.sqrt())
                 scaled_evecs = KroneckerProductLinearOperator(*scaled_evecs_list)
                 return MatmulLinearOperator(scaled_evecs, evals_p_i_inv_root)
@@ -267,7 +265,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
         if self._diag_is_constant:
-            evals, evecs = self.lazy_tensor.symeig(eigenvectors=eigenvectors)
+            evals, evecs = self.linear_op.symeig(eigenvectors=eigenvectors)
             evals = evals + self.diag_tensor.diag_values
 
             return evals, evecs
@@ -276,5 +274,5 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def __add__(self, other):
         if isinstance(other, ConstantDiagLinearOperator) and self._diag_is_constant:
             # the other cases have only partial implementations
-            return KroneckerProductAddedDiagLinearOperator(self.lazy_tensor, self.diag_tensor + other)
+            return KroneckerProductAddedDiagLinearOperator(self.linear_op, self.diag_tensor + other)
         return super().__add__(other)

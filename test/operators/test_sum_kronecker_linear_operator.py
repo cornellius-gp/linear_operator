@@ -24,7 +24,7 @@ class TestSumKroneckerLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     should_call_cg = False
     skip_slq_tests = False
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
         c = torch.tensor([[4, 0.5, 1], [0.5, 4, -1], [1, -1, 3]], dtype=torch.float)
@@ -39,11 +39,7 @@ class TestSumKroneckerLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
         return SumKroneckerLinearOperator(kp_lt_1, kp_lt_2)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        res1 = kron(
-            lazy_tensor.lazy_tensors[0].lazy_tensors[0].tensor, lazy_tensor.lazy_tensors[0].lazy_tensors[1].tensor
-        )
-        res2 = kron(
-            lazy_tensor.lazy_tensors[1].lazy_tensors[0].tensor, lazy_tensor.lazy_tensors[1].lazy_tensors[1].tensor
-        )
+    def evaluate_linear_op(self, linear_op):
+        res1 = kron(linear_op.linear_ops[0].linear_ops[0].tensor, linear_op.linear_ops[0].linear_ops[1].tensor)
+        res2 = kron(linear_op.linear_ops[1].linear_ops[0].tensor, linear_op.linear_ops[1].linear_ops[1].tensor)
         return res1 + res2

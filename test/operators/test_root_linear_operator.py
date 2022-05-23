@@ -14,12 +14,12 @@ class TestRootLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     should_call_lanczos = False
     should_call_lanczos_diagonalization = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         root = torch.randn(3, 5, requires_grad=True)
         return RootLinearOperator(root)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        root = lazy_tensor.root.tensor
+    def evaluate_linear_op(self, linear_op):
+        root = linear_op.root.tensor
         res = root.matmul(root.transpose(-1, -2))
         return res
 
@@ -27,7 +27,7 @@ class TestRootLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 class TestRootLinearOperatorBatch(TestRootLinearOperator):
     seed = 1
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         root = torch.randn(3, 5, 5) + torch.eye(5)
         root.requires_grad_(True)
         return RootLinearOperator(root)
@@ -39,7 +39,7 @@ class TestRootLinearOperatorMultiBatch(TestRootLinearOperator):
     should_test_sample = False
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         root = torch.randn(2, 3, 5, 5) + torch.eye(5)
         root.requires_grad_(True)
         return RootLinearOperator(root)

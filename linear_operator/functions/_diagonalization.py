@@ -25,8 +25,8 @@ class Diagonalization(Function):
         ctx.batch_shape = batch_shape
 
         # Get closure for matmul
-        lazy_tsr = ctx.representation_tree(*matrix_args)
-        matmul_closure = lazy_tsr._matmul
+        linear_op = ctx.representation_tree(*matrix_args)
+        matmul_closure = linear_op._matmul
         # Do lanczos
         q_mat, t_mat = lanczos.lanczos_tridiag(
             matmul_closure,
@@ -53,7 +53,7 @@ class Diagonalization(Function):
         q_mat = q_mat.matmul(eigenvectors)
 
         if settings.memory_efficient.off():
-            ctx._lazy_tsr = lazy_tsr
+            ctx._linear_op = linear_op
 
         if ctx.batch_shape is None:
             q_mat = q_mat.squeeze(1)

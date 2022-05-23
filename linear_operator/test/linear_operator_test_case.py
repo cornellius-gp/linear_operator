@@ -32,314 +32,314 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
     }
 
     @abstractmethod
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         raise NotImplementedError()
 
     @abstractmethod
-    def evaluate_lazy_tensor(self):
+    def evaluate_linear_op(self):
         raise NotImplementedError()
 
     def _test_matmul(self, rhs):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
 
-        res = lazy_tensor.matmul(rhs)
+        res = linear_op.matmul(rhs)
         actual = evaluated.matmul(rhs)
         self.assertAllClose(res, actual)
 
         grad = torch.randn_like(res)
         res.backward(gradient=grad)
         actual.backward(gradient=grad)
-        for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["matmul"])
 
     def _test_rmatmul(self, lhs):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
 
-        res = lhs @ lazy_tensor
+        res = lhs @ linear_op
         actual = lhs @ evaluated
         self.assertAllClose(res, actual)
 
         grad = torch.randn_like(res)
         res.backward(gradient=grad)
         actual.backward(gradient=grad)
-        for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["matmul"])
 
     def test_add(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        rhs = torch.randn(lazy_tensor.shape)
-        self.assertAllClose((lazy_tensor + rhs).evaluate(), evaluated + rhs)
+        rhs = torch.randn(linear_op.shape)
+        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
 
-        rhs = torch.randn(lazy_tensor.matrix_shape)
-        self.assertAllClose((lazy_tensor + rhs).evaluate(), evaluated + rhs)
+        rhs = torch.randn(linear_op.matrix_shape)
+        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
 
-        rhs = torch.randn(2, *lazy_tensor.shape)
-        self.assertAllClose((lazy_tensor + rhs).evaluate(), evaluated + rhs)
+        rhs = torch.randn(2, *linear_op.shape)
+        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
 
-        self.assertAllClose((lazy_tensor + lazy_tensor).evaluate(), evaluated * 2)
+        self.assertAllClose((linear_op + linear_op).evaluate(), evaluated * 2)
 
     def test_matmul_vec(self):
-        lazy_tensor = self.create_lazy_tensor()
+        linear_op = self.create_linear_op()
 
         # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             return
 
-        rhs = torch.randn(lazy_tensor.size(-1))
+        rhs = torch.randn(linear_op.size(-1))
         return self._test_matmul(rhs)
 
     def test_rmatmul_vec(self):
-        lazy_tensor = self.create_lazy_tensor()
+        linear_op = self.create_linear_op()
 
         # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             return
 
-        lhs = torch.randn(lazy_tensor.size(-2))
+        lhs = torch.randn(linear_op.size(-2))
         return self._test_rmatmul(lhs)
 
     def test_matmul_matrix(self):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 4)
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 4)
         return self._test_matmul(rhs)
 
     def test_rmatmul_matrix(self):
-        lazy_tensor = self.create_lazy_tensor()
-        lhs = torch.randn(*lazy_tensor.batch_shape, 4, lazy_tensor.size(-2))
+        linear_op = self.create_linear_op()
+        lhs = torch.randn(*linear_op.batch_shape, 4, linear_op.size(-2))
         return self._test_rmatmul(lhs)
 
     def test_matmul_matrix_broadcast(self):
-        lazy_tensor = self.create_lazy_tensor()
+        linear_op = self.create_linear_op()
 
         # Right hand size has one more batch dimension
-        batch_shape = torch.Size((3, *lazy_tensor.batch_shape))
-        rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 4)
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
         self._test_matmul(rhs)
 
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             # Right hand size has one fewer batch dimension
-            batch_shape = torch.Size(lazy_tensor.batch_shape[1:])
-            rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 4)
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
             self._test_matmul(rhs)
 
             # Right hand size has a singleton dimension
-            batch_shape = torch.Size((*lazy_tensor.batch_shape[:-1], 1))
-            rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 4)
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
             self._test_matmul(rhs)
 
     def test_rmatmul_matrix_broadcast(self):
-        lazy_tensor = self.create_lazy_tensor()
+        linear_op = self.create_linear_op()
 
         # Left hand size has one more batch dimension
-        batch_shape = torch.Size((3, *lazy_tensor.batch_shape))
-        lhs = torch.randn(*batch_shape, 4, lazy_tensor.size(-2))
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
         self._test_rmatmul(lhs)
 
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             # Left hand size has one fewer batch dimension
-            batch_shape = torch.Size(lazy_tensor.batch_shape[1:])
-            lhs = torch.randn(*batch_shape, 4, lazy_tensor.size(-2))
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
             self._test_rmatmul(lhs)
 
             # Left hand size has a singleton dimension
-            batch_shape = torch.Size((*lazy_tensor.batch_shape[:-1], 1))
-            lhs = torch.randn(*batch_shape, 4, lazy_tensor.size(-2))
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
             self._test_rmatmul(lhs)
 
     def test_constant_mul(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-        self.assertAllClose((lazy_tensor * 5.0).evaluate(), evaluated * 5.0)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        self.assertAllClose((linear_op * 5.0).evaluate(), evaluated * 5.0)
 
     def test_neg_constant_mul(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-        self.assertAllClose((lazy_tensor * -5.0).evaluate(), evaluated * -5.0)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        self.assertAllClose((linear_op * -5.0).evaluate(), evaluated * -5.0)
 
     def test_evaluate(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-        self.assertAllClose(lazy_tensor.evaluate(), evaluated)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        self.assertAllClose(linear_op.evaluate(), evaluated)
 
     def test_getitem(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
         # Non-batch case
-        if lazy_tensor.ndimension() == 2:
-            res = lazy_tensor[1]
+        if linear_op.ndimension() == 2:
+            res = linear_op[1]
             actual = evaluated[1]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[0:2].evaluate()
+            res = linear_op[0:2].evaluate()
             actual = evaluated[0:2]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[:, 0:2].evaluate()
+            res = linear_op[:, 0:2].evaluate()
             actual = evaluated[:, 0:2]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[0:2, :].evaluate()
+            res = linear_op[0:2, :].evaluate()
             actual = evaluated[0:2, :]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[..., 0:2].evaluate()
+            res = linear_op[..., 0:2].evaluate()
             actual = evaluated[..., 0:2]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[0:2, ...].evaluate()
+            res = linear_op[0:2, ...].evaluate()
             actual = evaluated[0:2, ...]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[..., 0:2, 2]
+            res = linear_op[..., 0:2, 2]
             actual = evaluated[..., 0:2, 2]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[0:2, ..., 2]
+            res = linear_op[0:2, ..., 2]
             actual = evaluated[0:2, ..., 2]
             self.assertAllClose(res, actual)
 
         # Batch case
         else:
-            res = lazy_tensor[1].evaluate()
+            res = linear_op[1].evaluate()
             actual = evaluated[1]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[0:2].evaluate()
+            res = linear_op[0:2].evaluate()
             actual = evaluated[0:2]
             self.assertAllClose(res, actual)
-            res = lazy_tensor[:, 0:2].evaluate()
+            res = linear_op[:, 0:2].evaluate()
             actual = evaluated[:, 0:2]
             self.assertAllClose(res, actual)
 
-            for batch_index in product([1, slice(0, 2, None)], repeat=(lazy_tensor.dim() - 2)):
-                res = lazy_tensor.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None))).evaluate()
+            for batch_index in product([1, slice(0, 2, None)], repeat=(linear_op.dim() - 2)):
+                res = linear_op.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None))).evaluate()
                 actual = evaluated.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None)))
                 self.assertAllClose(res, actual)
-                res = lazy_tensor.__getitem__((*batch_index, 1, slice(0, 2, None)))
+                res = linear_op.__getitem__((*batch_index, 1, slice(0, 2, None)))
                 actual = evaluated.__getitem__((*batch_index, 1, slice(0, 2, None)))
                 self.assertAllClose(res, actual)
-                res = lazy_tensor.__getitem__((*batch_index, slice(1, None, None), 2))
+                res = linear_op.__getitem__((*batch_index, slice(1, None, None), 2))
                 actual = evaluated.__getitem__((*batch_index, slice(1, None, None), 2))
                 self.assertAllClose(res, actual)
 
             # Ellipsis
-            res = lazy_tensor.__getitem__((Ellipsis, slice(1, None, None), 2))
+            res = linear_op.__getitem__((Ellipsis, slice(1, None, None), 2))
             actual = evaluated.__getitem__((Ellipsis, slice(1, None, None), 2))
             self.assertAllClose(res, actual)
-            res = lazy_tensor.__getitem__((slice(1, None, None), Ellipsis, 2))
+            res = linear_op.__getitem__((slice(1, None, None), Ellipsis, 2))
             actual = evaluated.__getitem__((slice(1, None, None), Ellipsis, 2))
             self.assertAllClose(res, actual)
 
     def test_getitem_tensor_index(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
         # Non-batch case
-        if lazy_tensor.ndimension() == 2:
+        if linear_op.ndimension() == 2:
             index = (torch.tensor([0, 0, 1, 2]), torch.tensor([0, 1, 0, 2]))
-            res, actual = lazy_tensor[index], evaluated[index]
+            res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
             index = (torch.tensor([0, 0, 1, 2]), slice(None, None, None))
-            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (slice(None, None, None), torch.tensor([0, 0, 1, 2]))
-            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (torch.tensor([0, 0, 1, 2]), Ellipsis)
-            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (Ellipsis, torch.tensor([0, 0, 1, 2]))
-            res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+            res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
             self.assertAllClose(res, actual)
             index = (Ellipsis, torch.tensor([0, 0, 1, 2]), torch.tensor([0, 1, 0, 2]))
-            res, actual = lazy_tensor[index], evaluated[index]
+            res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
 
         # Batch case
         else:
             for batch_index in product(
                 [torch.tensor([0, 1, 1, 0]), slice(None, None, None)],
-                repeat=(lazy_tensor.dim() - 2),
+                repeat=(linear_op.dim() - 2),
             ):
                 index = (
                     *batch_index,
                     torch.tensor([0, 1, 0, 2]),
                     torch.tensor([1, 2, 0, 1]),
                 )
-                res, actual = lazy_tensor[index], evaluated[index]
+                res, actual = linear_op[index], evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (
                     *batch_index,
                     torch.tensor([0, 1, 0, 2]),
                     slice(None, None, None),
                 )
-                res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+                res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (
                     *batch_index,
                     slice(None, None, None),
                     torch.tensor([0, 1, 2, 1]),
                 )
-                res, actual = linear_operator.delazify(lazy_tensor[index]), evaluated[index]
+                res, actual = linear_operator.delazify(linear_op[index]), evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (*batch_index, slice(None, None, None), slice(None, None, None))
-                res, actual = lazy_tensor[index].evaluate(), evaluated[index]
+                res, actual = linear_op[index].evaluate(), evaluated[index]
                 self.assertAllClose(res, actual)
 
             # Ellipsis
-            res = lazy_tensor.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
+            res = linear_op.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
             actual = evaluated.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
             self.assertAllClose(res, actual)
             res = linear_operator.delazify(
-                lazy_tensor.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
+                linear_op.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
             )
             actual = evaluated.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
             self.assertAllClose(res, actual)
 
     def test_permute(self):
-        lazy_tensor = self.create_lazy_tensor()
-        if lazy_tensor.dim() >= 4:
-            evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-            dims = torch.randperm(lazy_tensor.dim() - 2).tolist()
-            res = lazy_tensor.permute(*dims, -2, -1).evaluate()
+        linear_op = self.create_linear_op()
+        if linear_op.dim() >= 4:
+            evaluated = self.evaluate_linear_op(linear_op)
+            dims = torch.randperm(linear_op.dim() - 2).tolist()
+            res = linear_op.permute(*dims, -2, -1).evaluate()
             actual = evaluated.permute(*dims, -2, -1)
             self.assertAllClose(res, actual)
 
     def test_quad_form_derivative(self):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        lazy_tensor_clone = lazy_tensor.clone().detach().requires_grad_(True)
-        left_vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-2), 2)
-        right_vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 2)
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_clone = linear_op.clone().detach().requires_grad_(True)
+        left_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-2), 2)
+        right_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 2)
 
-        deriv_custom = lazy_tensor._quad_form_derivative(left_vecs, right_vecs)
+        deriv_custom = linear_op._quad_form_derivative(left_vecs, right_vecs)
         deriv_auto = linear_operator.operators.LinearOperator._quad_form_derivative(
-            lazy_tensor_clone, left_vecs, right_vecs
+            linear_op_clone, left_vecs, right_vecs
         )
 
         for dc, da in zip(deriv_custom, deriv_auto):
             self.assertAllClose(dc, da)
 
     def test_sum(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        self.assertAllClose(lazy_tensor.sum(-1), evaluated.sum(-1))
-        self.assertAllClose(lazy_tensor.sum(-2), evaluated.sum(-2))
-        if lazy_tensor.ndimension() > 2:
-            self.assertAllClose(lazy_tensor.sum(-3).evaluate(), evaluated.sum(-3))
-        if lazy_tensor.ndimension() > 3:
-            self.assertAllClose(lazy_tensor.sum(-4).evaluate(), evaluated.sum(-4))
+        self.assertAllClose(linear_op.sum(-1), evaluated.sum(-1))
+        self.assertAllClose(linear_op.sum(-2), evaluated.sum(-2))
+        if linear_op.ndimension() > 2:
+            self.assertAllClose(linear_op.sum(-3).evaluate(), evaluated.sum(-3))
+        if linear_op.ndimension() > 3:
+            self.assertAllClose(linear_op.sum(-4).evaluate(), evaluated.sum(-4))
 
     def test_transpose_batch(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        if lazy_tensor.dim() >= 4:
-            for i, j in combinations(range(lazy_tensor.dim() - 2), 2):
-                res = lazy_tensor.transpose(i, j).evaluate()
+        if linear_op.dim() >= 4:
+            for i, j in combinations(range(linear_op.dim() - 2), 2):
+                res = linear_op.transpose(i, j).evaluate()
                 actual = evaluated.transpose(i, j)
                 self.assertAllClose(res, actual, **self.tolerances["transpose"])
 
@@ -371,9 +371,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     }
 
     def _test_inv_matmul(self, rhs, lhs=None, cholesky=False):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
@@ -390,10 +390,10 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             ), linear_operator.settings.cg_tolerance(1e-4):
                 # Perform the inv_matmul
                 if lhs is not None:
-                    res = lazy_tensor.inv_matmul(rhs, lhs)
+                    res = linear_op.inv_matmul(rhs, lhs)
                     actual = lhs_copy @ evaluated.inverse() @ rhs_copy
                 else:
-                    res = lazy_tensor.inv_matmul(rhs)
+                    res = linear_op.inv_matmul(rhs)
                     actual = evaluated.inverse().matmul(rhs_copy)
                 self.assertAllClose(res, actual, **self.tolerances["inv_matmul"])
 
@@ -401,7 +401,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 grad = torch.randn_like(res)
                 res.backward(gradient=grad)
                 actual.backward(gradient=grad)
-                for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
                     if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                         self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["grad"])
                 self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["grad"])
@@ -414,15 +414,15 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             else:
                 self.assertFalse(linear_cg_mock.called)
 
-    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, lazy_tensor=None):
+    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
         if not self.__class__.skip_slq_tests:
             # Forward
-            if lazy_tensor is None:
-                lazy_tensor = self.create_lazy_tensor()
-            evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-            flattened_evaluated = evaluated.view(-1, *lazy_tensor.matrix_shape)
+            if linear_op is None:
+                linear_op = self.create_linear_op()
+            evaluated = self.evaluate_linear_op(linear_op)
+            flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
 
-            vecs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 3, requires_grad=True)
+            vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 3, requires_grad=True)
             vecs_copy = vecs.clone().detach().requires_grad_(True)
 
             _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
@@ -433,7 +433,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                     with linear_operator.settings.min_preconditioning_size(
                         4
                     ), linear_operator.settings.max_preconditioner_size(2):
-                        res_inv_quad, res_logdet = lazy_tensor.inv_quad_logdet(
+                        res_inv_quad, res_logdet = linear_op.inv_quad_logdet(
                             inv_quad_rhs=vecs, logdet=True, reduce_inv_quad=reduce_inv_quad
                         )
 
@@ -441,8 +441,8 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             if reduce_inv_quad:
                 actual_inv_quad = actual_inv_quad.sum(-1)
             actual_logdet = torch.cat(
-                [torch.logdet(flattened_evaluated[i]).unsqueeze(0) for i in range(lazy_tensor.batch_shape.numel())]
-            ).view(lazy_tensor.batch_shape)
+                [torch.logdet(flattened_evaluated[i]).unsqueeze(0) for i in range(linear_op.batch_shape.numel())]
+            ).view(linear_op.batch_shape)
 
             self.assertAllClose(res_inv_quad, actual_inv_quad, **self.tolerances["inv_quad"])
             self.assertAllClose(res_logdet, actual_logdet, **self.tolerances["logdet"])
@@ -453,51 +453,51 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 self.assertFalse(linear_cg_mock.called)
 
     def test_add_diag(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
         other_diag = torch.tensor(1.5)
-        res = lazy_tensor.add_diag(other_diag).evaluate()
+        res = linear_op.add_diag(other_diag).evaluate()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
-            *[1 for _ in range(lazy_tensor.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
-        ).repeat(*lazy_tensor.batch_shape, 1, 1).mul(1.5)
+            *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
+        ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.tensor([1.5])
-        res = lazy_tensor.add_diag(other_diag).evaluate()
+        res = linear_op.add_diag(other_diag).evaluate()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
-            *[1 for _ in range(lazy_tensor.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
-        ).repeat(*lazy_tensor.batch_shape, 1, 1).mul(1.5)
+            *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
+        ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
-        other_diag = torch.randn(lazy_tensor.size(-1)).pow(2)
-        res = lazy_tensor.add_diag(other_diag).evaluate()
-        actual = evaluated + other_diag.diag().repeat(*lazy_tensor.batch_shape, 1, 1)
+        other_diag = torch.randn(linear_op.size(-1)).pow(2)
+        res = linear_op.add_diag(other_diag).evaluate()
+        actual = evaluated + other_diag.diag().repeat(*linear_op.batch_shape, 1, 1)
         self.assertAllClose(res, actual)
 
-        for sizes in product([1, None], repeat=(lazy_tensor.dim() - 2)):
-            batch_shape = [lazy_tensor.batch_shape[i] if size is None else size for i, size in enumerate(sizes)]
-            other_diag = torch.randn(*batch_shape, lazy_tensor.size(-1)).pow(2)
-            res = lazy_tensor.add_diag(other_diag).evaluate()
+        for sizes in product([1, None], repeat=(linear_op.dim() - 2)):
+            batch_shape = [linear_op.batch_shape[i] if size is None else size for i, size in enumerate(sizes)]
+            other_diag = torch.randn(*batch_shape, linear_op.size(-1)).pow(2)
+            res = linear_op.add_diag(other_diag).evaluate()
             actual = evaluated.clone().detach()
             for i in range(other_diag.size(-1)):
                 actual[..., i, i] = actual[..., i, i] + other_diag[..., i]
             self.assertAllClose(res, actual, **self.tolerances["diag"])
 
     def test_add_low_rank(self):
-        lazy_tensor = self.create_lazy_tensor()
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
-        new_rows = torch.randn(*lazy_tensor.shape[:-1], 3)
+        linear_op = self.create_linear_op()
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        new_rows = torch.randn(*linear_op.shape[:-1], 3)
 
         summed_lt = evaluated + new_rows.matmul(new_rows.transpose(-1, -2))
-        new_lt = lazy_tensor.add_low_rank(new_rows)
+        new_lt = linear_op.add_low_rank(new_rows)
 
         # check that the concatenation is okay
         self.assertAllClose(new_lt.evaluate(), summed_lt)
 
         # check that the root approximation is close
-        rhs = torch.randn(lazy_tensor.size(-1))
+        rhs = torch.randn(linear_op.size(-1))
         summed_rhs = summed_lt.matmul(rhs)
         root_rhs = new_lt.root_decomposition().matmul(rhs)
         self.assertAllClose(root_rhs, summed_rhs, **self.tolerances["root_decomposition"])
@@ -508,25 +508,25 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         self.assertAllClose(root_inv_solve, summed_solve, **self.tolerances["root_inv_decomposition"])
 
     def test_cat_rows(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
         for batch_shape in (torch.Size(), torch.Size([2])):
-            new_rows = 1e-4 * torch.randn(*batch_shape, *lazy_tensor.shape[:-2], 1, lazy_tensor.shape[-1])
-            new_point = torch.rand(*batch_shape, *lazy_tensor.shape[:-2], 1, 1)
+            new_rows = 1e-4 * torch.randn(*batch_shape, *linear_op.shape[:-2], 1, linear_op.shape[-1])
+            new_point = torch.rand(*batch_shape, *linear_op.shape[:-2], 1, 1)
 
             # we need to expand here to be able to concat (this happens automatically in cat_rows)
             cat_col1 = torch.cat((evaluated.expand(*batch_shape, *evaluated.shape), new_rows), dim=-2)
             cat_col2 = torch.cat((new_rows.transpose(-1, -2), new_point), dim=-2)
 
             concatenated_lt = torch.cat((cat_col1, cat_col2), dim=-1)
-            new_lt = lazy_tensor.cat_rows(new_rows, new_point)
+            new_lt = linear_op.cat_rows(new_rows, new_point)
 
             # check that the concatenation is okay
             self.assertAllClose(new_lt.evaluate(), concatenated_lt)
 
             # check that the root approximation is close
-            rhs = torch.randn(lazy_tensor.size(-1) + 1)
+            rhs = torch.randn(linear_op.size(-1) + 1)
             concat_rhs = concatenated_lt.matmul(rhs)
             root_rhs = new_lt.root_decomposition().matmul(rhs)
             self.assertAllClose(root_rhs, concat_rhs, **self.tolerances["root_decomposition"])
@@ -541,15 +541,15 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 self.tolerances["root_inv_decomposition"]["rtol"],
             )
             # test generate_inv_roots=False
-            new_lt = lazy_tensor.cat_rows(new_rows, new_point, generate_inv_roots=False)
+            new_lt = linear_op.cat_rows(new_rows, new_point, generate_inv_roots=False)
             with self.assertRaises(CachingError):
                 get_from_cache(new_lt, "root_inv_decomposition")
 
     def test_cholesky(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
         for upper in (False, True):
-            res = lazy_tensor.cholesky(upper=upper).evaluate()
+            res = linear_op.cholesky(upper=upper).evaluate()
             actual = torch.linalg.cholesky(evaluated)
             if upper:
                 actual = actual.transpose(-1, -2)
@@ -557,101 +557,101 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             # TODO: Check gradients
 
     def test_double(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        res = lazy_tensor.double()
+        res = linear_op.double()
         actual = evaluated.double()
         self.assertEqual(res.dtype, actual.dtype)
 
     def test_diag(self):
-        lazy_tensor = self.create_lazy_tensor()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        res = lazy_tensor.diag()
+        res = linear_op.diag()
         actual = evaluated.diagonal(dim1=-2, dim2=-1)
-        actual = actual.view(*lazy_tensor.batch_shape, -1)
+        actual = actual.view(*linear_op.batch_shape, -1)
         self.assertAllClose(res, actual, **self.tolerances["diag"])
 
     def test_float(self):
-        lazy_tensor = self.create_lazy_tensor().double()
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+        linear_op = self.create_linear_op().double()
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        res = lazy_tensor.float()
+        res = linear_op.float()
         actual = evaluated.float()
         self.assertEqual(res.dtype, actual.dtype)
 
-    def _test_half(self, lazy_tensor):
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+    def _test_half(self, linear_op):
+        evaluated = self.evaluate_linear_op(linear_op)
 
-        res = lazy_tensor.half()
+        res = linear_op.half()
         actual = evaluated.half()
         self.assertEqual(res.dtype, actual.dtype)
 
     def test_half(self):
-        lazy_tensor = self.create_lazy_tensor()
-        self._test_half(lazy_tensor)
+        linear_op = self.create_linear_op()
+        self._test_half(linear_op)
 
     def test_inv_matmul_vector(self, cholesky=False):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(lazy_tensor.size(-1))
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
 
         # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             return
         else:
             return self._test_inv_matmul(rhs)
 
     def test_inv_matmul_vector_with_left(self, cholesky=False):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(lazy_tensor.size(-1))
-        lhs = torch.randn(6, lazy_tensor.size(-1))
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        lhs = torch.randn(6, linear_op.size(-1))
 
         # We skip this test if we're dealing with batch LinearOperators
         # They shouldn't multiply by a vec
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             return
         else:
             return self._test_inv_matmul(rhs, lhs=lhs)
 
     def test_inv_matmul_vector_with_left_cholesky(self):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-        lhs = torch.randn(*lazy_tensor.batch_shape, 6, lazy_tensor.size(-1))
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
+        lhs = torch.randn(*linear_op.batch_shape, 6, linear_op.size(-1))
         return self._test_inv_matmul(rhs, lhs=lhs, cholesky=True)
 
     def test_inv_matmul_matrix(self, cholesky=False):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
         return self._test_inv_matmul(rhs, cholesky=cholesky)
 
     def test_inv_matmul_matrix_cholesky(self):
         return self.test_inv_matmul_matrix(cholesky=True)
 
     def test_inv_matmul_matrix_with_left(self):
-        lazy_tensor = self.create_lazy_tensor()
-        rhs = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
-        lhs = torch.randn(*lazy_tensor.batch_shape, 3, lazy_tensor.size(-1))
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
+        lhs = torch.randn(*linear_op.batch_shape, 3, linear_op.size(-1))
         return self._test_inv_matmul(rhs, lhs=lhs)
 
     def test_inv_matmul_matrix_broadcast(self):
-        lazy_tensor = self.create_lazy_tensor()
+        linear_op = self.create_linear_op()
 
         # Right hand size has one more batch dimension
-        batch_shape = torch.Size((3, *lazy_tensor.batch_shape))
-        rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 5)
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
         self._test_inv_matmul(rhs)
 
-        if lazy_tensor.ndimension() > 2:
+        if linear_op.ndimension() > 2:
             # Right hand size has one fewer batch dimension
-            batch_shape = torch.Size(lazy_tensor.batch_shape[1:])
-            rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 5)
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
             self._test_inv_matmul(rhs)
 
             # Right hand size has a singleton dimension
-            batch_shape = torch.Size((*lazy_tensor.batch_shape[:-1], 1))
-            rhs = torch.randn(*batch_shape, lazy_tensor.size(-1), 5)
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
             self._test_inv_matmul(rhs)
 
     def test_inv_quad_logdet(self):
@@ -665,23 +665,23 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_prod(self):
         with linear_operator.settings.fast_computations(covar_root_decomposition=False):
-            lazy_tensor = self.create_lazy_tensor()
-            evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+            linear_op = self.create_linear_op()
+            evaluated = self.evaluate_linear_op(linear_op)
 
-            if lazy_tensor.ndimension() > 2:
-                self.assertAllClose(lazy_tensor.prod(-3).evaluate(), evaluated.prod(-3), **self.tolerances["prod"])
-            if lazy_tensor.ndimension() > 3:
-                self.assertAllClose(lazy_tensor.prod(-4).evaluate(), evaluated.prod(-4), **self.tolerances["prod"])
+            if linear_op.ndimension() > 2:
+                self.assertAllClose(linear_op.prod(-3).evaluate(), evaluated.prod(-3), **self.tolerances["prod"])
+            if linear_op.ndimension() > 3:
+                self.assertAllClose(linear_op.prod(-4).evaluate(), evaluated.prod(-4), **self.tolerances["prod"])
 
     def test_root_decomposition(self, cholesky=False):
         _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
         with patch("linear_operator.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
-            lazy_tensor = self.create_lazy_tensor()
-            test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
+            linear_op = self.create_linear_op()
+            test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
             with linear_operator.settings.max_cholesky_size(math.inf if cholesky else 0):
-                root_approx = lazy_tensor.root_decomposition()
+                root_approx = linear_op.root_decomposition()
                 res = root_approx.matmul(test_mat)
-                actual = lazy_tensor.matmul(test_mat)
+                actual = linear_op.matmul(test_mat)
                 self.assertAllClose(res, actual, **self.tolerances["root_decomposition"])
 
             # Make sure that we're calling the correct function
@@ -693,14 +693,14 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_diagonalization(self, symeig=False):
         _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
         with patch("linear_operator.utils.lanczos.lanczos_tridiag", new=_wrapped_lanczos) as lanczos_mock:
-            lazy_tensor = self.create_lazy_tensor()
-            test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
+            linear_op = self.create_linear_op()
+            test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
             with linear_operator.settings.max_cholesky_size(math.inf if symeig else 0):
-                evals, evecs = lazy_tensor.diagonalization()
+                evals, evecs = linear_op.diagonalization()
                 evecs = evecs.evaluate()
                 approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-2, -1))
                 res = approx.matmul(test_mat)
-                actual = lazy_tensor.matmul(test_mat)
+                actual = linear_op.matmul(test_mat)
                 self.assertAllClose(res, actual, rtol=0.05)
 
             # Make sure that we're calling the correct function
@@ -712,24 +712,24 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_diagonalization_symeig(self):
         return self.test_diagonalization(symeig=True)
 
-    def _test_triangular_lazy_tensor_inv_quad_logdet(self):
+    def _test_triangular_linear_op_inv_quad_logdet(self):
         # now we need to test that a second cholesky isn't being called in the inv_quad_logdet
         with linear_operator.settings.max_cholesky_size(math.inf):
-            lazy_tensor = self.create_lazy_tensor()
-            rootdecomp = lazy_tensor.root_decomposition()
+            linear_op = self.create_linear_op()
+            rootdecomp = linear_op.root_decomposition()
 
             if isinstance(rootdecomp, linear_operator.lazy.CholLinearOperator):
-                chol = lazy_tensor.root_decomposition().root.clone()
-                linear_operator.utils.memoize.clear_cache_hook(lazy_tensor)
+                chol = linear_op.root_decomposition().root.clone()
+                linear_operator.utils.memoize.clear_cache_hook(linear_op)
                 linear_operator.utils.memoize.add_to_cache(
-                    lazy_tensor,
+                    linear_op,
                     "root_decomposition",
                     linear_operator.lazy.RootLinearOperator(chol),
                 )
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)
                 with patch("torch.linalg.cholesky_ex", new=_wrapped_cholesky) as cholesky_mock:
-                    self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True, lazy_tensor=lazy_tensor)
+                    self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True, linear_op=linear_op)
                 self.assertFalse(cholesky_mock.called)
 
     def test_root_decomposition_cholesky(self):
@@ -740,42 +740,42 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         self._test_inv_quad_logdet()
 
     def test_root_inv_decomposition(self):
-        lazy_tensor = self.create_lazy_tensor()
-        root_approx = lazy_tensor.root_inv_decomposition()
+        linear_op = self.create_linear_op()
+        root_approx = linear_op.root_inv_decomposition()
 
-        test_mat = torch.randn(*lazy_tensor.batch_shape, lazy_tensor.size(-1), 5)
+        test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
 
         res = root_approx.matmul(test_mat)
-        actual = lazy_tensor.inv_matmul(test_mat)
+        actual = linear_op.inv_matmul(test_mat)
         self.assertAllClose(res, actual, **self.tolerances["root_inv_decomposition"])
 
     def test_sample(self):
         if self.__class__.should_test_sample:
-            lazy_tensor = self.create_lazy_tensor()
-            evaluated = self.evaluate_lazy_tensor(lazy_tensor)
+            linear_op = self.create_linear_op()
+            evaluated = self.evaluate_linear_op(linear_op)
 
-            samples = lazy_tensor.zero_mean_mvn_samples(50000)
+            samples = linear_op.zero_mean_mvn_samples(50000)
             sample_covar = samples.unsqueeze(-1).matmul(samples.unsqueeze(-2)).mean(0)
             self.assertAllClose(sample_covar, evaluated, **self.tolerances["sample"])
 
     def test_sqrt_inv_matmul(self):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        if len(lazy_tensor.batch_shape):
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        if len(linear_op.batch_shape):
             return
 
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
-        rhs = torch.randn(*lazy_tensor.shape[:-1], 3).requires_grad_(True)
-        lhs = torch.randn(*lazy_tensor.shape[:-2], 2, lazy_tensor.size(-1)).requires_grad_(True)
+        rhs = torch.randn(*linear_op.shape[:-1], 3).requires_grad_(True)
+        lhs = torch.randn(*linear_op.shape[:-2], 2, linear_op.size(-1)).requires_grad_(True)
         rhs_copy = rhs.clone().detach().requires_grad_(True)
         lhs_copy = lhs.clone().detach().requires_grad_(True)
 
         # Perform forward pass
         with linear_operator.settings.max_cg_iterations(200):
-            sqrt_inv_matmul_res, inv_quad_res = lazy_tensor.sqrt_inv_matmul(rhs, lhs)
+            sqrt_inv_matmul_res, inv_quad_res = linear_op.sqrt_inv_matmul(rhs, lhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
         sqrt_inv_matmul_actual = lhs_copy @ matrix_inv_root @ rhs_copy
@@ -794,26 +794,26 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         # Check grads
         self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["sqrt_inv_matmul"])
         self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["sqrt_inv_matmul"])
-        for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["sqrt_inv_matmul"])
 
     def test_sqrt_inv_matmul_no_lhs(self):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        if len(lazy_tensor.batch_shape):
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        if len(linear_op.batch_shape):
             return
 
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
-        rhs = torch.randn(*lazy_tensor.shape[:-1], 3).requires_grad_(True)
+        rhs = torch.randn(*linear_op.shape[:-1], 3).requires_grad_(True)
         rhs_copy = rhs.clone().detach().requires_grad_(True)
 
         # Perform forward pass
         with linear_operator.settings.max_cg_iterations(200):
-            sqrt_inv_matmul_res = lazy_tensor.sqrt_inv_matmul(rhs)
+            sqrt_inv_matmul_res = linear_op.sqrt_inv_matmul(rhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
         sqrt_inv_matmul_actual = matrix_inv_root @ rhs_copy
@@ -828,7 +828,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Check grads
         self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["sqrt_inv_matmul"])
-        for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["sqrt_inv_matmul"])
 
@@ -837,13 +837,13 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         for name, dtype in dtypes.items():
             tolerances = self.tolerances["symeig"][name]
 
-            lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-            lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-            evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+            linear_op = self.create_linear_op().detach().requires_grad_(True)
+            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+            evaluated = self.evaluate_linear_op(linear_op_copy)
 
             # Perform forward pass
             with linalg_dtypes(dtype):
-                evals_unsorted, evecs_unsorted = lazy_tensor.symeig(eigenvectors=True)
+                evals_unsorted, evecs_unsorted = linear_op.symeig(eigenvectors=True)
                 evecs_unsorted = evecs_unsorted.evaluate()
 
             # since LinearOperator.symeig does not sort evals, we do this here for the check
@@ -880,21 +880,21 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
             # Check grads if there were no repeated evals
             if not any_evals_repeated:
-                for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
                     if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                         self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
 
             # Test with eigenvectors=False
-            _, evecs = lazy_tensor.symeig(eigenvectors=False)
+            _, evecs = linear_op.symeig(eigenvectors=False)
             self.assertIsNone(evecs)
 
     def test_svd(self):
-        lazy_tensor = self.create_lazy_tensor().detach().requires_grad_(True)
-        lazy_tensor_copy = lazy_tensor.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_lazy_tensor(lazy_tensor_copy)
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
 
         # Perform forward pass
-        U_unsorted, S_unsorted, V_unsorted = lazy_tensor.svd()
+        U_unsorted, S_unsorted, V_unsorted = linear_op.svd()
         U_unsorted, V_unsorted = U_unsorted.evaluate(), V_unsorted.evaluate()
 
         # since LinearOperator.svd does not sort the singular values, we do this here for the check
@@ -933,6 +933,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Check grads if there were no repeated singular values
         if not any_svals_repeated:
-            for arg, arg_copy in zip(lazy_tensor.representation(), lazy_tensor_copy.representation()):
+            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
                 if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                     self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])

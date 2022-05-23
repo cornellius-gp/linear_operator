@@ -12,15 +12,15 @@ class TestPsdSumLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         c1 = torch.tensor([5, 1, 2, 0], dtype=torch.float, requires_grad=True)
         t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([6, 0, 1, -1], dtype=torch.float, requires_grad=True)
         t2 = ToeplitzLinearOperator(c2)
         return PsdSumLinearOperator(t1, t2)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 
@@ -28,15 +28,15 @@ class TestPsdSumLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         c1 = torch.tensor([[2, 0.5, 0, 0], [5, 1, 2, 0]], dtype=torch.float, requires_grad=True)
         t1 = ToeplitzLinearOperator(c1)
         c2 = torch.tensor([[2, 0.5, 0, 0], [6, 0, 1, -1]], dtype=torch.float, requires_grad=True)
         t2 = ToeplitzLinearOperator(c2)
         return PsdSumLinearOperator(t1, t2)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 
@@ -46,15 +46,15 @@ class TestPsdSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCa
     should_test_sample = False
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         mat1 = torch.randn(2, 3, 4, 4)
         lt1 = DenseLinearOperator(mat1 @ mat1.transpose(-1, -2))
         mat2 = torch.randn(2, 3, 4, 4)
         lt2 = DenseLinearOperator(mat2 @ mat2.transpose(-1, -2))
         return PsdSumLinearOperator(lt1, lt2)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        tensors = [lt.evaluate() for lt in lazy_tensor.lazy_tensors]
+    def evaluate_linear_op(self, linear_op):
+        tensors = [lt.evaluate() for lt in linear_op.linear_ops]
         return sum(tensors)
 
 

@@ -38,9 +38,9 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             tensor = tensor._tensor
         elif isinstance(tensor, BatchRepeatLinearOperator):
             # things get kind of messy when interleaving repeats and triangualrisms
-            if not isinstance(tensor.base_lazy_tensor, TriangularLinearOperator):
+            if not isinstance(tensor.base_linear_op, TriangularLinearOperator):
                 tensor = tensor.__class__(
-                    TriangularLinearOperator(tensor.base_lazy_tensor, upper=upper),
+                    TriangularLinearOperator(tensor.base_linear_op, upper=upper),
                     batch_repeat=tensor.batch_repeat,
                 )
         if torch.is_tensor(tensor):
@@ -135,7 +135,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         if isinstance(self._tensor, DenseLinearOperator):
             res = torch.triangular_solve(right_tensor, self.evaluate(), upper=self.upper).solution
         elif isinstance(self._tensor, BatchRepeatLinearOperator):
-            res = self._tensor.base_lazy_tensor.inv_matmul(right_tensor, left_tensor)
+            res = self._tensor.base_linear_op.inv_matmul(right_tensor, left_tensor)
             # TODO: Proper broadcasting
             res = res.expand(self._tensor.batch_repeat + res.shape[-2:])
         else:

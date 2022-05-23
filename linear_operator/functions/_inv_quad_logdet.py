@@ -64,14 +64,14 @@ class InvQuadLogdet(Function):
             matrix_args = args
 
         # Get closure for matmul
-        lazy_tsr = ctx.representation_tree(*matrix_args)
+        linear_op = ctx.representation_tree(*matrix_args)
         precond_lt = ctx.precond_representation_tree(*precond_args)
 
         # Get info about matrix
-        ctx.dtype = lazy_tsr.dtype
-        ctx.device = lazy_tsr.device
-        ctx.matrix_shape = lazy_tsr.matrix_shape
-        ctx.batch_shape = lazy_tsr.batch_shape
+        ctx.dtype = linear_op.dtype
+        ctx.device = linear_op.device
+        ctx.matrix_shape = linear_op.matrix_shape
+        ctx.batch_shape = linear_op.batch_shape
 
         # Probe vectors
         if probe_vectors is None or probe_vector_norms is None:
@@ -129,11 +129,11 @@ class InvQuadLogdet(Function):
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
         rhs = torch.cat(rhs_list, -1)
-        solves, t_mat = lazy_tsr._solve(rhs, preconditioner, num_tridiag=num_random_probes)
+        solves, t_mat = linear_op._solve(rhs, preconditioner, num_tridiag=num_random_probes)
 
         # Final values to return
-        logdet_term = torch.zeros(lazy_tsr.batch_shape, dtype=ctx.dtype, device=ctx.device)
-        inv_quad_term = torch.zeros(lazy_tsr.batch_shape, dtype=ctx.dtype, device=ctx.device)
+        logdet_term = torch.zeros(linear_op.batch_shape, dtype=ctx.dtype, device=ctx.device)
+        inv_quad_term = torch.zeros(linear_op.batch_shape, dtype=ctx.dtype, device=ctx.device)
 
         # Compute logdet from tridiagonalization
         if settings.skip_logdet_forward.off():
@@ -170,7 +170,7 @@ class InvQuadLogdet(Function):
             matrix_args = ctx.saved_tensors[:-1]
         solves = ctx.saved_tensors[-1]
 
-        lazy_tsr = ctx.representation_tree(*matrix_args)
+        linear_op = ctx.representation_tree(*matrix_args)
         precond_lt = ctx.precond_representation_tree(*precond_args)
 
         # Fix grad_output sizes
@@ -206,7 +206,7 @@ class InvQuadLogdet(Function):
 
         left_factors = torch.cat(left_factors_list, -1)
         right_factors = torch.cat(right_factors_list, -1)
-        matrix_arg_grads = lazy_tsr._quad_form_derivative(left_factors, right_factors)
+        matrix_arg_grads = linear_op._quad_form_derivative(left_factors, right_factors)
 
         # precond gradient
         precond_arg_grads = precond_lt._quad_form_derivative(

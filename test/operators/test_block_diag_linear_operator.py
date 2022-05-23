@@ -12,14 +12,14 @@ class TestBlockDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(8, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
         return BlockDiagLinearOperator(DenseLinearOperator(blocks))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         actual = torch.zeros(32, 32)
         for i in range(8):
             actual[i * 4 : (i + 1) * 4, i * 4 : (i + 1) * 4] = blocks[i]
@@ -30,14 +30,14 @@ class TestBlockDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
     seed = 0
     should_test_sample = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(2, 6, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
         return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=2)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         actual = torch.zeros(2, 24, 24)
         for i in range(2):
             for j in range(6):
@@ -51,15 +51,15 @@ class TestBlockDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
     should_test_sample = False
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         blocks = torch.randn(2, 6, 5, 4, 4)
         blocks = blocks.matmul(blocks.transpose(-1, -2))
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
         return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        blocks = lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        blocks = linear_op.base_linear_op.tensor
         actual = torch.zeros(2, 5, 24, 24)
         for i in range(2):
             for j in range(6):

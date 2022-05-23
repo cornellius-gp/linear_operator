@@ -23,24 +23,24 @@ class AddedDiagLinearOperator(SumLinearOperator):
     a DiagLinearOperator.
     """
 
-    def __init__(self, *lazy_tensors, preconditioner_override=None):
-        lazy_tensors = list(lazy_tensors)
-        super(AddedDiagLinearOperator, self).__init__(*lazy_tensors, preconditioner_override=preconditioner_override)
-        if len(lazy_tensors) > 2:
+    def __init__(self, *linear_ops, preconditioner_override=None):
+        linear_ops = list(linear_ops)
+        super(AddedDiagLinearOperator, self).__init__(*linear_ops, preconditioner_override=preconditioner_override)
+        if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
 
-        broadcasting._mul_broadcast_shape(lazy_tensors[0].shape, lazy_tensors[1].shape)
+        broadcasting._mul_broadcast_shape(linear_ops[0].shape, linear_ops[1].shape)
 
-        if isinstance(lazy_tensors[0], DiagLinearOperator) and isinstance(lazy_tensors[1], DiagLinearOperator):
+        if isinstance(linear_ops[0], DiagLinearOperator) and isinstance(linear_ops[1], DiagLinearOperator):
             raise RuntimeError(
                 "Trying to lazily add two DiagLinearOperators. Create a single DiagLinearOperator instead."
             )
-        elif isinstance(lazy_tensors[0], DiagLinearOperator):
-            self._diag_tensor = lazy_tensors[0]
-            self._lazy_tensor = lazy_tensors[1]
-        elif isinstance(lazy_tensors[1], DiagLinearOperator):
-            self._diag_tensor = lazy_tensors[1]
-            self._lazy_tensor = lazy_tensors[0]
+        elif isinstance(linear_ops[0], DiagLinearOperator):
+            self._diag_tensor = linear_ops[0]
+            self._linear_op = linear_ops[1]
+        elif isinstance(linear_ops[1], DiagLinearOperator):
+            self._diag_tensor = linear_ops[1]
+            self._linear_op = linear_ops[0]
         else:
             raise RuntimeError(
                 "One of the LinearOperators input to AddedDiagLinearOperator must be a DiagLinearOperator!"
@@ -58,18 +58,18 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._r_cache = None
 
     def _matmul(self, rhs):
-        return torch.addcmul(self._lazy_tensor._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
+        return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
     def add_diag(self, added_diag):
-        return self.__class__(self._lazy_tensor, self._diag_tensor.add_diag(added_diag))
+        return self.__class__(self._linear_op, self._diag_tensor.add_diag(added_diag))
 
     def __add__(self, other):
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
-            return self.__class__(self._lazy_tensor, self._diag_tensor + other)
+            return self.__class__(self._linear_op, self._diag_tensor + other)
         else:
-            return self.__class__(self._lazy_tensor + other, self._diag_tensor)
+            return self.__class__(self._linear_op + other, self._diag_tensor)
 
     def _preconditioner(self):
         r"""
@@ -101,7 +101,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         # Through matrix determinant lemma, log |L L^T + D| reduces down to 2 log |R|
         if self._q_cache is None:
             max_iter = settings.max_preconditioner_size.value()
-            self._piv_chol_self = self._lazy_tensor.pivoted_cholesky(rank=max_iter)
+            self._piv_chol_self = self._linear_op.pivoted_cholesky(rank=max_iter)
             if torch.any(torch.isnan(self._piv_chol_self)).item():
                 warnings.warn(
                     "NaNs encountered in preconditioner computation. Attempting to continue without preconditioning.",
@@ -165,14 +165,14 @@ class AddedDiagLinearOperator(SumLinearOperator):
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
-            U, S_, V = self._lazy_tensor.svd()
+            U, S_, V = self._linear_op.svd()
             S = S_ + self._diag_tensor.diag()
             return U, S, V
         return super()._svd()
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
-            evals_, evecs = self._lazy_tensor.symeig(eigenvectors=eigenvectors)
+            evals_, evecs = self._linear_op.symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor.diag()
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)
@@ -188,5 +188,5 @@ class AddedDiagLinearOperator(SumLinearOperator):
         Unless we override this method (or find a better solution), covar1 and covar2 might not be the same type.
         In particular, covar1 would *always* be a standard AddedDiagLinearOperator, but covar2 might be a subtype.
         """
-        added_diag_lazy_tsr = self.representation_tree()(*self.representation())
-        return added_diag_lazy_tsr._lazy_tensor + added_diag_lazy_tsr._diag_tensor
+        added_diag_linear_op = self.representation_tree()(*self.representation())
+        return added_diag_linear_op._linear_op + added_diag_linear_op._diag_tensor

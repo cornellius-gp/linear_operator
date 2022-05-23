@@ -9,4 +9,4 @@ class PsdSumLinearOperator(SumLinearOperator):
     """
 
     def zero_mean_mvn_samples(self, num_samples):
-        return sum(lazy_tensor.zero_mean_mvn_samples(num_samples) for lazy_tensor in self.lazy_tensors)
+        return sum(linear_op.zero_mean_mvn_samples(num_samples) for linear_op in self.linear_ops)

@@ -16,17 +16,15 @@ def make_random_mat(size, rank, batch_shape=torch.Size(())):
 class TestMulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 10
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         mat1 = make_random_mat(6, 6)
         mat2 = make_random_mat(6, 6)
         res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(2.0))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag_tensor = lazy_tensor._diag_tensor.evaluate()
-        res = torch.mul(
-            lazy_tensor._lazy_tensor.left_lazy_tensor.evaluate(), lazy_tensor._lazy_tensor.right_lazy_tensor.evaluate()
-        )
+    def evaluate_linear_op(self, linear_op):
+        diag_tensor = linear_op._diag_tensor.evaluate()
+        res = torch.mul(linear_op._linear_op.left_linear_op.evaluate(), linear_op._linear_op.right_linear_op.evaluate())
         res = res + diag_tensor
         return res
 
@@ -34,17 +32,15 @@ class TestMulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 class TestMulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 2
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
         res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(2.0))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag_tensor = lazy_tensor._diag_tensor.evaluate()
-        res = torch.mul(
-            lazy_tensor._lazy_tensor.left_lazy_tensor.evaluate(), lazy_tensor._lazy_tensor.right_lazy_tensor.evaluate()
-        )
+    def evaluate_linear_op(self, linear_op):
+        diag_tensor = linear_op._diag_tensor.evaluate()
+        res = torch.mul(linear_op._linear_op.left_linear_op.evaluate(), linear_op._linear_op.right_linear_op.evaluate())
         res = res + diag_tensor
         return res
 
@@ -53,17 +49,15 @@ class TestMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
     seed = 1
     skip_slq_tests = True
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
         res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
         return res.add_diag(torch.tensor(0.5))
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        diag_tensor = lazy_tensor._diag_tensor.evaluate()
-        res = torch.mul(
-            lazy_tensor._lazy_tensor.left_lazy_tensor.evaluate(), lazy_tensor._lazy_tensor.right_lazy_tensor.evaluate()
-        )
+    def evaluate_linear_op(self, linear_op):
+        diag_tensor = linear_op._diag_tensor.evaluate()
+        res = torch.mul(linear_op._linear_op.left_linear_op.evaluate(), linear_op._linear_op.right_linear_op.evaluate())
         res = res + diag_tensor
         return res
 

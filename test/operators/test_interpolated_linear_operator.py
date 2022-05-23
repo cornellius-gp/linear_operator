@@ -17,7 +17,7 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # so the default derivative doesn't apply
         pass
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         left_interp_indices = torch.LongTensor([[0, 1], [2, 3], [3, 4], [4, 5]])
         left_interp_values = torch.tensor([[0.1, 0.9], [1, 2], [0.5, 1], [1, 3]], dtype=torch.float)
         left_interp_values.requires_grad = True
@@ -28,19 +28,19 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         base_tensor = torch.randn(6, 6)
         base_tensor = base_tensor.t().matmul(base_tensor)
         base_tensor.requires_grad = True
-        base_lazy_tensor = DenseLinearOperator(base_tensor)
+        base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        left_matrix = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-        right_matrix = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-        left_matrix.scatter_(1, lazy_tensor.left_interp_indices, lazy_tensor.left_interp_values)
-        right_matrix.scatter_(1, lazy_tensor.right_interp_indices, lazy_tensor.right_interp_values)
+    def evaluate_linear_op(self, linear_op):
+        left_matrix = torch.zeros(4, 6, dtype=linear_op.dtype)
+        right_matrix = torch.zeros(4, 6, dtype=linear_op.dtype)
+        left_matrix.scatter_(1, linear_op.left_interp_indices, linear_op.left_interp_values)
+        right_matrix.scatter_(1, linear_op.right_interp_indices, linear_op.right_interp_values)
 
-        base_tensor = lazy_tensor.base_lazy_tensor.tensor
+        base_tensor = linear_op.base_linear_op.tensor
         actual = left_matrix.matmul(base_tensor).matmul(right_matrix.t())
         return actual
 
@@ -54,7 +54,7 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
         # so the default derivative doesn't apply
         pass
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         left_interp_indices = torch.LongTensor([[0, 1], [2, 3], [3, 4], [4, 5]]).repeat(5, 1, 1)
         left_interp_values = torch.tensor([[0.1, 0.9], [1, 2], [0.5, 1], [1, 3]], dtype=torch.float).repeat(5, 1, 1)
         left_interp_values.requires_grad = True
@@ -65,26 +65,26 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
         base_tensor = torch.randn(5, 6, 6)
         base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
         base_tensor.requires_grad = True
-        base_lazy_tensor = DenseLinearOperator(base_tensor)
+        base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
+    def evaluate_linear_op(self, linear_op):
         left_matrix_comps = []
         right_matrix_comps = []
         for i in range(5):
-            left_matrix_comp = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-            right_matrix_comp = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-            left_matrix_comp.scatter_(1, lazy_tensor.left_interp_indices[i], lazy_tensor.left_interp_values[i])
-            right_matrix_comp.scatter_(1, lazy_tensor.right_interp_indices[i], lazy_tensor.right_interp_values[i])
+            left_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
+            right_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
+            left_matrix_comp.scatter_(1, linear_op.left_interp_indices[i], linear_op.left_interp_values[i])
+            right_matrix_comp.scatter_(1, linear_op.right_interp_indices[i], linear_op.right_interp_values[i])
             left_matrix_comps.append(left_matrix_comp.unsqueeze(0))
             right_matrix_comps.append(right_matrix_comp.unsqueeze(0))
         left_matrix = torch.cat(left_matrix_comps)
         right_matrix = torch.cat(right_matrix_comps)
 
-        base_tensor = lazy_tensor.base_lazy_tensor.tensor
+        base_tensor = linear_op.base_linear_op.tensor
         actual = left_matrix.matmul(base_tensor).matmul(right_matrix.transpose(-1, -2))
         return actual
 
@@ -100,7 +100,7 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
         # so the default derivative doesn't apply
         pass
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         left_interp_indices = torch.LongTensor([[0, 1], [2, 3], [3, 4], [4, 5]]).repeat(2, 5, 1, 1)
         left_interp_values = torch.tensor([[0.1, 0.9], [1, 2], [0.5, 1], [1, 3]], dtype=torch.float).repeat(2, 5, 1, 1)
         left_interp_values.requires_grad = True
@@ -110,25 +110,21 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
 
         base_tensor = torch.randn(5, 6, 6)
         base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
-        base_lazy_tensor = DenseLinearOperator(base_tensor)
+        base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_lazy_tensor, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
+    def evaluate_linear_op(self, linear_op):
         left_matrix_comps = []
         right_matrix_comps = []
         for i in range(2):
             for j in range(5):
-                left_matrix_comp = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-                right_matrix_comp = torch.zeros(4, 6, dtype=lazy_tensor.dtype)
-                left_matrix_comp.scatter_(
-                    1, lazy_tensor.left_interp_indices[i, j], lazy_tensor.left_interp_values[i, j]
-                )
-                right_matrix_comp.scatter_(
-                    1, lazy_tensor.right_interp_indices[i, j], lazy_tensor.right_interp_values[i, j]
-                )
+                left_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
+                right_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
+                left_matrix_comp.scatter_(1, linear_op.left_interp_indices[i, j], linear_op.left_interp_values[i, j])
+                right_matrix_comp.scatter_(1, linear_op.right_interp_indices[i, j], linear_op.right_interp_values[i, j])
                 left_matrix_comps.append(left_matrix_comp.unsqueeze(0))
                 right_matrix_comps.append(right_matrix_comp.unsqueeze(0))
         left_matrix = torch.cat(left_matrix_comps)
@@ -136,7 +132,7 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
         left_matrix = left_matrix.view(2, 5, 4, 6)
         right_matrix = right_matrix.view(2, 5, 4, 6)
 
-        base_tensor = lazy_tensor.base_lazy_tensor.tensor
+        base_tensor = linear_op.base_linear_op.tensor
         actual = left_matrix.matmul(base_tensor).matmul(right_matrix.transpose(-1, -2))
         return actual
 
@@ -146,12 +142,12 @@ def empty_method(self):
 
 
 class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCase, unittest.TestCase):
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         itplzt = InterpolatedLinearOperator(DenseLinearOperator(torch.rand(3, 4)))
         return itplzt
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        return lazy_tensor.base_lazy_tensor.tensor
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.base_linear_op.tensor
 
     # Disable tests meant for square matrices
     test_add_diag = empty_method

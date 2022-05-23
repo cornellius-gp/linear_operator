@@ -22,49 +22,49 @@ class BlockLinearOperator(LinearOperator):
     A `b x k x n x n` tensor represents `k` `b x n x n` blocks.
 
     Args:
-        - :attr:`base_lazy_tensor` (LinearOperator or Tensor):
+        - :attr:`base_linear_op` (LinearOperator or Tensor):
             Must be at least 3 dimenional.
         - :attr:`block_dim` (int):
             The dimension that specifies blocks.
     """
 
-    def __init__(self, base_lazy_tensor, block_dim=-3):
-        if base_lazy_tensor.dim() < 3:
+    def __init__(self, base_linear_op, block_dim=-3):
+        if base_linear_op.dim() < 3:
             raise RuntimeError(
-                "base_lazy_tensor must be a batch matrix (i.e. at least 3 dimensions - got "
-                "{}".format(base_lazy_tensor.dim())
+                "base_linear_op must be a batch matrix (i.e. at least 3 dimensions - got "
+                "{}".format(base_linear_op.dim())
             )
 
         # Make sure block_dim is negative
-        block_dim = block_dim if block_dim < 0 else (block_dim - base_lazy_tensor.dim())
+        block_dim = block_dim if block_dim < 0 else (block_dim - base_linear_op.dim())
 
         # Everything is MUCH easier to write if the last batch dimension is the block dimension
         # I.e. blopck_dim = -3
         # We'll permute the dimensions if this is not the case
         if block_dim != -3:
-            positive_block_dim = base_lazy_tensor.dim() + block_dim
-            base_lazy_tensor = base_lazy_tensor._permute_batch(
+            positive_block_dim = base_linear_op.dim() + block_dim
+            base_linear_op = base_linear_op._permute_batch(
                 *range(positive_block_dim),
-                *range(positive_block_dim + 1, base_lazy_tensor.dim() - 2),
+                *range(positive_block_dim + 1, base_linear_op.dim() - 2),
                 positive_block_dim,
             )
 
-        super(BlockLinearOperator, self).__init__(lazify(base_lazy_tensor))
-        self.base_lazy_tensor = base_lazy_tensor
+        super(BlockLinearOperator, self).__init__(lazify(base_linear_op))
+        self.base_linear_op = base_linear_op
 
     @abstractmethod
     def _add_batch_dim(self, other):
         raise NotImplementedError
 
     def _expand_batch(self, batch_shape):
-        batch_shape = torch.Size((*batch_shape, self.base_lazy_tensor.size(-3)))
-        res = self.__class__(self.base_lazy_tensor._expand_batch(batch_shape))
+        batch_shape = torch.Size((*batch_shape, self.base_linear_op.size(-3)))
+        res = self.__class__(self.base_linear_op._expand_batch(batch_shape))
         return res
 
     def _getitem(self, row_index, col_index, *batch_indices):
         # First the easy case: just batch indexing
         if _is_noop_index(row_index) and _is_noop_index(col_index):
-            return self.__class__(self.base_lazy_tensor._getitem(row_index, col_index, *batch_indices, _noop_index))
+            return self.__class__(self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index))
 
         # If either of the dimensions are indices, it's too complicated - go with the base case
         if not isinstance(row_index, slice) or not isinstance(col_index, slice):
@@ -92,10 +92,10 @@ class BlockLinearOperator(LinearOperator):
         col_index = slice(col_start // num_blocks, col_end // num_blocks, None)
 
         # Now we can try the super call!
-        new_base_lazy_tensor = self.base_lazy_tensor._getitem(row_index, col_index, *batch_indices)
+        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices)
 
         # Now construct a kernel with those indices
-        return self.__class__(new_base_lazy_tensor, block_dim=-3)
+        return self.__class__(new_base_linear_op, block_dim=-3)
 
     def _matmul(self, rhs):
         isvector = rhs.ndimension() == 1
@@ -103,7 +103,7 @@ class BlockLinearOperator(LinearOperator):
             rhs = rhs.unsqueeze(1)
 
         rhs = self._add_batch_dim(rhs)
-        res = self.base_lazy_tensor._matmul(rhs)
+        res = self.base_linear_op._matmul(rhs)
         res = self._remove_batch_dim(res)
 
         if isvector:
@@ -119,23 +119,23 @@ class BlockLinearOperator(LinearOperator):
             left_vecs = left_vecs.unsqueeze(-1)
         left_vecs = self._add_batch_dim(left_vecs)
         right_vecs = self._add_batch_dim(right_vecs)
-        res = self.base_lazy_tensor._quad_form_derivative(left_vecs, right_vecs)
+        res = self.base_linear_op._quad_form_derivative(left_vecs, right_vecs)
         return res
 
     def _permute_batch(self, *dims):
-        if torch.is_tensor(self.base_lazy_tensor):
-            base_lazy_tensor = self.base_lazy_tensor.permute(*dims, -3, -2, -1)
+        if torch.is_tensor(self.base_linear_op):
+            base_linear_op = self.base_linear_op.permute(*dims, -3, -2, -1)
         else:
-            base_lazy_tensor = self.base_lazy_tensor._permute_batch(*dims, self.base_lazy_tensor.dim() - 3)
-        res = self.__class__(base_lazy_tensor)
+            base_linear_op = self.base_linear_op._permute_batch(*dims, self.base_linear_op.dim() - 3)
+        res = self.__class__(base_linear_op)
         return res
 
     def _unsqueeze_batch(self, dim):
-        if torch.is_tensor(self.base_lazy_tensor):
-            base_lazy_tensor = self.base_lazy_tensor.unsqueeze(dim)
+        if torch.is_tensor(self.base_linear_op):
+            base_linear_op = self.base_linear_op.unsqueeze(dim)
         else:
-            base_lazy_tensor = self.base_lazy_tensor._unsqueeze_batch(dim)
-        res = self.__class__(base_lazy_tensor)
+            base_linear_op = self.base_linear_op._unsqueeze_batch(dim)
+        res = self.__class__(base_linear_op)
         return res
 
     @abstractmethod
@@ -147,12 +147,12 @@ class BlockLinearOperator(LinearOperator):
         # This preserves the block structure
         from .constant_mul_linear_operator import ConstantMulLinearOperator
 
-        return self.__class__(ConstantMulLinearOperator(self.base_lazy_tensor, other))
+        return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
     def _transpose_nonbatch(self):
-        return self.__class__(self.base_lazy_tensor._transpose_nonbatch())
+        return self.__class__(self.base_linear_op._transpose_nonbatch())
 
     def zero_mean_mvn_samples(self, num_samples):
-        res = self.base_lazy_tensor.zero_mean_mvn_samples(num_samples)
+        res = self.base_linear_op.zero_mean_mvn_samples(num_samples)
         res = self._remove_batch_dim(res.unsqueeze(-1)).squeeze(-1)
         return res

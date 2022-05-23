@@ -6,17 +6,17 @@ from torch.autograd import Function
 from .. import settings
 
 
-def _solve(lazy_tsr, rhs):
+def _solve(linear_op, rhs):
     if (
         settings.fast_computations.solves.off()
         or settings.fast_computations.log_prob.off()
-        or lazy_tsr.size(-1) <= settings.max_cholesky_size.value()
+        or linear_op.size(-1) <= settings.max_cholesky_size.value()
     ):
-        return lazy_tsr.cholesky()._cholesky_solve(rhs)
+        return linear_op.cholesky()._cholesky_solve(rhs)
     else:
         with torch.no_grad():
-            preconditioner = lazy_tsr.detach()._inv_matmul_preconditioner()
-        return lazy_tsr._solve(rhs, preconditioner)
+            preconditioner = linear_op.detach()._inv_matmul_preconditioner()
+        return linear_op._solve(rhs, preconditioner)
 
 
 class InvQuad(Function):
@@ -39,7 +39,7 @@ class InvQuad(Function):
         inv_quad_rhs, *matrix_args = args
         ctx.representation_tree = representation_tree
         # Get closure for matmul
-        lazy_tsr = ctx.representation_tree(*matrix_args)
+        linear_op = ctx.representation_tree(*matrix_args)
 
         # RHS for inv_quad
         ctx.is_vector = False
@@ -48,14 +48,14 @@ class InvQuad(Function):
             ctx.is_vector = True
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
-        inv_quad_solves = _solve(lazy_tsr, inv_quad_rhs)
+        inv_quad_solves = _solve(linear_op, inv_quad_rhs)
         inv_quad_term = (inv_quad_solves * inv_quad_rhs).sum(-2)
 
         to_save = matrix_args + [inv_quad_solves]
         ctx.save_for_backward(*to_save)
 
         if settings.memory_efficient.off():
-            ctx._lazy_tsr = lazy_tsr
+            ctx._linear_op = linear_op
 
         return inv_quad_term
 
@@ -63,10 +63,10 @@ class InvQuad(Function):
     def backward(ctx, inv_quad_grad_output):
         *matrix_args, inv_quad_solves = ctx.saved_tensors
 
-        if hasattr(ctx, "_lazy_tsr"):
-            lazy_tsr = ctx._lazy_tsr
+        if hasattr(ctx, "_linear_op"):
+            linear_op = ctx._linear_op
         else:
-            lazy_tsr = ctx.representation_tree(*matrix_args)
+            linear_op = ctx.representation_tree(*matrix_args)
 
         # Fix grad_output sizes
         inv_quad_grad_output = inv_quad_grad_output.unsqueeze(-2)
@@ -78,7 +78,7 @@ class InvQuad(Function):
         if any(ctx.needs_input_grad[2:]):
             left_factors = neg_inv_quad_solves_times_grad_out
             right_factors = inv_quad_solves
-            matrix_arg_grads = lazy_tsr._quad_form_derivative(left_factors, right_factors)
+            matrix_arg_grads = linear_op._quad_form_derivative(left_factors, right_factors)
 
         # input_2 gradients
         if ctx.needs_input_grad[1]:

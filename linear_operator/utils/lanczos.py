@@ -181,9 +181,9 @@ def lanczos_tridiag_to_diag(t_mat):
     return evals.to(orig_device), evecs.to(orig_device)
 
 
-def _postprocess_lanczos_root_inv_decomp(lazy_tsr, inv_roots, initial_vectors, test_vectors):
+def _postprocess_lanczos_root_inv_decomp(linear_op, inv_roots, initial_vectors, test_vectors):
     """
-    Given lazy_tsr and a set of inv_roots of shape num_init_vecs x num_batch x n x k,
+    Given linear_op and a set of inv_roots of shape num_init_vecs x num_batch x n x k,
     as well as the initial vectors of shape num_init_vecs x num_batch x n,
     determine which inverse root is best given the test_vectors of shape
     num_init_vecs x num_batch x n
@@ -194,16 +194,16 @@ def _postprocess_lanczos_root_inv_decomp(lazy_tsr, inv_roots, initial_vectors, t
     # Compute solves
     solves = inv_roots.matmul(inv_roots.transpose(-1, -2).matmul(test_vectors))
 
-    # Compute lazy_tsr * solves
+    # Compute linear_op * solves
     solves = (
-        solves.permute(*range(1, lazy_tsr.dim() + 1), 0)
+        solves.permute(*range(1, linear_op.dim() + 1), 0)
         .contiguous()
-        .view(*lazy_tsr.batch_shape, lazy_tsr.matrix_shape[-1], -1)
+        .view(*linear_op.batch_shape, linear_op.matrix_shape[-1], -1)
     )
-    mat_times_solves = lazy_tsr.matmul(solves)
-    mat_times_solves = mat_times_solves.view(*lazy_tsr.batch_shape, lazy_tsr.matrix_shape[-1], -1, num_probes).permute(
-        -1, *range(0, lazy_tsr.dim())
-    )
+    mat_times_solves = linear_op.matmul(solves)
+    mat_times_solves = mat_times_solves.view(
+        *linear_op.batch_shape, linear_op.matrix_shape[-1], -1, num_probes
+    ).permute(-1, *range(0, linear_op.dim()))
 
     # Compute residuals
     residuals = (mat_times_solves - test_vectors).norm(2, dim=-2)

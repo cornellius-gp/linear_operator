@@ -12,31 +12,27 @@ from .sum_batch_linear_operator import SumBatchLinearOperator
 
 
 class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
-    def __init__(self, *lazy_tensors, preconditioner_override=None):
-        if len(lazy_tensors) > 2:
+    def __init__(self, *linear_ops, preconditioner_override=None):
+        if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
 
-        if isinstance(lazy_tensors[0], DiagLinearOperator) and not isinstance(
-            lazy_tensors[1], LowRankRootLinearOperator
-        ):
+        if isinstance(linear_ops[0], DiagLinearOperator) and not isinstance(linear_ops[1], LowRankRootLinearOperator):
             raise RuntimeError(
                 "A LowRankRootAddedDiagLinearOperator can only be created with a LowRankLinearOperator base!"
             )
-        elif isinstance(lazy_tensors[1], DiagLinearOperator) and not isinstance(
-            lazy_tensors[0], LowRankRootLinearOperator
-        ):
+        elif isinstance(linear_ops[1], DiagLinearOperator) and not isinstance(linear_ops[0], LowRankRootLinearOperator):
             raise RuntimeError(
                 "A LowRankRootAddedDiagLinearOperator can only be created with a LowRankLinearOperator base!"
             )
 
-        super().__init__(*lazy_tensors, preconditioner_override=preconditioner_override)
+        super().__init__(*linear_ops, preconditioner_override=preconditioner_override)
 
     @property
     @cached(name="chol_cap_mat")
     def chol_cap_mat(self):
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
-        U = self._lazy_tensor.root
-        V = self._lazy_tensor.root.transpose(-2, -1)
+        U = self._linear_op.root
+        V = self._linear_op.root.transpose(-2, -1)
         C = ConstantDiagLinearOperator(torch.ones(*V.batch_shape, 1, device=V.device, dtype=V.dtype), V.shape[-2])
 
         cap_mat = delazify(C + V.matmul(A_inv.matmul(U)))
@@ -53,7 +49,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
             res = super()._mul_constant(constant)
         else:
             res = AddedDiagLinearOperator(
-                self._lazy_tensor._mul_constant(constant), self._diag_tensor._mul_constant(constant)
+                self._linear_op._mul_constant(constant), self._diag_tensor._mul_constant(constant)
             )
         return res
 
@@ -62,8 +58,8 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _solve(self, rhs, preconditioner=None, num_tridiag=0):
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
-        U = self._lazy_tensor.root
-        V = self._lazy_tensor.root.transpose(-2, -1)
+        U = self._linear_op.root
+        V = self._linear_op.root.transpose(-2, -1)
         chol_cap_mat = self.chol_cap_mat
 
         res = V.matmul(A_inv.matmul(rhs))
@@ -89,9 +85,9 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
-            return self.__class__(self._lazy_tensor, self._diag_tensor + other)
+            return self.__class__(self._linear_op, self._diag_tensor + other)
         else:
-            return AddedDiagLinearOperator(self._lazy_tensor + other, self._diag_tensor)
+            return AddedDiagLinearOperator(self._linear_op + other, self._diag_tensor)
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:

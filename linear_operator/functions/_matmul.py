@@ -17,13 +17,13 @@ class Matmul(Function):
         else:
             is_vector = False
 
-        lazy_tsr = ctx.representation_tree(*matrix_args)
-        res = lazy_tsr._matmul(rhs)
+        linear_op = ctx.representation_tree(*matrix_args)
+        res = linear_op._matmul(rhs)
 
         to_save = [orig_rhs] + list(matrix_args)
         ctx.save_for_backward(*to_save)
         if settings.memory_efficient.off():
-            ctx._lazy_tsr = lazy_tsr
+            ctx._linear_op = linear_op
 
         # Squeeze if necessary
         if is_vector:
@@ -47,16 +47,16 @@ class Matmul(Function):
 
         # input_2 gradient
         if ctx.needs_input_grad[1]:
-            if hasattr(ctx, "_lazy_tsr"):
-                lazy_tsr = ctx._lazy_tsr
+            if hasattr(ctx, "_linear_op"):
+                linear_op = ctx._linear_op
             else:
-                lazy_tsr = ctx.representation_tree(*matrix_args)
+                linear_op = ctx.representation_tree(*matrix_args)
 
             if grad_output.dim() == 1:
                 # Confusing Cublas_Sgemv bug when grad_output is single dimensional on GPU.
-                rhs_grad = lazy_tsr._t_matmul(grad_output.unsqueeze(-1)).squeeze(-1)
+                rhs_grad = linear_op._t_matmul(grad_output.unsqueeze(-1)).squeeze(-1)
             else:
-                rhs_grad = lazy_tsr._t_matmul(grad_output)
+                rhs_grad = linear_op._t_matmul(grad_output)
 
             # For broadcasting
             if rhs_grad.dim() > len(rhs_shape):

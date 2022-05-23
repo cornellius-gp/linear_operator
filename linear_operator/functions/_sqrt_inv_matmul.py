@@ -17,12 +17,12 @@ class SqrtInvMatmul(Function):
     @staticmethod
     def forward(ctx, representation_tree, rhs, lhs, *matrix_args):
         ctx.representation_tree = representation_tree
-        ctx.lazy_tsr = ctx.representation_tree(*matrix_args)
+        ctx.linear_op = ctx.representation_tree(*matrix_args)
 
         if lhs is not None:
             terms = torch.cat([rhs, lhs.transpose(-1, -2)], dim=-1)
             solves, weights, no_shift_solves, shifts = utils.contour_integral_quad(
-                ctx.lazy_tsr, terms, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
+                ctx.linear_op, terms, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
             )
             rhs_solves, lhs_solves = solves.split([rhs.size(-1), lhs.size(-2)], dim=-1)
             lhs_no_shift_solves = no_shift_solves[..., -lhs.size(-2) :]
@@ -30,12 +30,12 @@ class SqrtInvMatmul(Function):
             inv_quad_res = (lhs_no_shift_solves.transpose(-1, -2) * lhs).sum(dim=-1).mul_(-1)
         else:
             rhs_solves, weights, _, shifts = utils.contour_integral_quad(
-                ctx.lazy_tsr, rhs, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
+                ctx.linear_op, rhs, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
             )
             sqrt_inv_matmul_res = (rhs_solves * weights).sum(0)
             lhs_solves = None
             lhs_no_shift_solves = None
-            inv_quad_res = torch.zeros(ctx.lazy_tsr.batch_shape, dtype=rhs.dtype, device=rhs.device)
+            inv_quad_res = torch.zeros(ctx.linear_op.batch_shape, dtype=rhs.dtype, device=rhs.device)
 
         # Save for backwards
         ctx.save_for_backward(rhs, lhs, rhs_solves, lhs_solves, weights, shifts, lhs_no_shift_solves, *matrix_args)
@@ -68,14 +68,14 @@ class SqrtInvMatmul(Function):
             # Compute matrix grads
             terms1 = torch.cat([lhs_no_shift_solves.unsqueeze(0), lhs_solves], 0)
             terms2 = torch.cat([neg_inv_quad_solves_mul_grad.unsqueeze(0), weighted_rhs_solves_mul_grad], 0)
-            matrix_arg_grads = ctx.lazy_tsr._quad_form_derivative(
+            matrix_arg_grads = ctx.linear_op._quad_form_derivative(
                 torch.cat([terms1, terms2], -1), torch.cat([terms2, terms1], -1).mul_(0.5)
             )
 
         else:
             # Intermediate terms for sqrt_inv_matmul/quad
             grad_solves, _, _, _ = utils.contour_integral_quad(
-                ctx.lazy_tsr,
+                ctx.linear_op,
                 sqrt_inv_matmul_grad,
                 inverse=True,
                 weights=weights,
@@ -94,7 +94,7 @@ class SqrtInvMatmul(Function):
             # Compute matrix grads
             terms1 = grad_solves_mul_weights
             terms2 = rhs_solves
-            matrix_arg_grads = ctx.lazy_tsr._quad_form_derivative(
+            matrix_arg_grads = ctx.linear_op._quad_form_derivative(
                 torch.cat([terms1, terms2], -1), torch.cat([terms2, terms1], -1).mul_(0.5)
             )
 

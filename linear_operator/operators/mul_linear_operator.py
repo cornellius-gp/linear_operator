@@ -9,30 +9,30 @@ from .root_linear_operator import RootLinearOperator
 
 
 class MulLinearOperator(LinearOperator):
-    def _check_args(self, left_lazy_tensor, right_lazy_tensor):
-        if not isinstance(left_lazy_tensor, LinearOperator) or not isinstance(right_lazy_tensor, LinearOperator):
+    def _check_args(self, left_linear_op, right_linear_op):
+        if not isinstance(left_linear_op, LinearOperator) or not isinstance(right_linear_op, LinearOperator):
             return "MulLinearOperator expects two LinearOperators."
-        if left_lazy_tensor.shape != right_lazy_tensor.shape:
+        if left_linear_op.shape != right_linear_op.shape:
             return "MulLinearOperator expects two LinearOperators of the same size: got {} and {}.".format(
-                left_lazy_tensor, right_lazy_tensor
+                left_linear_op, right_linear_op
             )
 
-    def __init__(self, left_lazy_tensor, right_lazy_tensor):
+    def __init__(self, left_linear_op, right_linear_op):
         """
         Args:
-            - lazy_tensors (A list of LinearOperator) - A list of LinearOperator to multiplicate with.
+            - linear_ops (A list of LinearOperator) - A list of LinearOperator to multiplicate with.
         """
-        if not isinstance(left_lazy_tensor, RootLinearOperator):
-            left_lazy_tensor = left_lazy_tensor.root_decomposition()
-        if not isinstance(right_lazy_tensor, RootLinearOperator):
-            right_lazy_tensor = right_lazy_tensor.root_decomposition()
-        super(MulLinearOperator, self).__init__(left_lazy_tensor, right_lazy_tensor)
-        self.left_lazy_tensor = left_lazy_tensor
-        self.right_lazy_tensor = right_lazy_tensor
+        if not isinstance(left_linear_op, RootLinearOperator):
+            left_linear_op = left_linear_op.root_decomposition()
+        if not isinstance(right_linear_op, RootLinearOperator):
+            right_linear_op = right_linear_op.root_decomposition()
+        super(MulLinearOperator, self).__init__(left_linear_op, right_linear_op)
+        self.left_linear_op = left_linear_op
+        self.right_linear_op = right_linear_op
 
     def _get_indices(self, row_index, col_index, *batch_indices):
-        left_res = self.left_lazy_tensor._get_indices(row_index, col_index, *batch_indices)
-        right_res = self.right_lazy_tensor._get_indices(row_index, col_index, *batch_indices)
+        left_res = self.left_linear_op._get_indices(row_index, col_index, *batch_indices)
+        right_res = self.right_linear_op._get_indices(row_index, col_index, *batch_indices)
         return left_res * right_res
 
     def _matmul(self, rhs):
@@ -45,8 +45,8 @@ class MulLinearOperator(LinearOperator):
             is_vector = True
 
         # Here we have a root decomposition
-        if isinstance(self.left_lazy_tensor, RootLinearOperator):
-            left_root = self.left_lazy_tensor.root.evaluate()
+        if isinstance(self.left_linear_op, RootLinearOperator):
+            left_root = self.left_linear_op.root.evaluate()
             left_res = rhs.unsqueeze(-2) * left_root.unsqueeze(-1)
 
             rank = left_root.size(-1)
@@ -54,18 +54,18 @@ class MulLinearOperator(LinearOperator):
             m = rhs.size(-1)
             # Now implement the formula (A . B) v = diag(A D_v B)
             left_res = left_res.view(*output_batch_shape, n, rank * m)
-            left_res = self.right_lazy_tensor._matmul(left_res)
+            left_res = self.right_linear_op._matmul(left_res)
             left_res = left_res.view(*output_batch_shape, n, rank, m)
             res = left_res.mul_(left_root.unsqueeze(-1)).sum(-2)
         # This is the case where we're not doing a root decomposition, because the matrix is too small
         else:
-            res = (self.left_lazy_tensor.evaluate() * self.right_lazy_tensor.evaluate()).matmul(rhs)
+            res = (self.left_linear_op.evaluate() * self.right_linear_op.evaluate()).matmul(rhs)
         res = res.squeeze(-1) if is_vector else res
         return res
 
     def _mul_constant(self, constant):
         if constant > 0:
-            res = self.__class__(self.left_lazy_tensor._mul_constant(constant), self.right_lazy_tensor)
+            res = self.__class__(self.left_linear_op._mul_constant(constant), self.right_linear_op)
         else:
             # Negative constants can screw up the root_decomposition
             # So we'll do a standard _mul_constant
@@ -79,56 +79,56 @@ class MulLinearOperator(LinearOperator):
 
         *batch_shape, n, num_vecs = left_vecs.size()
 
-        if isinstance(self.right_lazy_tensor, RootLinearOperator):
-            right_root = self.right_lazy_tensor.root.evaluate()
+        if isinstance(self.right_linear_op, RootLinearOperator):
+            right_root = self.right_linear_op.root.evaluate()
             left_factor = left_vecs.unsqueeze(-2) * right_root.unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * right_root.unsqueeze(-1)
             right_rank = right_root.size(-1)
         else:
             right_rank = n
-            eye = torch.eye(n, dtype=self.right_lazy_tensor.dtype, device=self.right_lazy_tensor.device)
-            left_factor = left_vecs.unsqueeze(-2) * self.right_lazy_tensor.evaluate().unsqueeze(-1)
+            eye = torch.eye(n, dtype=self.right_linear_op.dtype, device=self.right_linear_op.device)
+            left_factor = left_vecs.unsqueeze(-2) * self.right_linear_op.evaluate().unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * eye.unsqueeze(-1)
 
         left_factor = left_factor.view(*batch_shape, n, num_vecs * right_rank)
         right_factor = right_factor.view(*batch_shape, n, num_vecs * right_rank)
-        left_deriv_args = self.left_lazy_tensor._quad_form_derivative(left_factor, right_factor)
+        left_deriv_args = self.left_linear_op._quad_form_derivative(left_factor, right_factor)
 
-        if isinstance(self.left_lazy_tensor, RootLinearOperator):
-            left_root = self.left_lazy_tensor.root.evaluate()
+        if isinstance(self.left_linear_op, RootLinearOperator):
+            left_root = self.left_linear_op.root.evaluate()
             left_factor = left_vecs.unsqueeze(-2) * left_root.unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * left_root.unsqueeze(-1)
             left_rank = left_root.size(-1)
         else:
             left_rank = n
-            eye = torch.eye(n, dtype=self.left_lazy_tensor.dtype, device=self.left_lazy_tensor.device)
-            left_factor = left_vecs.unsqueeze(-2) * self.left_lazy_tensor.evaluate().unsqueeze(-1)
+            eye = torch.eye(n, dtype=self.left_linear_op.dtype, device=self.left_linear_op.device)
+            left_factor = left_vecs.unsqueeze(-2) * self.left_linear_op.evaluate().unsqueeze(-1)
             right_factor = right_vecs.unsqueeze(-2) * eye.unsqueeze(-1)
 
         left_factor = left_factor.view(*batch_shape, n, num_vecs * left_rank)
         right_factor = right_factor.view(*batch_shape, n, num_vecs * left_rank)
-        right_deriv_args = self.right_lazy_tensor._quad_form_derivative(left_factor, right_factor)
+        right_deriv_args = self.right_linear_op._quad_form_derivative(left_factor, right_factor)
 
         return tuple(list(left_deriv_args) + list(right_deriv_args))
 
     def _expand_batch(self, batch_shape):
         return self.__class__(
-            self.left_lazy_tensor._expand_batch(batch_shape), self.right_lazy_tensor._expand_batch(batch_shape)
+            self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
         )
 
     def diag(self):
-        res = self.left_lazy_tensor.diag() * self.right_lazy_tensor.diag()
+        res = self.left_linear_op.diag() * self.right_linear_op.diag()
         return res
 
     @cached
     def evaluate(self):
-        return self.left_lazy_tensor.evaluate() * self.right_lazy_tensor.evaluate()
+        return self.left_linear_op.evaluate() * self.right_linear_op.evaluate()
 
     def _size(self):
-        return self.left_lazy_tensor.size()
+        return self.left_linear_op.size()
 
     def _transpose_nonbatch(self):
-        # mul.lazy_tensor only works with symmetric matrices
+        # mul.linear_op only works with symmetric matrices
         return self
 
     def representation(self):

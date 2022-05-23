@@ -40,41 +40,41 @@ class TestKroneckerProductLinearOperator(LinearOperatorTestCase, unittest.TestCa
     should_call_lanczos = True
     should_call_lanczos_diagonalization = False
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
         c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLinearOperator(
+        kp_linear_op = KroneckerProductLinearOperator(
             DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return kp_lazy_tensor
+        return kp_linear_op
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        res = kron(lazy_tensor.lazy_tensors[0].tensor, lazy_tensor.lazy_tensors[1].tensor)
-        res = kron(res, lazy_tensor.lazy_tensors[2].tensor)
+    def evaluate_linear_op(self, linear_op):
+        res = kron(linear_op.linear_ops[0].tensor, linear_op.linear_ops[1].tensor)
+        res = kron(res, linear_op.linear_ops[2].tensor)
         return res
 
 
 class TestKroneckerProductDiagLinearOperator(TestDiagLinearOperator):
     should_call_lanczos_diagonalization = False
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.tensor([4.0, 1.0, 2.0], dtype=torch.float)
         b = torch.tensor([3.0, 1.3], dtype=torch.float)
         c = torch.tensor([1.75, 1.95, 1.05, 0.25], dtype=torch.float)
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductDiagLinearOperator(
+        kp_linear_op = KroneckerProductDiagLinearOperator(
             DiagLinearOperator(a), DiagLinearOperator(b), DiagLinearOperator(c)
         )
-        return kp_lazy_tensor
+        return kp_linear_op
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        res_diag = kron_diag(*lazy_tensor.lazy_tensors)
+    def evaluate_linear_op(self, linear_op):
+        res_diag = kron_diag(*linear_op.linear_ops)
         return torch.diag_embed(res_diag)
 
 
@@ -83,7 +83,7 @@ class TestKroneckerProductLinearOperatorBatch(TestKroneckerProductLinearOperator
     should_call_lanczos = True
     should_call_lanczos_diagonalization = False
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float).repeat(3, 1, 1)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float).repeat(3, 1, 1)
         c = torch.tensor([[4, 0.1, 1, 0], [0.1, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float).repeat(
@@ -92,41 +92,41 @@ class TestKroneckerProductLinearOperatorBatch(TestKroneckerProductLinearOperator
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
-        kp_lazy_tensor = KroneckerProductLinearOperator(
+        kp_linear_op = KroneckerProductLinearOperator(
             DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return kp_lazy_tensor
+        return kp_linear_op
 
 
 class TestKroneckerProductLinearOperatorRectangular(RectangularLinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.randn(2, 3, requires_grad=True)
         b = torch.randn(5, 2, requires_grad=True)
         c = torch.randn(6, 4, requires_grad=True)
-        kp_lazy_tensor = KroneckerProductLinearOperator(
+        kp_linear_op = KroneckerProductLinearOperator(
             DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return kp_lazy_tensor
+        return kp_linear_op
 
-    def evaluate_lazy_tensor(self, lazy_tensor):
-        res = kron(lazy_tensor.lazy_tensors[0].tensor, lazy_tensor.lazy_tensors[1].tensor)
-        res = kron(res, lazy_tensor.lazy_tensors[2].tensor)
+    def evaluate_linear_op(self, linear_op):
+        res = kron(linear_op.linear_ops[0].tensor, linear_op.linear_ops[1].tensor)
+        res = kron(res, linear_op.linear_ops[2].tensor)
         return res
 
 
 class TestKroneckerProductLinearOperatorRectangularMultiBatch(TestKroneckerProductLinearOperatorRectangular):
     seed = 0
 
-    def create_lazy_tensor(self):
+    def create_linear_op(self):
         a = torch.randn(3, 4, 2, 3, requires_grad=True)
         b = torch.randn(3, 4, 5, 2, requires_grad=True)
         c = torch.randn(3, 4, 6, 4, requires_grad=True)
-        kp_lazy_tensor = KroneckerProductLinearOperator(
+        kp_linear_op = KroneckerProductLinearOperator(
             DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
-        return kp_lazy_tensor
+        return kp_linear_op
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ class CatLinearOperator(LinearOperator):
     dimension.
 
     Args:
-        - :attr:`lazy_tensors` (list of LinearOperators):
+        - :attr:`linear_ops` (list of LinearOperators):
             A list of LinearOperators whose sizes are the same except in
             concatenating dimension :attr:`dim`
         - :attr:`dim` (int):
@@ -45,19 +45,19 @@ class CatLinearOperator(LinearOperator):
             and place any output `torch.Tensors` on :attr:`output_device`
     """
 
-    def _check_args(self, *lazy_tensors, dim=0, output_device=None):
-        if len(lazy_tensors) == 0:
+    def _check_args(self, *linear_ops, dim=0, output_device=None):
+        if len(linear_ops) == 0:
             raise RuntimeError("List of LinearOperators must be non-empty")
-        elif len(lazy_tensors) == 1:
+        elif len(linear_ops) == 1:
             raise RuntimeError("Why are we trying to concatenate a single LinearOperator?")
-        if not all([isinstance(t, LinearOperator) for t in lazy_tensors]):
+        if not all([isinstance(t, LinearOperator) for t in linear_ops]):
             raise RuntimeError("CatLinearOperator requires a list of all LinearOperators")
 
-        rep_tensor = lazy_tensors[0]
+        rep_tensor = linear_ops[0]
         rep_tensor_noncat_shape = list(rep_tensor.shape)
         del rep_tensor_noncat_shape[dim]
 
-        for t in lazy_tensors:
+        for t in linear_ops:
             if t.dim() != rep_tensor.dim():
                 raise RuntimeError("All tensors must have the same number of dimensions")
 
@@ -66,9 +66,9 @@ class CatLinearOperator(LinearOperator):
             if t_noncat_shape != rep_tensor_noncat_shape:
                 raise RuntimeError("All LinearOperators must have the same size in " "the non-concatenation dimension")
 
-    def __init__(self, *lazy_tensors, dim=0, output_device=None):
+    def __init__(self, *linear_ops, dim=0, output_device=None):
         # Make sure index is negative index
-        rep_tensor = lazy_tensors[0]
+        rep_tensor = linear_ops[0]
         ndims = rep_tensor.ndimension()
         if dim >= 0:
             positive_dim = dim
@@ -77,14 +77,14 @@ class CatLinearOperator(LinearOperator):
             positive_dim = ndims + dim
 
         # Standard initialization
-        super().__init__(*lazy_tensors, dim=dim, output_device=output_device)
-        self.lazy_tensors = lazy_tensors
+        super().__init__(*linear_ops, dim=dim, output_device=output_device)
+        self.linear_ops = linear_ops
         self.cat_dim = dim
         self.output_device = output_device
 
         # Helpers for _getitem
-        cat_dim_sizes = torch.tensor([t.size(dim) for t in lazy_tensors], device=output_device)
-        cat_dim_cum_sizes = torch.zeros(len(lazy_tensors) + 1, dtype=torch.long, device=output_device)
+        cat_dim_sizes = torch.tensor([t.size(dim) for t in linear_ops], device=output_device)
+        cat_dim_cum_sizes = torch.zeros(len(linear_ops) + 1, dtype=torch.long, device=output_device)
         torch.cumsum(cat_dim_sizes, dim=-1, out=cat_dim_cum_sizes[1:])
         idx_to_tensor_idx = torch.empty(cat_dim_cum_sizes[-1].item(), dtype=torch.long, device=output_device)
         for tsr_idx, (start_idx, end_idx) in enumerate(zip(cat_dim_cum_sizes[:-1], cat_dim_cum_sizes[1:])):
@@ -133,14 +133,14 @@ class CatLinearOperator(LinearOperator):
                     f"Trying to expand a CatLinearOperator in dimension {self.cat_dim}, but this is the concatenated "
                     f"dimension.\nCurrent shape: {self.shape} - expanded shape: {batch_shape + self.matrix_shape}."
                 )
-            lazy_tensors = []
-            for lazy_tensor in self.lazy_tensors:
+            linear_ops = []
+            for linear_op in self.linear_ops:
                 sub_batch_shape = list(batch_shape).copy()
-                sub_batch_shape[batch_dim] = lazy_tensor.shape[self.cat_dim]
-                lazy_tensors.append(lazy_tensor._expand_batch(sub_batch_shape))
+                sub_batch_shape[batch_dim] = linear_op.shape[self.cat_dim]
+                linear_ops.append(linear_op._expand_batch(sub_batch_shape))
         else:
-            lazy_tensors = [lazy_tensor._expand_batch(batch_shape) for lazy_tensor in self.lazy_tensors]
-        res = self.__class__(*lazy_tensors, dim=self.cat_dim, output_device=self.output_device)
+            linear_ops = [linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops]
+        res = self.__class__(*linear_ops, dim=self.cat_dim, output_device=self.output_device)
         return res
 
     def _get_indices(self, row_index, col_index, *batch_indices):
@@ -155,8 +155,8 @@ class CatLinearOperator(LinearOperator):
         torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
         # Get the LinearOperators that will comprise the new LinearOperator
-        lazy_tensor_indices = target_tensors[does_switch_tensor[:-1]].tolist()
-        lazy_tensors = [self.lazy_tensors[idx] for idx in lazy_tensor_indices]
+        linear_op_indices = target_tensors[does_switch_tensor[:-1]].tolist()
+        linear_ops = [self.linear_ops[idx] for idx in linear_op_indices]
 
         # Get the new set of indices for each of the LinearOperators
         switch_tensor = does_switch_tensor.nonzero(as_tuple=False).squeeze(-1)
@@ -171,12 +171,12 @@ class CatLinearOperator(LinearOperator):
         sub_indices = [list(sub_index) for sub_index in sub_indices]
 
         # Make sure that we have adjusted the start and ends of the indices that correspond to the cat dim
-        for lazy_tensor_idx, sub_index in zip(lazy_tensor_indices, sub_indices):
-            sub_index[self.cat_dim] = sub_index[self.cat_dim] - self.cat_dim_cum_sizes[lazy_tensor_idx]
+        for linear_op_idx, sub_index in zip(linear_op_indices, sub_indices):
+            sub_index[self.cat_dim] = sub_index[self.cat_dim] - self.cat_dim_cum_sizes[linear_op_idx]
 
         res_list = [
-            lazy_tensor._get_indices(sub_index[-2], sub_index[-1], *sub_index[:-2])
-            for lazy_tensor, sub_index in zip(lazy_tensors, sub_indices)
+            linear_op._get_indices(sub_index[-2], sub_index[-1], *sub_index[:-2])
+            for linear_op, sub_index in zip(linear_ops, sub_indices)
         ]
         if len(res_list) == 1:
             return res_list[0].view(target_shape).to(self.device)
@@ -189,16 +189,14 @@ class CatLinearOperator(LinearOperator):
 
         if isinstance(cat_dim_indices, slice):
             if cat_dim_indices == _noop_index:
-                res_list = [
-                    lazy_tensor._getitem(row_index, col_index, *batch_indices) for lazy_tensor in self.lazy_tensors
-                ]
+                res_list = [linear_op._getitem(row_index, col_index, *batch_indices) for linear_op in self.linear_ops]
 
             else:
                 res_list = []
                 tensor_idxs, target_slices = self._split_slice(cat_dim_indices)
                 for tensor_idx, target_slice in zip(tensor_idxs, target_slices):
                     indices[self.cat_dim] = target_slice
-                    res = self.lazy_tensors[tensor_idx]._getitem(indices[-2], indices[-1], *indices[:-2])
+                    res = self.linear_ops[tensor_idx]._getitem(indices[-2], indices[-1], *indices[:-2])
                     res_list.append(res)
 
         elif torch.is_tensor(cat_dim_indices):
@@ -208,8 +206,8 @@ class CatLinearOperator(LinearOperator):
             torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
             # Get the LinearOperators that will comprise the new LinearOperator
-            lazy_tensor_indices = target_tensors[does_switch_tensor[:-1]].tolist()
-            lazy_tensors = [self.lazy_tensors[idx] for idx in lazy_tensor_indices]
+            linear_op_indices = target_tensors[does_switch_tensor[:-1]].tolist()
+            linear_ops = [self.linear_ops[idx] for idx in linear_op_indices]
 
             # Get the new set of indices for each of the LinearOperators
             switch_tensor = does_switch_tensor.nonzero(as_tuple=False).squeeze(-1)
@@ -224,19 +222,19 @@ class CatLinearOperator(LinearOperator):
             sub_indices = [list(sub_index) for sub_index in sub_indices]
 
             # Make sure that we have adjusted the start and ends of the indices that correspond to the cat dim
-            for lazy_tensor_idx, sub_index in zip(lazy_tensor_indices, sub_indices):
-                sub_index[self.cat_dim] = sub_index[self.cat_dim] - self.cat_dim_cum_sizes[lazy_tensor_idx]
+            for linear_op_idx, sub_index in zip(linear_op_indices, sub_indices):
+                sub_index[self.cat_dim] = sub_index[self.cat_dim] - self.cat_dim_cum_sizes[linear_op_idx]
 
             res_list = [
-                lazy_tensor._getitem(sub_index[-2], sub_index[-1], *sub_index[:-2])
-                for lazy_tensor, sub_index in zip(lazy_tensors, sub_indices)
+                linear_op._getitem(sub_index[-2], sub_index[-1], *sub_index[:-2])
+                for linear_op, sub_index in zip(linear_ops, sub_indices)
             ]
 
         elif isinstance(cat_dim_indices, int):  # Should only happen for cat on batch dim
             target_tensor = self.idx_to_tensor_idx[cat_dim_indices].item()
             cat_dim_indices = cat_dim_indices - self.cat_dim_cum_sizes[target_tensor]
             indices[self.cat_dim] = cat_dim_indices
-            res_list = [self.lazy_tensors[target_tensor]._getitem(indices[-2], indices[-1], *indices[:-2])]
+            res_list = [self.linear_ops[target_tensor]._getitem(indices[-2], indices[-1], *indices[:-2])]
 
         # Process the list
         if len(res_list) == 1:
@@ -256,7 +254,7 @@ class CatLinearOperator(LinearOperator):
                 rhs_.append(rhs)
 
         if self.cat_dim == -2:
-            res_list = [t._matmul(rhs) for t, rhs in zip(self.lazy_tensors, rhs_)]
+            res_list = [t._matmul(rhs) for t, rhs in zip(self.linear_ops, rhs_)]
             # copy result back to output device
             res_list = [x.to(output_device) for x in res_list]
             res = torch.cat(res_list, dim=-2)
@@ -264,7 +262,7 @@ class CatLinearOperator(LinearOperator):
             curr_idx = 0
             res_list = []
             index = [slice(None, None, None) for _ in range(rhs.ndimension())]
-            for t, size, rhs in zip(self.lazy_tensors, self.cat_dim_sizes, rhs_):
+            for t, size, rhs in zip(self.linear_ops, self.cat_dim_sizes, rhs_):
                 index[-2] = slice(curr_idx, curr_idx + size, None)
                 res_list.append(t._matmul(rhs[index]))
                 curr_idx += size
@@ -278,7 +276,7 @@ class CatLinearOperator(LinearOperator):
             rhs = rhs.expand(*output_shape[:-2], *rhs.shape[-2:])
             curr_idx = 0
             res_list = []
-            for t, size in zip(self.lazy_tensors, self.cat_dim_sizes):
+            for t, size in zip(self.linear_ops, self.cat_dim_sizes):
                 sub_rhs = rhs.narrow(self.cat_dim, curr_idx, size)
                 res_list.append(t._matmul(sub_rhs))
                 curr_idx += size
@@ -289,13 +287,13 @@ class CatLinearOperator(LinearOperator):
         return res
 
     def _permute_batch(self, *dims):
-        lazy_tensors = [lazy_tensor._permute_batch(*dims) for lazy_tensor in self.lazy_tensors]
+        linear_ops = [linear_op._permute_batch(*dims) for linear_op in self.linear_ops]
         if self.cat_dim < -2:
             positive_cat_dim = self.dim() + self.cat_dim
             new_cat_dim = dims.index(positive_cat_dim)
         else:
             new_cat_dim = self.cat_dim
-        return self.__class__(*lazy_tensors, dim=new_cat_dim, output_device=self.output_device)
+        return self.__class__(*linear_ops, dim=new_cat_dim, output_device=self.output_device)
 
     def _size(self):
         return self._shape
@@ -308,14 +306,14 @@ class CatLinearOperator(LinearOperator):
         else:
             new_dim = self.cat_dim
         return self.__class__(
-            *[t._transpose_nonbatch() for t in self.lazy_tensors], dim=new_dim, output_device=self.output_device
+            *[t._transpose_nonbatch() for t in self.linear_ops], dim=new_dim, output_device=self.output_device
         )
 
     def _unsqueeze_batch(self, dim):
         cat_dim = self.dim() + self.cat_dim
-        lazy_tensors = [lazy_tensor._unsqueeze_batch(dim) for lazy_tensor in self.lazy_tensors]
+        linear_ops = [linear_op._unsqueeze_batch(dim) for linear_op in self.linear_ops]
         res = self.__class__(
-            *lazy_tensors, dim=(cat_dim + 1 if dim <= cat_dim else cat_dim), output_device=self.output_device
+            *linear_ops, dim=(cat_dim + 1 if dim <= cat_dim else cat_dim), output_device=self.output_device
         )
         return res
 
@@ -327,7 +325,7 @@ class CatLinearOperator(LinearOperator):
         if self.cat_dim == -2:
             res = []
             curr_col = 0
-            for t in self.lazy_tensors:
+            for t in self.linear_ops:
                 n_rows, n_cols = t.shape[-2:]
                 rows = torch.arange(0, n_rows, dtype=torch.long, device=t.device)
                 cols = torch.arange(curr_col, curr_col + n_rows, dtype=torch.long, device=t.device)
@@ -337,7 +335,7 @@ class CatLinearOperator(LinearOperator):
         elif self.cat_dim == -1:
             res = []
             curr_row = 0
-            for t in self.lazy_tensors:
+            for t in self.linear_ops:
                 n_rows, n_cols = t.shape[-2:]
                 rows = torch.arange(curr_row, curr_row + n_cols, dtype=torch.long, device=t.device)
                 cols = torch.arange(0, n_cols, dtype=torch.long, device=t.device)
@@ -345,7 +343,7 @@ class CatLinearOperator(LinearOperator):
                 res.append(t[..., rows, cols].to(self.device))
             res = torch.cat(res, dim=-1)
         else:
-            res = torch.cat([t.diag().to(self.device) for t in self.lazy_tensors], dim=self.cat_dim + 1)
+            res = torch.cat([t.diag().to(self.device) for t in self.linear_ops], dim=self.cat_dim + 1)
         return res
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
@@ -358,7 +356,7 @@ class CatLinearOperator(LinearOperator):
 
     @property
     def devices(self):
-        return [t.device for t in self.lazy_tensors]
+        return [t.device for t in self.linear_ops]
 
     @property
     def device_count(self):
