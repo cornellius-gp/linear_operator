@@ -87,7 +87,7 @@ class DenseLinearOperator(LinearOperator):
             return super(DenseLinearOperator, self).mul(other)
 
 
-def lazify(obj):
+def to_linear_operator(obj):
     """
     A function which ensures that `obj` is a LinearOperator.
 
@@ -103,4 +103,4 @@ def lazify(obj):
         raise TypeError("object of class {} cannot be made into a LinearOperator".format(obj.__class__.__name__))
 
 
-__all__ = ["DenseLinearOperator", "lazify"]
+__all__ = ["DenseLinearOperator", "to_linear_operator"]

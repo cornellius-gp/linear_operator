@@ -29,7 +29,7 @@ class RootDecomposition(Function):
         :return: :attr:`R`, such that :math:`R R^T \approx A`, and :attr:`R_inv`, such that
             :math:`R_{inv} R_{inv}^T \approx A^{-1}` (will only be populated if self.inverse = True)
         """
-        from ..operators import lazify
+        from ..operators import to_linear_operator
 
         ctx.representation_tree = representation_tree
         ctx.device = device
@@ -63,7 +63,7 @@ class RootDecomposition(Function):
             t_mat = t_mat.unsqueeze(0)
         n_probes = t_mat.size(0)
 
-        mins = lazify(t_mat).diag().min(dim=-1, keepdim=True)[0].unsqueeze(-1)
+        mins = to_linear_operator(t_mat).diag().min(dim=-1, keepdim=True)[0].unsqueeze(-1)
         jitter_mat = (settings.tridiagonal_jitter.value() * mins) * torch.eye(
             t_mat.size(-1), device=t_mat.device, dtype=t_mat.dtype
         ).expand_as(t_mat)

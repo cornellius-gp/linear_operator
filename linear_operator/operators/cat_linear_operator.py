@@ -6,19 +6,19 @@ from .. import settings
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _to_helper
 from ..utils.deprecation import bool_compat
 from ..utils.getitem import _noop_index
-from ._linear_operator import LinearOperator, delazify
-from .dense_linear_operator import DenseLinearOperator, lazify
+from ._linear_operator import LinearOperator, to_dense
+from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 
 
 def cat(inputs, dim=0, output_device=None):
     if all(torch.is_tensor(i) for i in inputs):
         return torch.cat(inputs, dim=dim)
 
-    inputs = [lazify(i) for i in inputs]
+    inputs = [to_linear_operator(i) for i in inputs]
 
     if all(isinstance(i, DenseLinearOperator) for i in inputs):
         # Dont form a CatLinearOperator if all tensors are DenseLinearOperator
-        return lazify(torch.cat([delazify(i) for i in inputs], dim=dim))
+        return to_linear_operator(torch.cat([to_dense(i) for i in inputs], dim=dim))
 
     if output_device is None and all(i.device == inputs[0].device for i in inputs):
         output_device = inputs[0].device

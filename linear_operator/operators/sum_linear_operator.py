@@ -4,7 +4,7 @@ from torch import Tensor
 from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import lazify
+from .dense_linear_operator import to_linear_operator
 from .zero_linear_operator import ZeroLinearOperator
 
 # from .broadcasted_linear_operator import BroadcastedLinearOperator
@@ -13,7 +13,7 @@ from .zero_linear_operator import ZeroLinearOperator
 class SumLinearOperator(LinearOperator):
     def __init__(self, *linear_ops, **kwargs):
         try:
-            linear_ops = tuple(lazify(lt) for lt in linear_ops)
+            linear_ops = tuple(to_linear_operator(lt) for lt in linear_ops)
         except TypeError:
             raise TypeError("All arguments of a SumLinearOperator should be LinearOperators or Tensors")
         batch_shape = _mul_broadcast_shape(*[lt.batch_shape for lt in linear_ops])
@@ -79,8 +79,8 @@ class SumLinearOperator(LinearOperator):
             # get broadcast shape, assuming mul broadcasting the same as add broadcasting
             broadcasted_shape = _mul_broadcast_shape(self.shape, other.shape)
 
-            # lazify + broadcast other
-            broadcasted_other = lazify(other.expand(broadcasted_shape))
+            # to_linear_operator + broadcast other
+            broadcasted_other = to_linear_operator(other.expand(broadcasted_shape))
 
             # update the lazy tensors' shape as well
             new_self = self if broadcasted_shape == self.shape else self._expand_batch(broadcasted_shape[:-2])

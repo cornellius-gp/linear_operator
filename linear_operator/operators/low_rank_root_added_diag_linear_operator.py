@@ -4,7 +4,7 @@ import torch
 
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.memoize import cached
-from . import delazify
+from . import to_dense
 from .added_diag_linear_operator import AddedDiagLinearOperator
 from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from .low_rank_root_linear_operator import LowRankRootLinearOperator
@@ -35,7 +35,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         V = self._linear_op.root.transpose(-2, -1)
         C = ConstantDiagLinearOperator(torch.ones(*V.batch_shape, 1, device=V.device, dtype=V.dtype), V.shape[-2])
 
-        cap_mat = delazify(C + V.matmul(A_inv.matmul(U)))
+        cap_mat = to_dense(C + V.matmul(A_inv.matmul(U)))
         chol_cap_mat = psd_safe_cholesky(cap_mat)
 
         return chol_cap_mat

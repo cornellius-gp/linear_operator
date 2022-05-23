@@ -6,13 +6,13 @@ from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _equal_indices, _noop_index
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import DenseLinearOperator, lazify
+from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .matmul_linear_operator import MatmulLinearOperator
 
 
 class RootLinearOperator(LinearOperator):
     def __init__(self, root):
-        root = lazify(root)
+        root = to_linear_operator(root)
         super().__init__(root)
         self.root = root
 
@@ -41,7 +41,7 @@ class RootLinearOperator(LinearOperator):
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
             num_indices = row_index.numel()
             if num_indices > self.matrix_shape.numel():
-                return lazify(self.evaluate())._getitem(row_index, col_index, *batch_indices)
+                return to_linear_operator(self.evaluate())._getitem(row_index, col_index, *batch_indices)
 
         left_tensor = self.root._getitem(row_index, _noop_index, *batch_indices)
         if _equal_indices(row_index, col_index):

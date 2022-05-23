@@ -11,7 +11,7 @@ from .. import settings
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import lazify
+from .dense_linear_operator import to_linear_operator
 from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
 
@@ -69,7 +69,7 @@ class KroneckerProductLinearOperator(LinearOperator):
 
     def __init__(self, *linear_ops):
         try:
-            linear_ops = tuple(lazify(linear_op) for linear_op in linear_ops)
+            linear_ops = tuple(to_linear_operator(linear_op) for linear_op in linear_ops)
         except TypeError:
             raise RuntimeError("KroneckerProductLinearOperator is intended to wrap lazy tensors.")
         for prev_linear_op, curr_linear_op in zip(linear_ops[:-1], linear_ops[1:]):

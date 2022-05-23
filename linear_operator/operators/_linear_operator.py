@@ -822,7 +822,7 @@ class LinearOperator(ABC):
         Returns:
             :obj:`LinearOperator`: concatenated lazy tensor with the new rows and columns.
         """
-        from . import lazify
+        from . import to_linear_operator
         from .cat_linear_operator import CatLinearOperator
         from .root_linear_operator import RootLinearOperator
         from .triangular_linear_operator import TriangularLinearOperator
@@ -832,8 +832,8 @@ class LinearOperator(ABC):
                 "root_inv_decomposition is only generated when " "root_decomposition is generated.",
                 UserWarning,
             )
-        B_, B = cross_mat, lazify(cross_mat)
-        D = lazify(new_mat)
+        B_, B = cross_mat, to_linear_operator(cross_mat)
+        D = to_linear_operator(new_mat)
         batch_shape = B.shape[:-2]
         if self.ndimension() < cross_mat.ndimension():
             expand_shape = _mul_broadcast_shape(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
@@ -864,7 +864,7 @@ class LinearOperator(ABC):
         R = self.root_inv_decomposition().root.evaluate()  # RR^T = A^{-1} (this is fast if L is triangular)
         lower_left = B_ @ R  # F = BR
         schur = D - lower_left.matmul(lower_left.transpose(-2, -1))  # GG^T = new_mat - FF^T
-        schur_root = lazify(schur).root_decomposition().root.evaluate()  # G = (new_mat - FF^T)^{1/2}
+        schur_root = to_linear_operator(schur).root_decomposition().root.evaluate()  # G = (new_mat - FF^T)^{1/2}
 
         # Form new root matrix
         num_fant = schur_root.size(-2)
@@ -886,10 +886,10 @@ class LinearOperator(ABC):
             add_to_cache(
                 new_linear_op,
                 "root_inv_decomposition",
-                RootLinearOperator(lazify(new_inv_root)),
+                RootLinearOperator(to_linear_operator(new_inv_root)),
             )
 
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(lazify(new_root)))
+        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(to_linear_operator(new_root)))
 
         return new_linear_op
 
@@ -922,22 +922,22 @@ class LinearOperator(ABC):
         Returns:
             :obj:`SumLinearOperator`: addition of A and BB^T.
         """
-        from . import lazify
+        from . import to_linear_operator
         from .root_linear_operator import RootLinearOperator
         from .sum_linear_operator import SumLinearOperator
         from .triangular_linear_operator import TriangularLinearOperator
 
         if not isinstance(self, SumLinearOperator):
-            new_linear_op = self + lazify(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2)))
+            new_linear_op = self + to_linear_operator(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2)))
         else:
             new_linear_op = SumLinearOperator(
                 *self.linear_ops,
-                lazify(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2))),
+                to_linear_operator(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2))),
             )
 
             # return as a nonlazy tensor if small enough to reduce memory overhead
             if new_linear_op.shape[-1] < settings.max_cholesky_size.value():
-                new_linear_op = lazify(new_linear_op.evaluate())
+                new_linear_op = to_linear_operator(new_linear_op.evaluate())
 
         # if the old lazy tensor does not have either a root decomposition or a root inverse decomposition
         # don't create one
@@ -958,7 +958,7 @@ class LinearOperator(ABC):
         # compute p = M B and take its SVD
         pvector = current_inv_root.matmul(low_rank_mat)
         # USV^T = p; when p is a vector this saves us the trouble of computing an orthonormal basis
-        pvector = delazify(pvector)
+        pvector = to_dense(pvector)
         U, S, _ = torch.svd(pvector, some=False)
 
         # we want the root decomposition of I_r + U S^2 U^T but S is q so we need to pad.
@@ -1479,7 +1479,7 @@ class LinearOperator(ABC):
             :obj:`linear_operator.lazy.ConstantMulLinearOperator`. If other was
             another matrix, this will likely be a :obj:`linear_operator.lazy.MulLinearOperator`.
         """
-        from .dense_linear_operator import lazify
+        from .dense_linear_operator import to_linear_operator
         from .zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
@@ -1501,7 +1501,7 @@ class LinearOperator(ABC):
             elif other.shape[-2:] == torch.Size((1, 1)):
                 return self._mul_constant(other.view(*other.shape[:-2]))
 
-        return self._mul_matrix(lazify(other))
+        return self._mul_matrix(to_linear_operator(other))
 
     def ndimension(self):
         """
@@ -1722,7 +1722,7 @@ class LinearOperator(ABC):
                 method = "lanczos"
 
         if method == "lanczos":
-            from ..operators import lazify
+            from ..operators import to_linear_operator
 
             evals, evecs = Diagonalization.apply(
                 self.representation_tree(),
@@ -1733,7 +1733,7 @@ class LinearOperator(ABC):
                 self.batch_shape,
                 *self.representation(),
             )
-            evecs = lazify(evecs)
+            evecs = to_linear_operator(evecs)
 
         elif method == "symeig":
             evals, evecs = self.symeig(eigenvectors=True)
@@ -1766,7 +1766,7 @@ class LinearOperator(ABC):
         This can be used for sampling from a Gaussian distribution, or for obtaining a
         low-rank version of a matrix
         """
-        from . import lazify
+        from . import to_linear_operator
         from .chol_linear_operator import CholLinearOperator
         from .root_linear_operator import RootLinearOperator
 
@@ -1795,7 +1795,9 @@ class LinearOperator(ABC):
                 method = "symeig"
 
         if method == "pivoted_cholesky":
-            return RootLinearOperator(lazify(self.evaluate()).pivoted_cholesky(rank=self._root_decomposition_size()))
+            return RootLinearOperator(
+                to_linear_operator(self.evaluate()).pivoted_cholesky(rank=self._root_decomposition_size())
+            )
         if method == "symeig":
             evals, evecs = self.symeig(eigenvectors=True)
             # TODO: only use non-zero evals (req. dealing w/ batches...)
@@ -1821,7 +1823,7 @@ class LinearOperator(ABC):
         This can be used for sampling from a Gaussian distribution, or for obtaining a
         low-rank version of a matrix
         """
-        from .dense_linear_operator import lazify
+        from .dense_linear_operator import to_linear_operator
         from .root_linear_operator import RootLinearOperator
 
         if not self.is_square:
@@ -1838,12 +1840,12 @@ class LinearOperator(ABC):
 
         if method == "cholesky":
             # self.cholesky will hit cache if available
-            L = delazify(self.cholesky())
+            L = to_dense(self.cholesky())
             # we know L is triangular, so inverting is a simple triangular solve agaist the identity
             # we don't need the batch shape here, thanks to broadcasting
             Eye = torch.eye(L.shape[-2], device=L.device, dtype=L.dtype)
             Linv = torch.triangular_solve(Eye, L, upper=False).solution
-            res = lazify(Linv.transpose(-1, -2))
+            res = to_linear_operator(Linv.transpose(-1, -2))
             inv_root = res
         elif method == "lanczos":
             if initial_vectors is not None:
@@ -2195,7 +2197,7 @@ class LinearOperator(ABC):
         from torch import Tensor
 
         from .added_diag_linear_operator import AddedDiagLinearOperator
-        from .dense_linear_operator import lazify
+        from .dense_linear_operator import to_linear_operator
         from .diag_linear_operator import DiagLinearOperator
         from .root_linear_operator import RootLinearOperator
         from .sum_linear_operator import SumLinearOperator
@@ -2208,7 +2210,7 @@ class LinearOperator(ABC):
         elif isinstance(other, RootLinearOperator):
             return self.add_low_rank(other.root)
         elif isinstance(other, Tensor):
-            other = lazify(other)
+            other = to_linear_operator(other)
             shape = _mul_broadcast_shape(self.shape, other.shape)
             new_self = self if self.shape[:-2] == shape[:-2] else self._expand_batch(shape[:-2])
             new_other = other if other.shape[:-2] == shape[:-2] else other._expand_batch(shape[:-2])
@@ -2307,7 +2309,7 @@ class LinearOperator(ABC):
         # If we selected a single row and/or column (or did tensor indexing), we'll be retuning a tensor
         # with the appropriate shape
         if squeeze_row or squeeze_col or row_col_are_absorbed:
-            res = delazify(res)
+            res = to_dense(res)
         if squeeze_row:
             res = res.squeeze(-2)
         if squeeze_col:
@@ -2384,7 +2386,7 @@ def _import_dotted_name(name):
     return obj
 
 
-def delazify(obj):
+def to_dense(obj):
     """
     A function which ensures that `obj` is a (normal) Tensor.
 
@@ -2402,4 +2404,4 @@ def delazify(obj):
 
 _deprecate_renamed_methods(LinearOperator, inv_quad_log_det="inv_quad_logdet", log_det="logdet")
 
-__all__ = ["LinearOperator", "delazify"]
+__all__ = ["LinearOperator", "to_dense"]

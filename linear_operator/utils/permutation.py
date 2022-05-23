@@ -53,10 +53,10 @@ def apply_permutation(
         >>> ])  # Partial permutation: 2 x 3 x 3
         >>> apply_permutation(matrix, left_permutation, right_permutation)  # 2 x 3 x 5 x 3
     """
-    from ..operators import delazify
+    from ..operators import to_dense
 
     if left_permutation is None and right_permutation is None:
-        return delazify(matrix)
+        return to_dense(matrix)
 
     # Create a set of index vectors for each batch dimension
     # This will ensure that the indexing operations with left_permutation and right_permutation
@@ -76,7 +76,7 @@ def apply_permutation(
         right_permutation = torch.arange(matrix.size(-1), device=matrix.device)
 
     # Apply permutations
-    return delazify(matrix.__getitem__((*batch_idx, left_permutation.unsqueeze(-1), right_permutation.unsqueeze(-2))))
+    return to_dense(matrix.__getitem__((*batch_idx, left_permutation.unsqueeze(-1), right_permutation.unsqueeze(-2))))
 
 
 def inverse_permutation(permutation):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from ._linear_operator import LinearOperator, delazify
+from ._linear_operator import LinearOperator, to_dense
 from .added_diag_linear_operator import AddedDiagLinearOperator
 from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 from .block_diag_linear_operator import BlockDiagLinearOperator
@@ -9,7 +9,7 @@ from .block_linear_operator import BlockLinearOperator
 from .cat_linear_operator import CatLinearOperator, cat
 from .chol_linear_operator import CholLinearOperator
 from .constant_mul_linear_operator import ConstantMulLinearOperator
-from .dense_linear_operator import DenseLinearOperator, lazify
+from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from .identity_linear_operator import IdentityLinearOperator
 from .interpolated_linear_operator import InterpolatedLinearOperator
@@ -34,8 +34,8 @@ from .triangular_linear_operator import TriangularLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
 
 __all__ = [
-    "delazify",
-    "lazify",
+    "to_dense",
+    "to_linear_operator",
     "cat",
     "LinearOperator",
     "AddedDiagLinearOperator",

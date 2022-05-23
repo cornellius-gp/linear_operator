@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import ToeplitzLinearOperator, lazify
+from linear_operator.operators import ToeplitzLinearOperator, to_linear_operator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -65,7 +65,7 @@ class TestSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
 
 class TestSumLinearOperatorBroadcasting(unittest.TestCase):
     def test_broadcast_same_shape(self):
-        test1 = lazify(torch.randn(30, 30))
+        test1 = to_linear_operator(torch.randn(30, 30))
 
         test2 = torch.randn(30, 30)
         res = test1 + test2
@@ -77,7 +77,7 @@ class TestSumLinearOperatorBroadcasting(unittest.TestCase):
         self.assertEqual((final_res.evaluate() - torch_res).sum(), 0.0)
 
     def test_broadcast_tensor_shape(self):
-        test1 = lazify(torch.randn(30, 30))
+        test1 = to_linear_operator(torch.randn(30, 30))
 
         test2 = torch.randn(30, 1)
         res = test1 + test2
@@ -89,7 +89,7 @@ class TestSumLinearOperatorBroadcasting(unittest.TestCase):
         self.assertEqual((final_res.evaluate() - torch_res).sum(), 0.0)
 
     def test_broadcast_lazy_shape(self):
-        test1 = lazify(torch.randn(30, 1))
+        test1 = to_linear_operator(torch.randn(30, 1))
 
         test2 = torch.randn(30, 30)
         res = test1 + test2

@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator import lazify
+from linear_operator import to_linear_operator
 from linear_operator.operators import BatchRepeatLinearOperator, ToeplitzLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
@@ -28,7 +28,7 @@ class TestBatchRepeatLinearOperatorNonSquare(RectangularLinearOperatorTestCase, 
     def create_linear_op(self):
         rand_mat = torch.randn(25, 12, dtype=torch.float)
         rand_mat.detach_()
-        return BatchRepeatLinearOperator(lazify(rand_mat), torch.Size((10,)))
+        return BatchRepeatLinearOperator(to_linear_operator(rand_mat), torch.Size((10,)))
 
     def evaluate_linear_op(self, linear_op):
         evaluated = linear_op.base_linear_op.evaluate()

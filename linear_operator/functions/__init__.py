@@ -65,9 +65,9 @@ def inv_matmul(mat, right_tensor, left_tensor=None):
     Returns:
         - :obj:`torch.tensor` - :math:`A^{-1}R` or :math:`LA^{-1}R`.
     """
-    from ..operators import lazify
+    from ..operators import to_linear_operator
 
-    return lazify(mat).inv_matmul(right_tensor, left_tensor)
+    return to_linear_operator(mat).inv_matmul(right_tensor, left_tensor)
 
 
 def inv_quad(mat, tensor):
@@ -98,9 +98,9 @@ def inv_quad_logdet(mat, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         - scalar - tr( tensor^T (mat)^{-1} tensor )
         - scalar - log determinant
     """
-    from ..operators import lazify
+    from ..operators import to_linear_operator
 
-    return lazify(mat).inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=reduce_inv_quad)
+    return to_linear_operator(mat).inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=reduce_inv_quad)
 
 
 def logdet(mat):
@@ -139,9 +139,9 @@ def pivoted_cholesky(mat, rank, error_tol=None, return_pivots=None):
     .. _Harbrecht et al., 2012:
         https://www.sciencedirect.com/science/article/pii/S0168927411001814
     """
-    from ..operators import lazify
+    from ..operators import to_linear_operator
 
-    return lazify(mat).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
+    return to_linear_operator(mat).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
 
 
 def root_decomposition(mat):
@@ -150,9 +150,9 @@ def root_decomposition(mat):
     This can be used for sampling from a Gaussian distribution, or for obtaining a
     low-rank version of a matrix
     """
-    from ..operators import lazify
+    from ..operators import to_linear_operator
 
-    return lazify(mat).root_decomposition()
+    return to_linear_operator(mat).root_decomposition()
 
 
 def root_inv_decomposition(mat, initial_vectors=None, test_vectors=None):
@@ -161,9 +161,9 @@ def root_inv_decomposition(mat, initial_vectors=None, test_vectors=None):
     This can be used for sampling from a Gaussian distribution, or for obtaining a
     low-rank version of a matrix
     """
-    from ..operators import lazify
+    from ..operators import to_linear_operator
 
-    return lazify(mat).root_inv_decomposition(initial_vectors, test_vectors)
+    return to_linear_operator(mat).root_inv_decomposition(initial_vectors, test_vectors)
 
 
 __all__ = [

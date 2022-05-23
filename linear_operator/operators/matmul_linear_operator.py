@@ -6,7 +6,7 @@ from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, 
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import DenseLinearOperator, lazify
+from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .diag_linear_operator import DiagLinearOperator
 
 
@@ -20,8 +20,8 @@ def _outer_repeat(tensor, amt):
 
 class MatmulLinearOperator(LinearOperator):
     def __init__(self, left_linear_op, right_linear_op):
-        left_linear_op = lazify(left_linear_op)
-        right_linear_op = lazify(right_linear_op)
+        left_linear_op = to_linear_operator(left_linear_op)
+        right_linear_op = to_linear_operator(right_linear_op)
 
         # Match batch dimensions
         batch_shape = _mul_broadcast_shape(left_linear_op.batch_shape, right_linear_op.batch_shape)
@@ -67,7 +67,7 @@ class MatmulLinearOperator(LinearOperator):
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
             num_indices = row_index.numel()
             if num_indices > self.matrix_shape.numel():
-                return lazify(self.evaluate())._getitem(row_index, col_index, *batch_indices)
+                return to_linear_operator(self.evaluate())._getitem(row_index, col_index, *batch_indices)
 
         left_tensor = self.left_linear_op._getitem(row_index, _noop_index, *batch_indices)
         right_tensor = self.right_linear_op._getitem(_noop_index, col_index, *batch_indices)

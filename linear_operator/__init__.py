@@ -11,7 +11,7 @@ from .functions import (  # Deprecated
     root_decomposition,
     root_inv_decomposition,
 )
-from .operators import cat, delazify, lazify
+from .operators import cat, to_dense, to_linear_operator
 
 __version__ = "0.0.1"
 
@@ -21,12 +21,12 @@ __all__ = [
     "utils",
     # Functions
     "cat",
-    "delazify",
+    "to_dense",
     "dsmm",
     "inv_matmul",
     "inv_quad",
     "inv_quad_logdet",
-    "lazify",
+    "to_linear_operator",
     "logdet",
     "log_normal_cdf",
     "matmul",

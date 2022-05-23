@@ -7,7 +7,7 @@ from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import DenseLinearOperator, lazify
+from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .root_linear_operator import RootLinearOperator
 
 
@@ -42,7 +42,7 @@ class InterpolatedLinearOperator(LinearOperator):
         right_interp_indices=None,
         right_interp_values=None,
     ):
-        base_linear_op = lazify(base_linear_op)
+        base_linear_op = to_linear_operator(base_linear_op)
 
         if left_interp_indices is None:
             num_rows = base_linear_op.size(-2)

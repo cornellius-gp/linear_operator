@@ -6,7 +6,7 @@ import torch
 
 from ..utils.getitem import _is_noop_index, _noop_index
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import lazify
+from .dense_linear_operator import to_linear_operator
 
 
 class BlockLinearOperator(LinearOperator):
@@ -49,7 +49,7 @@ class BlockLinearOperator(LinearOperator):
                 positive_block_dim,
             )
 
-        super(BlockLinearOperator, self).__init__(lazify(base_linear_op))
+        super(BlockLinearOperator, self).__init__(to_linear_operator(base_linear_op))
         self.base_linear_op = base_linear_op
 
     @abstractmethod
