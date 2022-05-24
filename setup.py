@@ -67,7 +67,6 @@ setup(
     install_requires=install_requires,
     extras_require={
         "dev": ["black", "twine", "pre-commit"],
-        "docs": ["sphinx<3.0.0", "sphinx_rtd_theme"],
         "test": ["flake8==4.0.1", "flake8-print==4.0.0"],
     },
     test_suite="test",
