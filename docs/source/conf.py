@@ -18,7 +18,9 @@ import os
 import io
 import re
 import sys
+import warnings
 import sphinx_rtd_theme  # noqa
+from typing import ForwardRef
 
 
 def read(*names, **kwargs):
@@ -96,6 +98,79 @@ intersphinx_mapping = {
 # is a PyTorch class.
 
 autodoc_inherit_docstrings = False
+
+# Function to format type hints
+
+
+def _process(annotation, config):
+    """
+    A function to convert a type/rtype typehint annotation into a :type:/:rtype: string.
+    This function is a bit hacky, and specific to the type annotations we use most frequently.
+
+    This function is recursive.
+    """
+    # Simple/base case: any string annotation is ready to go
+    if type(annotation) == str:
+        return annotation
+
+    # Convert Ellipsis into "..."
+    elif annotation == Ellipsis:
+        return "..."
+
+    # Convert any class (i.e. torch.Tensor, LinearOperator, etc.) into appropriate strings
+    # For external classes, the format will be e.g. "torch.Tensor"
+    # For any internal class, the format will be e.g. "~linear_operator.operators.TriangularLinearOperator"
+    elif hasattr(annotation, "__name__"):
+        module = annotation.__module__ + "."
+        if module.split(".")[0] == "linear_operator":
+            module = "~" + module
+        elif module == "builtins.":
+            module = ""
+        res = f"{module}{annotation.__name__}"
+
+    # Convert any Union[*A*, *B*, *C*] into "*A* or *B* or *C*"
+    # Also, convert any Optional[*A*] into "*A*, optional"
+    elif "typing.Union" in str(annotation):
+        is_optional_str = ""
+        args = list(annotation.__args__)
+        # Hack: Optional[*A*] are represented internally as Union[*A*, Nonetype]
+        # This catches this case
+        if args[-1] is type(None):  # noqa E721
+            del args[-1]
+            is_optional_str = ", optional"
+        processed_args = [_process(arg, config) for arg in args]
+        res = " or ".join(processed_args) + is_optional_str
+
+    # Convert any Tuple[*A*, *B*] into "(*A*, *B*)"
+    elif "typing.Tuple" in str(annotation):
+        args = list(annotation.__args__)
+        res = "(" + ", ".join(_process(arg, config) for arg in args) + ")"
+
+    # Special cases for forward references.
+    # This is brittle, as it only contains case for a select few forward refs
+    # All others that aren't caught by this are handled by the final case
+    elif isinstance(annotation, ForwardRef):
+        res = str(annotation.__forward_arg__)
+        if res == "LinearOperator":
+            res = "~linear_operator.LinearOperator"
+        elif "LinearOperator" in res:
+            res = f"~linear_operator.operators.{res}"
+
+    # For everything we didn't catch: use the simplist string representation
+    else:
+        warnings.warn(f"No rule for {annotation}. Using default resolution...", RuntimeWarning)
+        res = str(annotation)
+
+    return res
+
+
+# Options for typehints
+
+always_document_param_types = True
+# typehints_use_rtype = False
+typehints_defaults = None  # or "comma"
+simplify_optional_unions = False
+typehints_formatter = _process
 
 # Taken from https://github.com/pyro-ppl/pyro/blob/dev/docs/source/conf.py#L213
 # @jpchen's hack to get rtd builder to install latest pytorch

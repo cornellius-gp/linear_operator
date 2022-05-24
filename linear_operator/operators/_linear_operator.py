@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import math
 import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -38,77 +40,32 @@ class LinearOperator(ABC):
     r"""
     Base class for LinearOperators.
 
-    Nearly all covariance matrices for Gaussian processes are handled internally as some variety of
-    LinearOperator. A LinearOperator is an object that represents a tensor object, similar to :class:`torch.tensor`, but
-    typically differs in two ways:
-
-    * A tensor represented by a LinearOperator can typically be represented
-      more efficiently than storing a full matrix.
-      For example, a LinearOperator representing :math:`K=XX^{\top}` where :math:`K` is :math:`n \times n` but
-      :math:`X` is :math:`n \times d` might store :math:`X` instead of :math:`K` directly.
-    * A LinearOperator typically defines a matmul routine that performs :math:`KM` that is more efficient than storing
-      the full matrix. Using the above example, performing :math:`KM=X(X^{\top}M)` requires only :math:`O(nd)` time,
-      rather than the :math:`O(n^2)` time required if we were storing :math:`K` directly.
-
-    In order to define a new LinearOperator class that can be used as a covariance matrix, a user must define
-    at a minimum the following methods (in each example, :math:`K` denotes the
-    matrix that the LinearOperator represents)
-
-    * :func:`~linear_operator.lazy.LinearOperator._matmul`, which performs a matrix multiplication :math:`KM`
-    * :func:`~linear_operator.lazy.LinearOperator._size`, which returns a
-      :class:`torch.Size` containing the dimensions of :math:`K`.
-    * :func:`~linear_operator.lazy.LinearOperator._transpose_nonbatch`, which
-      returns a transposed version of the LinearOperator
-
-    In addition to these, the following methods should be implemented for maximum efficiency
-
-    * :func:`~linear_operator.lazy.LinearOperator._quad_form_derivative`, which
-      computes the derivative of a quadratic form with the LinearOperator (e.g. :math:`d (a^T X b) / dX`).
-    * :func:`~linear_operator.lazy.LinearOperator._get_indices`, which returns
-      a :class:`torch.Tensor` containing elements that
-      are given by various tensor indices.
-    * :func:`~linear_operator.lazy.LinearOperator._expand_batch`, which expands
-      the batch dimensions of LinearOperators.
-    * :func:`~linear_operator.lazy.LinearOperator._check_args`, which performs
-      error checking on the arguments supplied to the
-      LinearOperator constructor.
-
-    In addition to these, a LinearOperator *may* need to define the following
-    functions if it does anything interesting with the batch dimensions (e.g.
-    sums along them, adds additional ones, etc):
-    :func:`~linear_operator.lazy.LinearOperator._unsqueeze_batch`,
-    :func:`~linear_operator.lazy.LinearOperator._getitem`, and
-    :func:`~linear_operator.lazy.LinearOperator._permute_batch`.  See the
-    documentation for these methods for details.
-
-    .. note::
-        The base LinearOperator class provides default implementations of many
-        other operations in order to mimic the behavior of a standard tensor as
-        closely as possible. For example, we provide default implementations of
-        :func:`~linear_operator.lazy.LinearOperator.__getitem__`,
-        :func:`~linear_operator.lazy.LinearOperator.__add__`, etc that either
-        make use of other lazy tensors or exploit the functions that **must**
-        be defined above.
-
-        Rather than overriding the public methods, we recommend that you
-        override the private versions associated with these methods (e.g. -
-        write a custom `_getitem` verses a custom `__getitem__`). This is
-        because the public methods do quite a bit of error checking and casing
-        that doesn't need to be repeated.
-
-    .. note::
-        LinearOperators are designed by default to optionally represent batches
-        of matrices. Thus, the size of a LinearOperator may be (for example)
-        :math:`b \times n \times n`. Many of the methods are designed to
-        efficiently operate on these batches if present.
+    :ivar int batch_dim: The number of batch dimensions defined by the
+        :obj:`~linear_operator.LinearOperator`.
+        (This should be equal to `linear_operator.dim() - 2`.
+    :ivar torch.Size batch_shape: The shape over which the
+        :obj:`~linear_operator.LinearOperator` is batched.
+    :ivar torch.device device: The device that the :obj:`~linear_operator.LinearOperator`
+        is stored on.  Any tensor that interacts with this
+        :obj:`~linear_operator.LinearOperator` should be on the same device.
+    :ivar torch.dtype dtype: The dtype that the LinearOperator interacts with.
+    :ivar bool is_square: Whether or not the LinearOperator is a square
+        operator.
+    :ivar torch.Size matrix_shape: The 2-dimensional shape of the implicit
+        matrix represented by the :obj:`~linear_operator.LinearOperator`.
+        In other words: a :obj:`torch.Size` that consists of the operators'
+        output dimension and input dimension.
+    :ivar bool requires_grad: Whether or not any tensor that make up the
+        LinearOperator require gradients.
+    :ivar torch.Size shape: The overall operator shape: :attr:`batch_shape` +
+        :attr:`matrix_shape`.
     """
 
-    def _check_args(self, *args, **kwargs):
+    def _check_args(self, *args, **kwargs) -> Union[str, None]:
         """
         (Optional) run checks to see that input arguments and kwargs are valid
 
-        Return:
-            None (if all checks pass) or str (error message to raise)
+        :return: None (if all checks pass) or str (error message to raise)
         """
         return None
 
@@ -125,53 +82,49 @@ class LinearOperator(ABC):
     # The following methods need to be defined by the LinearOperator
     ####
     @abstractmethod
-    def _matmul(self, rhs):
-        """
-        Performs a matrix multiplication :math:`KM` with the matrix :math:`K`
+    def _matmul(self, rhs: torch.Tensor) -> torch.Tensor:
+        r"""
+        Performs a matrix multiplication :math:`\mathbf KM` with the (... x M x N) matrix :math:`\mathbf K`
         that this LinearOperator represents. Should behave as
         :func:`torch.matmul`. If the LinearOperator represents a batch of
         matrices, this method should therefore operate in batch mode as well.
 
         ..note::
             This method is intended to be used only internally by various
-            Functions that support backpropagation (e.g.,
-            :class:`linear_operator.functions.Matmul`). Once this method is
-            defined, it is strongly recommended that one use
-            :func:`~linear_operator.lazy.LinearOperator.matmul` instead, which
-            makes use of this method properly.
+            Functions that support backpropagation (e.g., :class:`Matmul`).
+            Once this method is defined, it is strongly recommended that one
+            use :func:`~linear_operator.LinearOperator.matmul` instead, which makes use of this
+            method properly.
 
-        Args:
-            rhs (:obj:`torch.tensor`): the matrix :math:`M` to multiply with.
-
-        Returns:
-            :obj:`torch.tensor`: matrix * rhs
+        :param rhs: the matrix :math:`\mathbf M` to multiply with (... x N x C).
+        :return: :math:`\mathbf K \mathbf M` (... x M x C)
         """
         raise NotImplementedError("The class {} requires a _matmul function!".format(self.__class__.__name__))
 
     @abstractmethod
-    def _size(self):
+    def _size(self) -> torch.Size:
         """
-        Returns the size of the resulting Tensor that the lazy tensor represents.
+        Returns the size of the resulting Tensor that the linear operator represents.
 
         ..note::
-            This method is used internally by the related function :func:`~linear_operator.lazy.LinearOperator.size`,
+            This method is used internally by the related function
+            :func:`~linear_operator.LinearOperator.size`,
             which does some additional work. Calling this method directly is discouraged.
 
-        Returns:
-            :obj:`torch.Size`: The size of the matrix :math:`K` represented by this LinearOperator
+        :return: The size of the (batched) matrix :math:`\mathbf K` represented by this LinearOperator
         """
         raise NotImplementedError("The class {} requires a _size function!".format(self.__class__.__name__))
 
     @abstractmethod
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self) -> LinearOperator:
         """
         Transposes non-batch dimensions (e.g. last two)
         Implement this method, rather than transpose() or t().
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.transpose`, which does
-            some additional work. Calling this method directly is discouraged.
+            :func:`~linear_operator.LinearOperator.transpose`, which
+            does some additional work. Calling this method directly is discouraged.
         """
         raise NotImplementedError(
             "The class {} requires a _transpose_nonbatch function!".format(self.__class__.__name__)
@@ -181,7 +134,7 @@ class LinearOperator(ABC):
     # The following methods MIGHT have be over-written by LinearOperator subclasses
     # if the LinearOperator does weird things with the batch dimensions
     ####
-    def _permute_batch(self, *dims):
+    def _permute_batch(self, *dims: Tuple[int, ...]) -> LinearOperator:
         """
         Permute the batch dimensions.
         This probably won't have to be overwritten by LinearOperators, unless they use batch dimensions
@@ -189,13 +142,11 @@ class LinearOperator(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.unsqueeze`, which does
-            some additional work. Calling this method directly is discouraged.
+            :func:`~linear_operator.LinearOperator.unsqueeze`,
+            which does some additional work. Calling this method directly is discouraged.
 
-        Args:
-            dims (tuple of ints):
-                The new order for the `self.dim() - 2` dimensions.
-                It WILL contain each of the positive batch dimensions exactly once.
+        :param dims: The new order for the `self.dim() - 2` dimensions.
+            It WILL contain each of the positive batch dimensions exactly once.
         """
         components = []
         for component in self._args:
@@ -210,7 +161,12 @@ class LinearOperator(ABC):
         res = self.__class__(*components, **self._kwargs)
         return res
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(
+        self,
+        row_index: Union[slice, torch.LongTensor],
+        col_index: Union[slice, torch.LongTensor],
+        *batch_indices: Tuple[Union[slice, torch.LongTensor], ...],
+    ) -> LinearOperator:
         """
         Supports subindexing of the matrix this LinearOperator represents.
 
@@ -225,8 +181,8 @@ class LinearOperator(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.__getitem__`, which
-            does some additional work. Calling this method directly is
+            :func:`~linear_operator.LinearOperator.__getitem__`,
+            which does some additional work. Calling this method directly is
             discouraged.
 
         This method has a number of restrictions on the type of arguments that are passed in to reduce
@@ -235,16 +191,14 @@ class LinearOperator(ABC):
             - The row and column dimensions don't dissapear (e.g. from Tensor indexing). These cases are
               handled by the `_getindices` method
 
-        Args:
-            :attr:`row_index` (slice, Tensor):
-                Index for the row of the LinearOperator
-            :attr:`col_index` (slice, Tensor):
-                Index for the col of the LinearOperator
-            :attr:`batch_indices` (tuple of slice, int, Tensor):
-                Indices for the batch dimensions
+        :param row_index: Index for the row of the LinearOperator
+        :param col_index: Index for the col of the LinearOperator
+        :param batch_indices: Indices for the batch dimensions
+        :type row_index: slice or ~torch.Tensor
+        :type col_index: slice or ~torch.Tensor
+        :type batch_indices: tuple(slice), tuple(int), or tuple(~torch.Tensor)
 
-        Returns:
-            `LinearOperator`
+        :rtype: ~linear_operators.LinearOperator
         """
         # Special case: if both row and col are not indexed, then we are done
         if _is_noop_index(row_index) and _is_noop_index(col_index):
@@ -277,7 +231,7 @@ class LinearOperator(ABC):
         )
         return res._getitem(row_index, col_index, *batch_indices)
 
-    def _unsqueeze_batch(self, dim):
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         """
         Unsqueezes a batch dimension (positive-indexed only)
         This probably won't have to be overwritten by LinearOperators, unless they use batch dimensions
@@ -285,8 +239,11 @@ class LinearOperator(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.unsqueeze`, which does
-            some additional work. Calling this method directly is discouraged.
+            :func:`~linear_operator.LinearOperator.unsqueeze`, which
+            does some additional work. Calling this method directly is
+            discouraged.
+
+        :param dim: The positive indexed dimension to unsqueeze
         """
         components = [component.unsqueeze(dim) for component in self._args]
         res = self.__class__(*components, **self._kwargs)
@@ -295,14 +252,14 @@ class LinearOperator(ABC):
     ####
     # The following methods PROBABLY should be over-written by LinearOperator subclasses for efficiency
     ####
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(self, batch_shape: torch.Size) -> LinearOperator:
         """
-        Expands along batch dimensions.
+        Expands along batch dimensions. Return size will be *batch_shape x *matrix_shape.
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.expand`, which does
-            some additional work. Calling this method directly is discouraged.
+            :func:`~linear_operator.LinearOperator.expand`,
+            which does some additional work. Calling this method directly is discouraged.
         """
         current_shape = torch.Size([1 for _ in range(len(batch_shape) - self.dim() + 2)] + list(self.batch_shape))
         batch_repeat = torch.Size(
@@ -310,7 +267,9 @@ class LinearOperator(ABC):
         )
         return self.repeat(*batch_repeat, 1, 1)
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+    ) -> torch.Tensor:
         """
         This method selects elements from the LinearOperator based on tensor indices for each dimension.
         All indices are tensor indices that are broadcastable.
@@ -318,17 +277,13 @@ class LinearOperator(ABC):
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.__getitem__`, which
-            does some additional work. Calling this method directly is
-            discouraged.
+            :func:`~linear_operator.LinearOperator.__getitem__`,
+            which does some additional work. Calling this method directly is discouraged.
 
-        Args:
-            row_index (LongTensor): indices to select from row of LinearOperator
-            row_index (LongTensor): indices to select from col of LinearOperator
-            batch_indices (tuple LongTensor): indices to select from batch dimensions.
-
-        Returns:
-            Tensor (size determined by broadcasted shape of indices) of selected values
+        :param row_index: indices to select from row of LinearOperator
+        :param col_index: indices to select from col of LinearOperator
+        :param batch_indices: indices to select from batch dimensions.
+        :return: Tensor (size determined by broadcasted shape of indices) of selected values
         """
         final_shape = _mul_broadcast_shape(*(index.shape for index in batch_indices), row_index.shape, col_index.shape)
         row_index = row_index.expand(final_shape)
@@ -363,21 +318,21 @@ class LinearOperator(ABC):
         )
         return res
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
-        """
-        Given u (left_vecs) and v (right_vecs),
-        Computes the derivatives of (u^t K v) w.r.t. K
+    def _quad_form_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        r"""
+        Given :math:`\mathbf u` (left_vecs) and :math:`\mathbf v` (right_vecs),
+        Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.
 
         ..note::
             This method is intended to be used only internally by various
             Functions that support backpropagation.  For example, this method
-            is used internally by
-            :func:`~linear_operator.lazy.LinearOperator.inv_quad_logdet`. It is
-            not likely that users will need to call this method directly.
+            is used internally by :func:`~linear_operator.LinearOperator.inv_quad_logdet`.
+            It is not likely that users will need to call this method directly.
 
-        Returns:
-            :obj:`torch.tensor`: derivative with respect to the arguments that are actually used to represent this
-                                   this LinearOperator.
+        :param left_vecs: The vectors :math:`\mathbf u`
+        :param right_vecs: The vectors :math:`\mathbf v`
+        :return: Derivative with respect to the arguments that are actually
+            used to represent this this LinearOperator.
         """
         from collections import deque
 
@@ -413,14 +368,14 @@ class LinearOperator(ABC):
     # Standard LinearOperator methods
     ####
     @property
-    def _args(self):
+    def _args(self) -> Tuple[Union[torch.Tensor, "LinearOperator"], ...]:
         return self._args_memo
 
     @_args.setter
-    def _args(self, args):
+    def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator"], ...]) -> None:
         self._args_memo = args
 
-    def _approx_diag(self):
+    def _approx_diag(self) -> torch.Tensor:
         """
         (Optional) returns an (approximate) diagonal of the matrix
 
@@ -430,21 +385,20 @@ class LinearOperator(ABC):
 
         Defaults to calling the exact diagonal function
 
-        Returns:
-            tensor: - the diagonal (or batch of diagonals)
+        :return: the (batch of) diagonals (... x N)
         """
         return self.diag()
 
     @cached(name="cholesky")
-    def _cholesky(self, upper=False):
+    def _cholesky(self, upper: bool = False) -> "TriangularLinearOperator":  # noqa F811
         """
         (Optional) Cholesky-factorizes the LinearOperator
 
         ..note::
             This method is used as an internal helper. Calling this method directly is discouraged.
 
-        Returns:
-            (TriangularLinearOperator) Cholesky factor
+        :param upper: Upper triangular or lower triangular factor (default: False).
+        :return: Cholesky factor (lower or upper triangular)
         """
         from .keops_linear_operator import KeOpsLinearOperator
         from .triangular_linear_operator import TriangularLinearOperator
@@ -464,25 +418,42 @@ class LinearOperator(ABC):
         cholesky = psd_safe_cholesky(evaluated_mat, upper=upper).contiguous()
         return TriangularLinearOperator(cholesky, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: bool = False):
+    def _cholesky_solve(self, rhs, upper: bool = False) -> LinearOperator:
         """
-        (Optional) Assuming that `self` is a Cholesky factor, computes the cholesky solve
+        (Optional) Assuming that `self` is a Cholesky factor, computes the cholesky solve.
 
         ..note::
             This method is used as an internal helper. Calling this method directly is discouraged.
-
-        Returns:
-            (LinearOperator) Cholesky factor
         """
         raise NotImplementedError("_cholesky_solve not implemented for the base LinearOperator")
 
-    def _inv_matmul_preconditioner(self):
-        """
-        (Optional) define a preconditioner that can be used for linear systems, but not necessarily
-        for log determinants. By default, this can call :meth:`~linear_operator.lazy.LinearOperator._preconditioner`.
+    def _choose_root_method(self) -> str:
+        r"""
+        Informs which root_decomposition or root_inv_decomposition method to
+        use based on available chaches and matrix size.
 
-        Returns:
-            function: a function on x which performs P^{-1}(x)
+        :return: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
+        """
+        if _is_in_cache_ignore_all_args(self, "symeig"):
+            return "symeig"
+        if _is_in_cache_ignore_all_args(self, "diagonalization"):
+            return "diagonalization"
+        if _is_in_cache_ignore_all_args(self, "lanczos"):
+            return "lanczos"
+        if (
+            self.size(-1) <= settings.max_cholesky_size.value()
+            or settings.fast_computations.covar_root_decomposition.off()
+        ):
+            return "cholesky"
+        return "lanczos"
+
+    def _inv_matmul_preconditioner(self) -> Callable:
+        r"""
+        (Optional) define a preconditioner :math:`\mathbf P` that can be used for linear systems,
+        but not necessarily for log determinants. By default, this can call
+        :meth:`~linear_operator.LinearOperator._preconditioner`.
+
+        :return: a function which performs :math:`\mathbf P^{-1}(\cdot)`
         """
         base_precond, _, _ = self._preconditioner()
 
@@ -521,31 +492,30 @@ class LinearOperator(ABC):
         else:
             return None
 
-    def _mul_constant(self, other):
+    def _mul_constant(self, other: Union[float, torch.Tensor]) -> LinearOperator:
         """
         Multiplies the LinearOperator by a costant.
 
         ..note::
-            This method is used internally by the related function :func:`~linear_operator.lazy.LinearOperator.mul`,
+            This method is used internally by the related function
+            :func:`~linear_operator.LinearOperator.mul`,
             which does some additional work. Calling this method directly is discouraged.
 
-        Returns:
-            :obj:`linear_operator.lazy.LinearOperator`
+        :param other: The constant (or batch of constants)
         """
         from .constant_mul_linear_operator import ConstantMulLinearOperator
 
         return ConstantMulLinearOperator(self, other)
 
-    def _mul_matrix(self, other):
-        """
+    def _mul_matrix(self, other: Union[torch.Tensor, "LinearOperator"]) -> LinearOperator:
+        r"""
         Multiplies the LinearOperator by a (batch of) matrices.
 
         ..note::
-            This method is used internally by the related function :func:`~linear_operator.lazy.LinearOperator.mul`,
+            This method is used internally by the related function :func:`~linear_operator.LinearOperator.mul`,
             which does some additional work. Calling this method directly is discouraged.
 
-        Returns:
-            :obj:`linear_operator.lazy.LinearOperator`
+        :param other: The other linear operator to multiply against.
         """
         from .dense_linear_operator import DenseLinearOperator
         from .mul_linear_operator import MulLinearOperator
@@ -562,29 +532,32 @@ class LinearOperator(ABC):
                 right_linear_op.root_decomposition(),
             )
 
-    def _preconditioner(self):
+    def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
         """
-        (Optional) define a preconditioner (P) for linear conjugate gradients
+        (Optional) define a preconditioner (:math:`\mathbf P`) for linear conjugate gradients
 
-        Returns:
-            function: a function on x which performs P^{-1}(x)
-            scalar: the log determinant of P
+        :return:
+            - a function which performs :math:`\mathbf P^{-1}(\cdot)`,
+            - a LinearOperator representation of :math:`\mathbf P`, and
+            - a Tensor containing :math:`\log \Vert \mathbf P \Vert`.
         """
         return None, None, None
 
     def _probe_vectors_and_norms(self):
+        r"""
+        TODO
+        """
         return None, None
 
-    def _prod_batch(self, dim):
+    def _prod_batch(self, dim: int) -> LinearOperator:
         """
         Multiply the LinearOperator across a batch dimension (supplied as a positive number).
 
         ..note::
-            This method is used internally by the related function :func:`~linear_operator.lazy.LinearOperator.prod`,
+            This method is used internally by the related function :func:`~linear_operator.LinearOperator.prod`,
             which does some additional work. Calling this method directly is discouraged.
 
-        Returns:
-            :obj:`linear_operator.lazy.LinearOperator`
+        :param dim: The (positive valued) dimension to multiply
         """
         from .mul_linear_operator import MulLinearOperator
         from .root_linear_operator import RootLinearOperator
@@ -630,17 +603,14 @@ class LinearOperator(ABC):
 
         return res
 
-    def _root_decomposition(self):
+    def _root_decomposition(self) -> Union[torch.Tensor, "LinearOperator"]:
         """
-        Returns the (usually low-rank) root of a lazy tensor of a PSD matrix.
+        Returns the (usually low-rank) root of a LinearOperator of a PSD matrix.
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.root_decomposition`, which does some additional work.
+            :func:`~linear_operator.LinearOperator.root_decomposition`, which does some additional work.
             Calling this method directly is discouraged.
-
-        Returns:
-            (Tensor or LinearOperator): The root of the root decomposition
         """
         res, _ = RootDecomposition.apply(
             self.representation_tree(),
@@ -657,7 +627,7 @@ class LinearOperator(ABC):
 
         return res
 
-    def _root_decomposition_size(self):
+    def _root_decomposition_size(self) -> int:
         """
         This is the inner size of the root decomposition.
         This is primarily used to determine if it will be cheaper to compute a
@@ -665,17 +635,23 @@ class LinearOperator(ABC):
         """
         return settings.max_root_decomposition_size.value()
 
-    def _root_inv_decomposition(self, initial_vectors=None, test_vectors=None):
+    def _root_inv_decomposition(
+        self,
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> LinearOperator:
         """
-        Returns the (usually low-rank) inverse root of a lazy tensor of a PSD matrix.
+        Returns the (usually low-rank) inverse root of a LinearOperator of a PSD matrix.
 
         ..note::
             This method is used internally by the related function
-            :func:`~linear_operator.lazy.LinearOperator.root_inv_decomposition`, which does some additional work.
+            :func:`~linear_operator.LinearOperator.root_inv_decomposition`, which does some additional work.
             Calling this method directly is discouraged.
 
-        Returns:
-            (Tensor or LinearOperator): The root of the inverse root decomposition
+        :param initial_vectors: Vectors used to initialize the Lanczos decomposition.
+            The best initialization vector (determined by :attr:`test_vectors`) will be chosen.
+        :param test_vectors: Vectors used to test the accuracy of the decomposition.
+        :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
         from .root_linear_operator import RootLinearOperator
 
@@ -699,7 +675,27 @@ class LinearOperator(ABC):
 
         return inv_roots
 
-    def _solve(self, rhs, preconditioner, num_tridiag=0):
+    def _set_requires_grad(self, val: bool) -> None:
+        """
+        A setter for the requires_grad argument.
+
+        ..note::
+            Subclasses should overwrite this method, not the requires_grad.setter
+
+        :param val: Whether the LinearOperator should require a gradient or not.
+        """
+        for arg in self._args:
+            if hasattr(arg, "requires_grad"):
+                if arg.dtype in (torch.float, torch.double, torch.half):
+                    arg.requires_grad_(val)
+        for arg in self._kwargs.values():
+            if hasattr(arg, "requires_grad"):
+                arg.requires_grad_(val)
+
+    def _solve(self, rhs: torch.Tensor, preconditioner: Callable, num_tridiag: int = 0) -> torch.Tensor:
+        r"""
+        TODO
+        """
         return utils.linear_cg(
             self._matmul,
             rhs,
@@ -709,40 +705,77 @@ class LinearOperator(ABC):
             preconditioner=preconditioner,
         )
 
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> LinearOperator:
         """
         Sum the LinearOperator across a batch dimension (supplied as a positive number).
 
         ..note::
-            This method is used internally by the related function :func:`~linear_operator.lazy.LinearOperator.sum`,
+            This method is used internally by the related function :func:`~linear_operator.LinearOperator.sum`,
             which does some additional work. Calling this method directly is discouraged.
 
-        Returns:
-            :obj:`linear_operator.lazy.LinearOperator`
+        :param dim: The (positive valued) dimension to sum
         """
         from .sum_batch_linear_operator import SumBatchLinearOperator
 
         return SumBatchLinearOperator(self, block_dim=dim)
 
-    def _t_matmul(self, rhs):
+    @cached(name="svd")
+    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
+        """Method that allows implementing special-cased SVD computation. Should not be called directly"""
+        # Using symeig is preferable here for psd LinearOperators.
+        # Will need to overwrite this function for non-psd LinearOperators.
+        evals, evecs = self.symeig(eigenvectors=True)
+        signs = torch.sign(evals)
+        U = evecs * signs.unsqueeze(-2)
+        S = torch.abs(evals)
+        V = evecs
+        return U, S, V
+
+    def _symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
         r"""
-        Performs a transpose matrix multiplication :math:`K^{\top}M` with the matrix :math:`K` that this
-        LinearOperator represents.
+        Method that allows implementing special-cased symeig computation. Should not be called directly
+        """
+        from linear_operator.operators.dense_linear_operator import DenseLinearOperator
 
-        Args:
-            rhs (:obj:`torch.tensor`): the matrix :math:`M` to multiply with.
+        if settings.verbose_linalg.on():
+            settings.verbose_linalg.logger.debug(f"Running symeig on a matrix of size {self.shape}.")
 
-        Returns:
-            :obj:`torch.tensor`: matrix * rhs
+        # potentially perform decomposition in double precision for numerical stability
+        dtype = self.dtype
+        evals, evecs = torch.linalg.eigh(self.evaluate().to(dtype=settings._linalg_dtype_symeig.value()))
+        # chop any negative eigenvalues.
+        # TODO: warn if evals are significantly negative
+        evals = evals.clamp_min(0.0).to(dtype=dtype)
+        if eigenvectors:
+            evecs = DenseLinearOperator(evecs.to(dtype=dtype))
+        else:
+            evecs = None
+        return evals, evecs
+
+    def _t_matmul(self, rhs: torch.Tensor) -> LinearOperator:
+        r"""
+        Performs a transpose matrix multiplication :math:`\mathbf K^\top \mathbf M` with the
+        (... x M x N) matrix :math:`\mathbf K` that this LinearOperator represents.
+
+        ..note::
+            This method is intended to be used only internally by various
+            Functions that support backpropagation (e.g., :class:`Matmul`).
+            Once this method is defined, it is strongly recommended that one
+            use :func:`~linear_operator.LinearOperator.matmul` instead, which makes use of this
+            method properly.
+
+        :param rhs: the matrix :math:`\mathbf M` to multiply with.
+        :return: :math:`\mathbf K^\top \mathbf M`
         """
         return self.transpose(-1, -2)._matmul(rhs)
 
-    def add_diag(self, diag):
-        """
+    def add_diag(self, diag: torch.Tensor) -> LinearOperator:
+        r"""
         Adds an element to the diagonal of the matrix.
 
-        Args:
-            - diag (Scalar Tensor)
+        :param diag: Diagonal to add
+        :return: :math:`\mathbf A + \text{diag}(\mathbf d)`, where :math:`\mathbf A` is the linear operator
+            and :math:`\mathbf d` is the diagonal component
         """
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
@@ -770,157 +803,59 @@ class LinearOperator(ABC):
 
         return AddedDiagLinearOperator(self, diag_tensor)
 
-    def add_jitter(self, jitter_val=1e-3):
-        """
+    def add_jitter(self, jitter_val: float = 1e-3) -> LinearOperator:
+        r"""
         Adds jitter (i.e., a small diagonal component) to the matrix this
-        LinearOperator represents. This could potentially be implemented as a no-op,
-        however this could lead to numerical instabilities, so this should only
-        be done at the user's risk.
+        LinearOperator represents.
+        This is equivalent to calling :meth:`~linear_operator.operators.LinearOperator.add_diag`
+        with a scalar tensor.
+
+        :param jitter_val: The diagonal component to add
+        :return: :math:`\mathbf A + \alpha (\mathbf I)`, where :math:`\mathbf A` is the linear operator
+            and :math:`\alpha` is :attr:`jitter_val`.
         """
         diag = torch.tensor(jitter_val, dtype=self.dtype, device=self.device)
         return self.add_diag(diag)
 
-    def cat_rows(
-        self,
-        cross_mat,
-        new_mat,
-        generate_roots=True,
-        generate_inv_roots=True,
-        **root_decomp_kwargs,
-    ):
-        """
-        Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
-        C = [A B^T; B D]. where A is the existing lazy tensor, and B (cross_mat) and D (new_mat)
-        are new components. This is most commonly used when fantasizing with kernel matrices.
-
-        We have access to A \\approx LL^T and A^{-1} \\approx RR^T, where L and R are low rank matrices
-        resulting from root and root inverse decompositions (see the LOVE paper).
-
-        To update R, we first update L:
-            [A B^T; B D] = [E 0; F G][E^T F^T; 0 G^T]
-        Solving this matrix equation, we get:
-            A = EE^T = LL^T  ==>   E = L
-            B = EF^T         ==>   F = BR
-            D = FF^T + GG^T  ==>   G = (D - FF^T)^{1/2}
-
-        Once we've computed Z = [E 0; F G], we have that the new kernel matrix [K U; U^T S] \approx ZZ^T. Therefore,
-        we can form a pseudo-inverse of Z directly to approximate [K U; U^T S]^{-1/2}.
-
-        This strategy is also described in "Efficient Nonmyopic Bayesian Optimization via One-Shot Multistep Trees,"
-        Jiang et al, NeurIPS, 2020. https://arxiv.org/abs/2006.15779.
-
-        Args:
-            cross_mat (:obj:`torch.tensor`): the matrix :math:`B` we are appending to the matrix :math:`A`.
-                If :math:`A` is n x n, then this matrix should be n x k.
-            new_mat (:obj:`torch.tensor`): the matrix :math:`D` we are appending to the matrix :math:`A`.
-                If :math:`B` is n x k, then this matrix should be k x k.
-            generate_roots (:obj:`bool`): whether to generate the root
-                decomposition of :math:`A` even if it has not been created yet.
-            generate_inv_roots (:obj:`bool`): whether to generate the root inv
-                decomposition of :math:`A` even if it has not been created yet.
-
-        Returns:
-            :obj:`LinearOperator`: concatenated lazy tensor with the new rows and columns.
-        """
-        from . import to_linear_operator
-        from .cat_linear_operator import CatLinearOperator
-        from .root_linear_operator import RootLinearOperator
-        from .triangular_linear_operator import TriangularLinearOperator
-
-        if not generate_roots and generate_inv_roots:
-            warnings.warn(
-                "root_inv_decomposition is only generated when " "root_decomposition is generated.",
-                UserWarning,
-            )
-        B_, B = cross_mat, to_linear_operator(cross_mat)
-        D = to_linear_operator(new_mat)
-        batch_shape = B.shape[:-2]
-        if self.ndimension() < cross_mat.ndimension():
-            expand_shape = _mul_broadcast_shape(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
-            A = self.expand(expand_shape)
-        else:
-            A = self
-
-        # form matrix C = [A B; B^T D], where A = self, B = cross_mat, D = new_mat
-        upper_row = CatLinearOperator(A, B, dim=-2, output_device=A.device)
-        lower_row = CatLinearOperator(B.transpose(-1, -2), D, dim=-2, output_device=A.device)
-        new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
-
-        # if the old lazy tensor does not have either a root decomposition or a root inverse decomposition
-        # don't create one
-        has_roots = any(
-            _is_in_cache_ignore_args(self, key)
-            for key in (
-                "root_decomposition",
-                "root_inv_decomposition",
-            )
-        )
-        if not generate_roots and not has_roots:
-            return new_linear_op
-
-        # Get components for new root Z = [E 0; F G]
-        E = self.root_decomposition(**root_decomp_kwargs).root  # E = L, LL^T = A
-        m, n = E.shape[-2:]
-        R = self.root_inv_decomposition().root.evaluate()  # RR^T = A^{-1} (this is fast if L is triangular)
-        lower_left = B_ @ R  # F = BR
-        schur = D - lower_left.matmul(lower_left.transpose(-2, -1))  # GG^T = new_mat - FF^T
-        schur_root = to_linear_operator(schur).root_decomposition().root.evaluate()  # G = (new_mat - FF^T)^{1/2}
-
-        # Form new root matrix
-        num_fant = schur_root.size(-2)
-        new_root = torch.zeros(*batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype)
-        new_root[..., :m, :n] = E.evaluate()
-        new_root[..., m:, : lower_left.shape[-1]] = lower_left
-        new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root
-        if generate_inv_roots:
-            if isinstance(E, TriangularLinearOperator) and isinstance(schur_root, TriangularLinearOperator):
-                # make sure these are actually upper triangular
-                if getattr(E, "upper", False) or getattr(schur_root, "upper", False):
-                    raise NotImplementedError
-                # in this case we know new_root is triangular as well
-                new_root = TriangularLinearOperator(new_root)
-                new_inv_root = new_root.inverse().transpose(-1, -2)
-            else:
-                # otherwise we use the pseudo-inverse of Z as new inv root
-                new_inv_root = stable_pinverse(new_root).transpose(-2, -1)
-            add_to_cache(
-                new_linear_op,
-                "root_inv_decomposition",
-                RootLinearOperator(to_linear_operator(new_inv_root)),
-            )
-
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(to_linear_operator(new_root)))
-
-        return new_linear_op
-
     def add_low_rank(
         self,
-        low_rank_mat,
+        low_rank_mat: torch.Tensor,
         root_decomp_method: Optional[str] = None,
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
         **root_decomp_kwargs,
-    ):
-        """
+    ) -> "SumLinearOperator":  # noqa F811
+        r"""
         Adds a low rank matrix to the matrix that this LinearOperator represents, e.g.
-        computes A + BB^T. We then update both the tensor and its root decomposition.
+        computes :math:`\mathbf A + \mathbf{BB}^\top`.
+        We then update both the tensor and its root decomposition.
 
-        We have access to, L and M where A \approx LL^T and A^{-1} \approx MM^T.
-        We compute \tilde{A} = A + BB^T = L(I + M B B^T M^T)L' and then decompose
-        (I + M VV^T M^T) \approx RR^T, using LR as our new root decomposition.
+        We have access to, :math:`\mathbf L` and :math:`\mathbf M`
+        where :math:`\mathbf A \approx \mathbf{LL}^\top`
+        and :math:`\mathbf A^{-1} \approx \mathbf{MM}^\top`.  We then compute
 
-        This strategy is described in more detail in "Kernel Interpolation for Scalable Online Gaussian
-        Processes," Stanton et al, AISTATS, 2021. https://arxiv.org/abs/2103.01454.
+        .. math::
+            \widetilde{\mathbf A} = \mathbf A + \mathbf {BB}^\top
+            = \mathbf L(\mathbf I + \mathbf {M B B}^\top \mathbf M^\top)\mathbf L^\top
 
-        Args:
-            low_rank_mat (:obj:`torch.tensor`): the matrix `B` that we are adding to `A`.
-            root_decomp_method (:obj:`str`): how to compute the root decomposition of `A`.
-            root_inv_decomp_method (:obj:`str`): how to compute the root inverse decomposition of `A`.
-            generate_roots (:obj:`bool`): whether to generate the root decomposition of :math:`A` even if it
+        and then decompose
+        :math:`(\mathbf I + \mathbf{M VV}^\top \mathbf M^\top) \approx \mathbf{RR}^\top`,
+        using :math:`\mathbf{LR}` as our new root decomposition.
+
+        This strategy is described in more detail in
+        "`Kernel Interpolation for Scalable Online Gaussian Processes`_,"
+        Stanton et al, AISTATS, 2021.
+
+        :param low_rank_mat: The matrix factor :math:`\mathbf B` to add to :math:`\mathbf A`.
+        :param root_decomp_method: How to compute the root decomposition of :math:`\mathbf A`.
+        :param root_inv_decomp_method: How to compute the root inverse decomposition of :math:`\mathbf A`.
+        :param generate_roots: Whether to generate the root decomposition of :math:`\mathbf A` even if it
             has not been created yet.
 
-        Returns:
-            :obj:`SumLinearOperator`: addition of A and BB^T.
+        :return: Addition of :math:`\mathbf A` and :math:`\mathbf{BB}^\top`.
+
+        .. _Kernel Interpolation for Scalable Online Gaussian Processes:
+            https://arxiv.org/abs/2103.01454.
         """
         from . import to_linear_operator
         from .root_linear_operator import RootLinearOperator
@@ -935,11 +870,11 @@ class LinearOperator(ABC):
                 to_linear_operator(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2))),
             )
 
-            # return as a nonlazy tensor if small enough to reduce memory overhead
+            # return as a DenseLinearOperator if small enough to reduce memory overhead
             if new_linear_op.shape[-1] < settings.max_cholesky_size.value():
                 new_linear_op = to_linear_operator(new_linear_op.evaluate())
 
-        # if the old lazy tensor does not have either a root decomposition or a root inverse decomposition
+        # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
         # don't create one
         has_roots = any(_is_in_cache_ignore_args(self, key) for key in ("root_decomposition", "root_inv_decomposition"))
         if not generate_roots and not has_roots:
@@ -1007,46 +942,185 @@ class LinearOperator(ABC):
         return new_linear_op
 
     @property
-    def batch_dim(self):
-        """
-        Returns the dimension of the shape over which the tensor is batched.
-        """
+    def batch_dim(self) -> int:
         return len(self.batch_shape)
 
     @property
-    def batch_shape(self):
-        """
-        Returns the shape over which the tensor is batched.
-        """
+    def batch_shape(self) -> torch.Size:
         return self.shape[:-2]
 
-    def cholesky(self, upper=False):
+    def cat_rows(
+        self,
+        cross_mat: torch.Tensor,
+        new_mat: torch.Tensor,
+        generate_roots: bool = True,
+        generate_inv_roots: bool = True,
+        **root_decomp_kwargs,
+    ) -> LinearOperator:
+        r"""
+        Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
+
+        .. math::
+            \mathbf C = \begin{bmatrix}
+                \mathbf A & \mathbf B^\top \\
+                \mathbf B & \mathbf D
+            \end{bmatrix}
+
+        where :math:`\mathbf A` is the existing LinearOperator, and
+        :math:`\mathbf B` (cross_mat) and :math:`\mathbf D` (new_mat)
+        are new components. This is most commonly used when fantasizing with
+        kernel matrices.
+
+        We have access to :math:`\mathbf A \approx \mathbf{LL}^\top` and
+        :math:`\mathbf A^{-1} \approx \mathbf{RR}^\top`, where :math:`\mathbf L` and
+        :math:`\mathbf R` are low rank matrices
+        resulting from root and root inverse decompositions (see `Pleiss et al., 2018`_).
+
+        To update :math:`\mathbf R`, we first update :math:`\mathbf L`:
+
+        .. math::
+            \begin{bmatrix}
+                \mathbf A & \mathbf B^\top \\
+                \mathbf B & \mathbf D
+            \end{bmatrix}
+            =
+            \begin{bmatrix}
+                \mathbf E & \mathbf 0 \\
+                \mathbf F & \mathbf G
+            \end{bmatrix}
+            \begin{bmatrix}
+                \mathbf E^\top & \mathbf F^\top \\
+                \mathbf 0 & \mathbf G^\top
+            \end{bmatrix}
+
+        Solving this matrix equation, we get:
+
+        .. math::
+            \mathbf A &= \mathbf{EE}^\top = \mathbf{LL}^\top  \quad (\Rightarrow  \mathbf E = L) \\
+            \mathbf B &= \mathbf{EF}^\top         \quad (\Rightarrow \mathbf F = \mathbf{BR}) \\
+            \mathbf D &= \mathbf{FF}^\top + \mathbf{GG}^\top
+                \quad (\Rightarrow \mathbf G = (\mathbf D - \mathbf{FF}^\top)^{1/2})
+
+        Once we've computed :math:`[\mathbf E 0; \mathbf F \mathbf G]`, we have
+        that the new kernel matrix :math:`[\mathbf K \mathbf U; \mathbf U^\top \mathbf S] \approx \mathbf{ZZ}^\top`.
+        Therefore, we can form a pseudo-inverse of :math:`\mathbf Z` directly to approximate
+        :math:`[\mathbf K \mathbf U; \mathbf U^\top \mathbf S]^{-1/2}`.
+
+        This strategy is also described in "`Efficient Nonmyopic Bayesian Optimization via One-Shot Multistep Trees`_,"
+        Jiang et al, NeurIPS, 2020.
+
+        :param cross_mat: the matrix :math:`\mathbf B` we are appending to
+            the matrix :math:`\mathbf A`.
+            If :math:`\mathbf A` is ... x N x N, then this matrix should be ... x N x K.
+        :param new_mat: the matrix :math:`\mathbf D` we are
+            appending to the matrix :math:`\mathbf A`.
+            If :math:`\mathbf B` is ... x N x K, then this matrix should be ... x K x K.
+        :param generate_roots: whether to generate the root
+            decomposition of :math:`\mathbf A` even if it has not been created yet.
+        :param generate_inv_roots: whether to generate the root inv
+            decomposition of :math:`\mathbf A` even if it has not been created yet.
+
+        :return: The concatenated LinearOperator with the new rows and columns.
+
+        .. _Pleiss et al., 2018:
+            https://arxiv.org/abs/1803.06058
+        .. _Efficient Nonmyopic Bayesian Optimization via One-Shot Multistep Trees:
+            https://arxiv.org/abs/2006.15779
         """
-        Cholesky-factorizes the LinearOperator
+        from . import to_linear_operator
+        from .cat_linear_operator import CatLinearOperator
+        from .root_linear_operator import RootLinearOperator
+        from .triangular_linear_operator import TriangularLinearOperator
 
-        Parameters:
-            upper (bool) - upper triangular or lower triangular factor (default: False)
+        if not generate_roots and generate_inv_roots:
+            warnings.warn(
+                "root_inv_decomposition is only generated when " "root_decomposition is generated.",
+                UserWarning,
+            )
+        B_, B = cross_mat, to_linear_operator(cross_mat)
+        D = to_linear_operator(new_mat)
+        batch_shape = B.shape[:-2]
+        if self.ndimension() < cross_mat.ndimension():
+            expand_shape = _mul_broadcast_shape(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
+            A = self.expand(expand_shape)
+        else:
+            A = self
 
-        Returns:
-            (LinearOperator) Cholesky factor (triangular, upper/lower depending on "upper" arg)
+        # form matrix C = [A B; B^T D], where A = self, B = cross_mat, D = new_mat
+        upper_row = CatLinearOperator(A, B, dim=-2, output_device=A.device)
+        lower_row = CatLinearOperator(B.transpose(-1, -2), D, dim=-2, output_device=A.device)
+        new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
+
+        # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
+        # don't create one
+        has_roots = any(
+            _is_in_cache_ignore_args(self, key)
+            for key in (
+                "root_decomposition",
+                "root_inv_decomposition",
+            )
+        )
+        if not generate_roots and not has_roots:
+            return new_linear_op
+
+        # Get components for new root Z = [E 0; F G]
+        E = self.root_decomposition(**root_decomp_kwargs).root  # E = L, LL^T = A
+        m, n = E.shape[-2:]
+        R = self.root_inv_decomposition().root.evaluate()  # RR^T = A^{-1} (this is fast if L is triangular)
+        lower_left = B_ @ R  # F = BR
+        schur = D - lower_left.matmul(lower_left.transpose(-2, -1))  # GG^T = new_mat - FF^T
+        schur_root = to_linear_operator(schur).root_decomposition().root.evaluate()  # G = (new_mat - FF^T)^{1/2}
+
+        # Form new root matrix
+        num_fant = schur_root.size(-2)
+        new_root = torch.zeros(*batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype)
+        new_root[..., :m, :n] = E.evaluate()
+        new_root[..., m:, : lower_left.shape[-1]] = lower_left
+        new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root
+        if generate_inv_roots:
+            if isinstance(E, TriangularLinearOperator) and isinstance(schur_root, TriangularLinearOperator):
+                # make sure these are actually upper triangular
+                if getattr(E, "upper", False) or getattr(schur_root, "upper", False):
+                    raise NotImplementedError
+                # in this case we know new_root is triangular as well
+                new_root = TriangularLinearOperator(new_root)
+                new_inv_root = new_root.inverse().transpose(-1, -2)
+            else:
+                # otherwise we use the pseudo-inverse of Z as new inv root
+                new_inv_root = stable_pinverse(new_root).transpose(-2, -1)
+            add_to_cache(
+                new_linear_op,
+                "root_inv_decomposition",
+                RootLinearOperator(to_linear_operator(new_inv_root)),
+            )
+
+        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(to_linear_operator(new_root)))
+
+        return new_linear_op
+
+    def cholesky(self, upper: bool = False) -> "TriangularLinearOperator":  # noqa F811
+        """
+        Cholesky-factorizes the LinearOperator.
+
+        :param upper: Upper triangular or lower triangular factor (default: False).
+        :return: Cholesky factor (lower or upper triangular)
         """
         chol = self._cholesky(upper=False)
         if upper:
             chol = chol._transpose_nonbatch()
         return chol
 
-    def clone(self):
+    def clone(self) -> LinearOperator:
         """
-        Clones the LinearOperator (creates clones of all underlying tensors)
+        Returns clone of the LinearOperator (with clones of all underlying tensors)
         """
         args = [arg.clone() if hasattr(arg, "clone") else arg for arg in self._args]
         kwargs = {key: val.clone() if hasattr(val, "clone") else val for key, val in self._kwargs.items()}
         return self.__class__(*args, **kwargs)
 
-    def cpu(self):
+    def cpu(self) -> LinearOperator:
         """
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator`: a new LinearOperator identical to ``self``, but on the CPU.
+        Returns new LinearOperator identical to :attr:`self`, but on the CPU.
         """
         new_args = []
         new_kwargs = {}
@@ -1062,16 +1136,11 @@ class LinearOperator(ABC):
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
 
-    def cuda(self, device_id=None):
+    def cuda(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.nn.Module.cuda`.
 
-        Args:
-            device_id (:obj:`str`, optional):
-                Device ID of GPU to use.
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator`:
-                a new LinearOperator identical to ``self``, but on the GPU.
+        :param device_id: Device ID of GPU to use.
         """
         new_args = []
         new_kwargs = {}
@@ -1088,20 +1157,20 @@ class LinearOperator(ABC):
         return self.__class__(*new_args, **new_kwargs)
 
     @property
-    def device(self):
+    def device(self) -> str:
         return self._args[0].device
 
-    def detach(self):
+    def detach(self) -> LinearOperator:
         """
         Removes the LinearOperator from the current computation graph.
         (In practice, this function removes all Tensors that make up the
-        LinearOperator from the computation graph.)
+        :obj:`~linear_operator.opeators.LinearOperator` from the computation graph.)
         """
         return self.clone().detach_()
 
-    def detach_(self):
+    def detach_(self) -> LinearOperator:
         """
-        An in-place version of `detach`.
+        An in-place version of :meth:`detach`.
         """
         for arg in self._args:
             if hasattr(arg, "detach"):
@@ -1111,14 +1180,13 @@ class LinearOperator(ABC):
                 val.detach_()
         return self
 
-    def diag(self):
+    # TODO: rename to diagonal
+    def diag(self) -> torch.Tensor:
         r"""
-        As :func:`torch.diag`, returns the diagonal of the matrix :math:`K` this LinearOperator represents as a vector.
+        As :func:`torch.diag`, returns the diagonal of the matrix
+        :math:`\mathbf A` this LinearOperator represents as a vector.
 
-        :rtype: torch.tensor
-        :return: The diagonal of :math:`K`. If :math:`K` is :math:`n \times n`, this will be a length
-            n vector. If this LinearOperator represents a batch (e.g., is :math:`b \times n \times n`), this will be a
-            :math:`b \times n` matrix of diagonals, one for each matrix in the batch.
+        :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
         """
         if settings.debug.on():
             if not self.is_square:
@@ -1127,23 +1195,97 @@ class LinearOperator(ABC):
         row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
         return self[..., row_col_iter, row_col_iter]
 
-    def dim(self):
+    @cached(name="diagonalization")
+    def diagonalization(self, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Alias of :meth:`~linear_operator.lazy.LinearOperator.ndimension`
+        Returns a (usually partial) diagonalization of a symmetric PSD matrix.
+        Options are either "lanczos" or "symeig". "lanczos" runs Lanczos while
+        "symeig" runs LinearOperator.symeig.
+
+        :param method: Specify the method to use ("lanczos" or "symeig"). The method will be determined
+            based on size if not specified.
+        :return: eigenvalues and eigenvectors representing the diagonalization.
+        """
+        if not self.is_square:
+            raise RuntimeError(
+                "diagonalization only operates on (batches of) square (symmetric) LinearOperators. "
+                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
+            )
+
+        if method is None:
+            if self.size(-1) <= settings.max_cholesky_size.value():
+                method = "symeig"
+            else:
+                method = "lanczos"
+
+        if method == "lanczos":
+            from ..operators import to_linear_operator
+
+            evals, evecs = Diagonalization.apply(
+                self.representation_tree(),
+                self.device,
+                self.dtype,
+                self.matrix_shape,
+                self._root_decomposition_size(),
+                self.batch_shape,
+                *self.representation(),
+            )
+            evecs = to_linear_operator(evecs)
+
+        elif method == "symeig":
+            evals, evecs = self.symeig(eigenvectors=True)
+        else:
+            raise RuntimeError(f"Unknown diagonalization method '{method}'")
+
+        return evals, evecs
+
+    def dim(self) -> int:
+        """
+        Alias of :meth:`~linear_operator.operators.LinearOperator.ndimension`
         """
         return self.ndimension()
 
-    def double(self, device_id=None):
+    def double(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.Tensor.double`.
+
         """
         return self.type(torch.double)
 
     @property
-    def dtype(self):
+    def dtype(self) -> torch.dtype:
         return self._args[0].dtype
 
-    def expand(self, *sizes):
+    # TODO: remove
+    def evaluate_kernel(self):
+        """
+        Return a new LinearOperator representing the same one as this one, but with
+        all lazily evaluated kernels actually evaluated.
+        """
+        return self.representation_tree()(*self.representation())
+
+    def expand(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+        r"""
+        Returns a new view of the self
+        :obj:`~linear_operator.operators.LinearOperator` with singleton
+        dimensions expanded to a larger size.
+
+        Passing -1 as the size for a dimension means not changing the size of
+        that dimension.
+
+        The LinearOperator can be also expanded to a larger number of
+        dimensions, and the new ones will be appended at the front.
+        For the new dimensions, the size cannot be set to -1.
+
+        Expanding a LinearOperator does not allocate new memory, but only
+        creates a new view on the existing LinearOperator where a dimension of
+        size one is expanded to a larger size by setting the stride to 0. Any
+        dimension of size 1 can be expanded to an arbitrary value without
+        allocating new memory.
+
+        :param sizes: the desired expanded size
+        :return: The expanded LinearOperator
+        """
         if len(sizes) == 1 and hasattr(sizes, "__iter__"):
             sizes = sizes[0]
         if len(sizes) < 2 or tuple(sizes[-2:]) != self.matrix_shape:
@@ -1159,73 +1301,45 @@ class LinearOperator(ABC):
         res = self._expand_batch(batch_shape=shape[:-2])
         return res
 
-    @cached
-    def evaluate(self):
-        """
-        Explicitly evaluates the matrix this LinearOperator represents. This function
-        should return a Tensor storing an exact representation of this LinearOperator.
-        """
-        num_rows, num_cols = self.matrix_shape
-
-        if num_rows < num_cols:
-            eye = torch.eye(num_rows, dtype=self.dtype, device=self.device)
-            eye = eye.expand(*self.batch_shape, num_rows, num_rows)
-            res = self.transpose(-1, -2).matmul(eye).transpose(-1, -2).contiguous()
-        else:
-            eye = torch.eye(num_cols, dtype=self.dtype, device=self.device)
-            eye = eye.expand(*self.batch_shape, num_cols, num_cols)
-            res = self.matmul(eye)
-        return res
-
-    def evaluate_kernel(self):
-        """
-        Return a new LinearOperator representing the same one as this one, but with
-        all lazily evaluated kernels actually evaluated.
-        """
-        return self.representation_tree()(*self.representation())
-
-    def float(self, device_id=None):
+    def float(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.Tensor.float`.
         """
         return self.type(torch.float)
 
-    def half(self, device_id=None):
+    def half(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.Tensor.half`.
         """
         return self.type(torch.half)
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
+    # TODO: rename to `solve_against`?
+    def inv_matmul(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
         r"""
-        Computes a linear solve (w.r.t self = :math:`A`) with several right hand sides :math:`R`.
+        Computes a linear solve (w.r.t self = :math:`\mathbf A`) with several
+        right hand sides :math:`\mathbf R`.
         I.e. computes
 
-        ... math::
+        .. math::
+           \begin{equation}
+               \mathbf A^{-1} \mathbf R,
+           \end{equation}
 
-            \begin{equation}
-                A^{-1} R,
-            \end{equation}
-
-        where :math:`R` is :attr:`right_tensor` and :math:`A` is the LinearOperator.
+        where :math:`\mathbf R` is :attr:`right_tensor` and :math:`\mathbf A` is the LinearOperator.
 
         If :attr:`left_tensor` is supplied, computes
 
-        ... math::
+        .. math::
+           \begin{equation}
+               \mathbf L \mathbf A^{-1} \mathbf R,
+           \end{equation}
 
-            \begin{equation}
-                L A^{-1} R,
-            \end{equation}
+        where :math:`\mathbf L` is :attr:`left_tensor`.
+        Supplying this can reduce the number of solver calls required in the backward pass.
 
-        where :math:`L` is :attr:`left_tensor`. Supplying this can reduce the number of
-        CG calls required.
-
-        Args:
-            - :obj:`torch.tensor` (n x k) - Matrix :math:`R` right hand sides
-            - :obj:`torch.tensor` (m x n) - Optional matrix :math:`L` to perform left multiplication with
-
-        Returns:
-            - :obj:`torch.tensor` - :math:`A^{-1}R` or :math:`LA^{-1}R`.
+        :param right_tensor: :math:`\mathbf R` - the right hand side
+        :param left_tensor: :math:`\mathbf L` - the left hand side
+        :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
         """
         if not self.is_square:
             raise RuntimeError(
@@ -1253,19 +1367,15 @@ class LinearOperator(ABC):
                 *self.representation(),
             )
 
-    def inv_quad(self, tensor, reduce_inv_quad=True):
-        """
-        Computes an inverse quadratic form (w.r.t self) with several right hand sides.
-        I.e. computes tr( tensor^T self^{-1} tensor )
+    def inv_quad(self, tensor, reduce_inv_quad=True) -> torch.Tensor:
+        r"""
+        Equivalent to calling :meth:`inv_quad_logdet` with :attr:`logdet=False`.
 
-        NOTE: Don't overwrite this function!
-        Instead, overwrite inv_quad_logdet
-
-        Args:
-            - tensor (tensor nxk) - Vector (or matrix) for inverse quad
-
-        Returns:
-            - tensor - tr( tensor^T (self)^{-1} tensor )
+        :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term
+        :param reduce_inv_quad: Whether to compute
+           :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
+           or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
+        :returns: The inverse quadratic term
         """
         if not self.is_square:
             raise RuntimeError(
@@ -1290,18 +1400,32 @@ class LinearOperator(ABC):
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
-        """
-        Computes an inverse quadratic form (w.r.t self) with several right hand sides.
-        I.e. computes tr( tensor^T self^{-1} tensor )
-        In addition, computes an (approximate) log determinant of the the matrix
+    def inv_quad_logdet(
+        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""
+        Computes the log determinant :math:`\log \vert \mathbf A \vert`
+        and/or an inverse quadratic form (w.r.t self) with several right hand sides, i.e:
 
-        Args:
-            - tensor (tensor nxk) - Vector (or matrix) for inverse quad
+        .. math::
+           \text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right),
 
-        Returns:
-            - scalar - tr( tensor^T (self)^{-1} tensor )
-            - scalar - log determinant
+        where :math:`\mathbf A` is the LinearOperator and :math:`\mathbf R`
+        represents the right hand sides (:attr:`inv_quad_rhs`).
+
+        If :attr:`reduce_inv_quad` is set to false (and :attr:`inv_quad_rhs` is supplied),
+        the function instead computes
+
+        .. math::
+           \text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right).
+
+        :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term
+        :param logdet: Whether or not to compute the
+           logdet term :math:`\log \vert \mathbf A \vert`.
+        :param reduce_inv_quad: Whether to compute
+           :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
+           or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
+        :returns: The inverse quadratic term (or None), and the logdet term (or None).
         """
         # Special case: use Cholesky to compute these terms
         if settings.fast_computations.log_prob.off() or (self.size(-1) <= settings.max_cholesky_size.value()):
@@ -1398,36 +1522,25 @@ class LinearOperator(ABC):
         return inv_quad_term, logdet_term
 
     @property
-    def is_square(self):
+    def is_square(self) -> bool:
         return self.matrix_shape[0] == self.matrix_shape[1]
 
-    def logdet(self):
-        """
-        Computes an (approximate) log determinant of the matrix
-
-        NOTE: Don't overwrite this function!
-        Instead, overwrite inv_quad_logdet
-
-        Returns:
-            - scalar: log determinant
+    def logdet(self) -> torch.Tensor:
+        r"""
+        Computes the log determinant :math:`\log \vert \mathbf A \vert`.
         """
         _, res = self.inv_quad_logdet(inv_quad_rhs=None, logdet=True)
         return res
 
-    def matmul(self, other):
-        """
-        Multiplies self by a matrix
+    def matmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
+        r"""
+        Performs :math:`\mathbf A \mathbf B`, where :math:`\mathbf A \in
+        \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
+        is a right hand side :obj:`torch.Tensor` (or :obj:`~linear_operator.operators.LinearOperator`).
 
-        Args:
-            other (:obj:`torch.tensor`): Matrix or vector to multiply with. Can be either a :obj:`torch.tensor`
-                or a :obj:`linear_operator.lazy.LinearOperator`.
-
-        Returns:
-            :obj:`torch.tensor`: Tensor or LinearOperator containing the result
-            of the matrix multiplication :math:`KM`, where :math:`K` is the
-            (batched) matrix that this
-            :obj:`linear_operator.lazy.LinearOperator` represents, and
-            :math:`M` is the (batched) matrix input to this method.
+        :param other: :math:`\mathbf B` - the matrix or vector to multiply against.
+        :return: The resulting of applying the linear operator to :math:`\mathbf B`.
+            The return type will be the same as :attr:`other`'s type.
         """
         # TODO: Move this check to MatmulLinearOperator and Matmul (so we can pass the shapes through from there)
         _matmul_broadcast_shape(self.shape, other.shape)
@@ -1439,45 +1552,19 @@ class LinearOperator(ABC):
 
         return Matmul.apply(self.representation_tree(), other, *self.representation())
 
-    def rmatmul(self, other):
-        """
-        Multiplies a matrix by self.
-
-        Args:
-            other (:obj:`torch.tensor`): Matrix or vector to multiply with. Can be either a :obj:`torch.tensor`
-                or a :obj:`linear_operator.lazy.LinearOperator`.
-
-        Returns:
-            :obj:`torch.tensor`: Tensor or LinearOperator containing the result of the matrix multiplication :math:`MK`,
-            where :math:`M` is the (batched) matrix input to this method, and :math:`K` is the (batched) matrix that
-            this :obj:`linear_operator.lazy.LinearOperator` represents.
-        """
-        if other.ndim == 1:
-            return self.transpose(-1, -2).matmul(other)
-        return self.transpose(-1, -2).matmul(other.transpose(-1, -2)).transpose(-1, -2)
-
     @property
-    def matrix_shape(self):
-        """
-        Returns the shape of the matrix being represented (without batching).
-        """
+    def matrix_shape(self) -> torch.Size:
         return torch.Size(self.shape[-2:])
 
-    def mul(self, other):
+    def mul(self, other: Union[float, torch.Tensor, "LinearOperator"]) -> LinearOperator:
         """
-        Multiplies the matrix by a constant, or elementwise the matrix by another matrix
+        Multiplies the matrix by a constant, or elementwise the matrix by another matrix.
 
-        Args:
-            other (:obj:`torch.tensor` or
-            :obj:`~linear_operator.lazy.LinearOperator`): constant or matrix to
-            elementwise multiply by.
-
-        Returns:
-            :obj:`linear_operator.lazy.LinearOperator`: Another lazy tensor
-            representing the result of the multiplication. if other was a
-            constant (or batch of constants), this will likely be a
-            :obj:`linear_operator.lazy.ConstantMulLinearOperator`. If other was
-            another matrix, this will likely be a :obj:`linear_operator.lazy.MulLinearOperator`.
+        :param other: Constant or matrix to elementwise multiply by.
+        :return: Another linear operator representing the result of the multiplication.
+            If :obj:`other` was a constant (or batch of constants), this will likely be a
+            :obj:`~linear_operator.operators.ConstantMulLinearOperator`. If :obj:`other` was
+            a matrix or LinearOperator, this will likely be a :obj:`MulLinearOperator`.
         """
         from .dense_linear_operator import to_linear_operator
         from .zero_linear_operator import ZeroLinearOperator
@@ -1503,25 +1590,30 @@ class LinearOperator(ABC):
 
         return self._mul_matrix(to_linear_operator(other))
 
-    def ndimension(self):
+    def ndimension(self) -> int:
         """
-        Returns the number of dimensions
+        Returns the number of dimensions.
         """
         return len(self.size())
 
-    def numel(self):
+    def numel(self) -> int:
         """
-        Returns the number of elements
+        Returns the number of elements.
         """
         return self.shape.numel()
 
-    def numpy(self):
+    def numpy(self) -> "numpy.ndarray":  # noqa F811
         """
-        Return self as an evaluated numpy array
+        Returns the LinearOperator as an dense numpy array.
         """
-        return self.evaluate().detach().cpu().numpy()
+        return self.to_dense().detach().cpu().numpy()
 
-    def permute(self, *dims):
+    def permute(self, *dims: Tuple[int, ...]) -> LinearOperator:
+        """
+        Returns a view of the original tensor with its dimensions permuted.
+
+        :param dims: The desired ordering of dimensions.
+        """
         num_dims = self.dim()
         orig_dims = dims
         dims = tuple(dim if dim >= 0 else dim + num_dims for dim in dims)
@@ -1544,7 +1636,9 @@ class LinearOperator(ABC):
 
         return self._permute_batch(*dims[:-2])
 
-    def pivoted_cholesky(self, rank, error_tol=None, return_pivots=False):
+    def pivoted_cholesky(
+        self, rank: int, error_tol: Optional[float] = None, return_pivots: bool = False
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         r"""
         Performs a partial pivoted Cholesky factorization of the (positive definite) LinearOperator.
         :math:`\mathbf L \mathbf L^\top = \mathbf K`.
@@ -1554,15 +1648,13 @@ class LinearOperator(ABC):
         The pivots are selected greedily, corresponding to the maximum diagonal element in the
         residual after each Cholesky iteration. See `Harbrecht et al., 2012`_.
 
-        :param int rank: The size of the partial pivoted Cholesky factor.
+        :param rank: The size of the partial pivoted Cholesky factor.
         :param error_tol: Defines an optional stopping criterion.
             If the residual of the factorization is less than :attr:`error_tol`, then the
             factorization will exit early. This will result in a :math:`\leq \text{ rank}` factor.
-        :type error_tol: float, optional
-        :param bool return_pivots: (default: False) Whether or not to return the pivots alongside
+        :param return_pivots: Whether or not to return the pivots alongside
             the partial pivoted Cholesky factor.
-        :return: the `... x N x rank` factor (and optionally the `... x N` pivots)
-        :rtype: torch.Tensor or tuple(torch.Tensor, torch.Tensor)
+        :return: The `... x N x rank` factor (and optionally the `... x N` pivots if :attr:`return_pivots` is True).
 
         .. _Harbrecht et al., 2012:
             https://www.sciencedirect.com/science/article/pii/S0168927411001814
@@ -1575,36 +1667,23 @@ class LinearOperator(ABC):
         else:
             return res
 
-    def prod(self, dim=None):
-        """
-        For a `b x n x m` LinearOperator, compute the product over the batch dimension.
+    # TODO: implement keepdim
+    def prod(self, dim: int) -> Union["LinearOperator", torch.Tensor]:
+        r"""
+        Returns the product of each row of :math:`\mathbf A` along the batch dimension :attr:`dim`.
 
-        The `mul_batch_size` controls whether or not the batch dimension is grouped when multiplying.
-            * `mul_batch_size=None` (default): The entire batch dimension is
-              multiplied. Returns a `n x n` LinearOperator.
-            * `mul_batch_size=k`: Creates `b/k` groups, and muls the `k` entries of this group.
-              (The LinearOperator is reshaped as a `b/k x k x n x m`
-              LinearOperator and the `k` dimension is multiplied over.
-              Returns a `b/k x n x m` LinearOperator.
-
-        Args:
-            :attr:`mul_batch_size` (int or None):
-                Controls the number of groups that are multiplied over (default: None).
-
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator`
-
-        Example:
-            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.tensor([
+            >>> linear_operator = DenseLinearOperator(torch.tensor([
                     [[2, 4], [1, 2]],
-                    [[1, 1], [0, -1]],
-                    [[2, 1], [1, 0]],
+                    [[1, 1], [2., -1]],
+                    [[2, 1], [1, 1.]],
                     [[3, 2], [2, -1]],
                 ]))
-            >>> linear_op.mul_batch().evaluate()
-            >>> # Returns: torch.Tensor([[12, 8], [0, 0]])
-            >>> linear_op.mul_batch(mul_batch_size=2)
-            >>> # Returns: torch.Tensor([[[2, 4], [0, -2]], [[6, 2], [2, 0]]])
+            >>> linear_operator.prod().to_dense()
+            >>> # Returns: torch.Tensor(768.)
+            >>> linear_operator.prod(dim=-3)
+            >>> # Returns: tensor([[8., 2.], [1., -2.], [2., 1.], [6., -2.]])
+
+        :param dim: Which dimension to compute the product along.
         """
         if dim is None:
             raise ValueError("At the moment, LinearOperator.prod requires a dim argument (got None)")
@@ -1620,22 +1699,24 @@ class LinearOperator(ABC):
 
         return self._prod_batch(dim)
 
-    def repeat(self, *sizes):
+    def repeat(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
         """
         Repeats this tensor along the specified dimensions.
 
         Currently, this only works to create repeated batches of a 2D LinearOperator.
-        I.e. all calls should be `linear_op.repeat(<size>, 1, 1)`.
+        I.e. all calls should be :attr:`linear_operator.repeat(*batch_sizes, 1, 1)`.
 
-        Example:
-            >>> linear_op = linear_operator.lazy.ToeplitzLinearOperator(torch.tensor([4. 1., 0.5]))
-            >>> linear_op.repeat(2, 1, 1).evaluate()
+            >>> linear_operator = ToeplitzLinearOperator(torch.tensor([4. 1., 0.5]))
+            >>> linear_operator.repeat(2, 1, 1).to_dense()
             tensor([[[4.0000, 1.0000, 0.5000],
                      [1.0000, 4.0000, 1.0000],
                      [0.5000, 1.0000, 4.0000]],
                     [[4.0000, 1.0000, 0.5000],
                      [1.0000, 4.0000, 1.0000],
                      [0.5000, 1.0000, 4.0000]]])
+
+        :param sizes: The number of times to repeat this tensor along each dimension.
+        :return: A LinearOperator with repeated dimensions.
         """
         from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 
@@ -1647,7 +1728,8 @@ class LinearOperator(ABC):
 
         return BatchRepeatLinearOperator(self, batch_repeat=torch.Size(sizes[:-2]))
 
-    def representation(self):
+    # TODO: make this method private
+    def representation(self) -> Tuple[torch.Tensor, ...]:
         """
         Returns the Tensors that are used to define the LinearOperator
         """
@@ -1661,110 +1743,69 @@ class LinearOperator(ABC):
                 raise RuntimeError("Representation of a LinearOperator should consist only of Tensors")
         return tuple(representation)
 
-    def representation_tree(self):
+    # TODO: make this method private
+    def representation_tree(self) -> LinearOperatorRepresentationTree:
         """
-        Returns a :obj:`linear_operator.lazy.LinearOperatorRepresentationTree` tree object that recursively encodes the
-        representation of this lazy tensor. In particular, if the definition of this lazy tensor depends on other
-        lazy tensors, the tree is an object that can be used to reconstruct the full structure of this lazy tensor,
+        Returns a
+        :obj:`linear_operator.operators.LinearOperatorRepresentationTree` tree
+        object that recursively encodes the representation of this
+        LinearOperator. In particular, if the definition of this LinearOperator
+        depends on other LinearOperators, the tree is an object that can be
+        used to reconstruct the full structure of this LinearOperator,
         including all subobjects. This is used internally.
         """
         return LinearOperatorRepresentationTree(self)
 
     @property
-    def requires_grad(self):
+    def requires_grad(self) -> bool:
         return any(
             arg.requires_grad
             for arg in tuple(self._args) + tuple(self._kwargs.values())
             if hasattr(arg, "requires_grad")
         )
 
-    def _set_requires_grad(self, val):
-        # Note: subclasses should overwrite this method, not the requires_grad.setter
-        for arg in self._args:
-            if hasattr(arg, "requires_grad"):
-                if arg.dtype in (torch.float, torch.double, torch.half):
-                    arg.requires_grad_(val)
-        for arg in self._kwargs.values():
-            if hasattr(arg, "requires_grad"):
-                arg.requires_grad_(val)
-
     @requires_grad.setter
-    def requires_grad(self, val):
+    def requires_grad(self, val: bool):
         # Note: subclasses cannot overwrite this method
         # To change the setter behavior, overwrite the _set_requires_grad method instead
         self._set_requires_grad(val)
 
-    def requires_grad_(self, val):
+    def requires_grad_(self, val: bool) -> LinearOperator:
         """
         Sets `requires_grad=val` on all the Tensors that make up the LinearOperator
         This is an inplace operation.
+
+        :param val: Whether or not to require gradients.
+        :return: self.
         """
         self._set_requires_grad(val)
         return self
 
-    @cached(name="diagonalization")
-    def diagonalization(self, method: Optional[str] = None):
+    def rmatmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
+        r"""
+        Performs :math:`\mathbf B \mathbf A`, where :math:`\mathbf A \in
+        \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
+        is a left hand side :obj:`torch.Tensor` (or :obj:`~linear_operator.operators.LinearOperator`).
+
+        :param other: :math:`\mathbf B` - the matrix or vector that :math:`\mathbf A` will
+            right multiply against.
+        :return: The product :math:`\mathbf B \mathbf A`.
+            The return type will be the same as :attr:`other`'s type.
         """
-        Returns a (usually partial) diagonalization of a symmetric PSD matrix.
-        Options are either "lanczos" or "symeig". "lanczos" runs Lanczos while
-        "symeig" runs LinearOperator.symeig.
-        """
-        if not self.is_square:
-            raise RuntimeError(
-                "diagonalization only operates on (batches of) square (symmetric) LinearOperators. "
-                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
-            )
-
-        if method is None:
-            if self.size(-1) <= settings.max_cholesky_size.value():
-                method = "symeig"
-            else:
-                method = "lanczos"
-
-        if method == "lanczos":
-            from ..operators import to_linear_operator
-
-            evals, evecs = Diagonalization.apply(
-                self.representation_tree(),
-                self.device,
-                self.dtype,
-                self.matrix_shape,
-                self._root_decomposition_size(),
-                self.batch_shape,
-                *self.representation(),
-            )
-            evecs = to_linear_operator(evecs)
-
-        elif method == "symeig":
-            evals, evecs = self.symeig(eigenvectors=True)
-        else:
-            raise RuntimeError(f"Unknown diagonalization method '{method}'")
-
-        return evals, evecs
-
-    def _choose_root_method(self) -> str:
-        # When method is not specified,
-        # better inform which root_decomposition or root_inv_decomposition
-        # method to use based on available caches and matrix size.
-        if _is_in_cache_ignore_all_args(self, "symeig"):
-            return "symeig"
-        if _is_in_cache_ignore_all_args(self, "diagonalization"):
-            return "diagonalization"
-        if _is_in_cache_ignore_all_args(self, "lanczos"):
-            return "lanczos"
-        if (
-            self.size(-1) <= settings.max_cholesky_size.value()
-            or settings.fast_computations.covar_root_decomposition.off()
-        ):
-            return "cholesky"
-        return "lanczos"
+        if other.ndim == 1:
+            return self.transpose(-1, -2).matmul(other)
+        return self.transpose(-1, -2).matmul(other.transpose(-1, -2)).transpose(-1, -2)
 
     @cached(name="root_decomposition")
-    def root_decomposition(self, method: Optional[str] = None):
-        """
-        Returns a (usually low-rank) root decomposition lazy tensor of a PSD matrix.
+    def root_decomposition(self, method: Optional[str] = None) -> LinearOperator:
+        r"""
+        Returns a (usually low-rank) root decomposition linear operator of the PSD LinearOperator :math:`\mathbf A`.
         This can be used for sampling from a Gaussian distribution, or for obtaining a
-        low-rank version of a matrix
+        low-rank version of a matrix.
+
+        :param method: Which method to use to perform the root decomposition. Choices are:
+            "cholesky", "lanczos", "symeig", "pivoted_cholesky", or "svd".
+        :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A`.
         """
         from . import to_linear_operator
         from .chol_linear_operator import CholLinearOperator
@@ -1817,11 +1858,25 @@ class LinearOperator(ABC):
         return RootLinearOperator(root)
 
     @cached(name="root_inv_decomposition")
-    def root_inv_decomposition(self, initial_vectors=None, test_vectors=None, method: Optional[str] = None):
-        """
-        Returns a (usually low-rank) root decomposotion lazy tensor of a PSD matrix.
+    def root_inv_decomposition(
+        self,
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+        method: Optional[str] = None,
+    ) -> LinearOperator:
+        r"""
+        Returns a (usually low-rank) inverse root decomposition linear operator
+        of the PSD LinearOperator :math:`\mathbf A`.
         This can be used for sampling from a Gaussian distribution, or for obtaining a
-        low-rank version of a matrix
+        low-rank version of a matrix.
+
+        The root_inv_decomposition is performed using a partial Lanczos tridiagonalization.
+
+        :param initial_vectors: Vectors used to initialize the Lanczos decomposition.
+            The best initialization vector (determined by :attr:`test_vectors`) will be chosen.
+        :param test_vectors: Vectors used to test the accuracy of the decomposition.
+        :param method: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
+        :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
         from .dense_linear_operator import to_linear_operator
         from .root_linear_operator import RootLinearOperator
@@ -1891,31 +1946,46 @@ class LinearOperator(ABC):
 
         return RootLinearOperator(inv_root)
 
-    def size(self, val=None):
+    def size(self, dim: Optional[int] = None) -> Union[torch.Size, int]:
         """
-        Returns the size of the resulting Tensor that the lazy tensor represents
+        Returns he size of the LinearOperator (or the specified dimension).
+
+        :param dim: A specific dimension.
         """
         size = self._size()
-        if val is not None:
-            return size[val]
+        if dim is not None:
+            return size[dim]
         return size
-
-    def squeeze(self, dim):
-        if self.size(dim) != 1:
-            return self
-        else:
-            index = [_noop_index] * self.dim()
-            index[dim] = 0
-            index = tuple(index)
-            return self[index]
 
     @property
     def shape(self):
         return self.size()
 
-    def sqrt_inv_matmul(self, rhs, lhs=None):
-        """
-        If A is positive definite, computes either lhs A^{-1/2} rhs or A^{-1/2} rhs.
+    def sqrt_inv_matmul(self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+        r"""
+        If the LinearOperator :math:`\mathbf A` is positive definite,
+        computes
+
+        .. math::
+           \begin{equation}
+               \mathbf A^{-1/2} \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf R` is :attr:`rhs`.
+
+        If :attr:`lhs` is supplied, computes
+
+        .. math::
+           \begin{equation}
+               \mathbf L \mathbf A^{-1/2} \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf L` is :attr:`lhs`.
+        Supplying this can reduce the number of solver calls required in the backward pass.
+
+        :param rhs: :math:`\mathbf R` - the right hand side
+        :param lhs: :math:`\mathbf L` - the left hand side
+        :return: :math:`\mathbf A^{-1/2} \mathbf R` or :math:`\mathbf L \mathbf A^{-1/2} \mathbf R`.
         """
         squeeze = False
         if rhs.dim() == 1:
@@ -1933,27 +2003,39 @@ class LinearOperator(ABC):
         else:
             return sqrt_inv_matmul_res, inv_quad_res
 
-    def sum(self, dim=None):
+    def squeeze(self, dim: int) -> Union["LinearOperator", torch.Tensor]:
+        """
+        Removes the singleton dimension of a LinearOperator specifed by :attr:`dim`.
+
+        :param dim: Which singleton dimension to remove.
+        :return: The squeezed LinearOperator. Will be a :obj:`torch.Tensor` if the squeezed dimension
+            was a matrix dimension; otherwise it will return a LinearOperator.
+        """
+        if self.size(dim) != 1:
+            return self
+        else:
+            index = [_noop_index] * self.dim()
+            index[dim] = 0
+            index = tuple(index)
+            return self[index]
+
+    def sum(self, dim: Optional[int] = None) -> Union["LinearOperator", torch.Tensor]:
         """
         Sum the LinearOperator across a dimension.
         The `dim` controls which batch dimension is summed over.
-        If set to None, then sums all dimensions
+        If set to None, then sums all dimensions.
 
-        Args:
-            :attr:`dim` (int):
-                Which dimension is being summed over (default=None)
-
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator` or Tensor.
-
-        Example:
-            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.tensor([
+            >>> linear_operator = DenseLinearOperator(torch.tensor([
                     [[2, 4], [1, 2]],
                     [[1, 1], [0, -1]],
                     [[2, 1], [1, 0]],
                     [[3, 2], [2, -1]],
                 ]))
-            >>> linear_op.sum(0).evaluate()
+            >>> linear_operator.sum(0).to_dense()
+
+        :param dim: Which dimension is being summed over (default=None).
+        :return: The summed LinearOperator. Will be a :obj:`torch.Tensor` if the sumemd dimension
+            was a matrix dimension (or all dimensions); otherwise it will return a LinearOperator.
         """
         # Case: summing everything
         if dim is None:
@@ -1979,37 +2061,37 @@ class LinearOperator(ABC):
         else:
             raise ValueError("Invalid dim ({}) for LinearOperator of size {}".format(orig_dim, self.shape))
 
-    def svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
-        """
-        Compute the SVD of the lazy tensor `M` s.t. `M = U @ S @ V.T`.
-        This can be very slow for large tensors. Should be special-cased for tensors with particular structure.
-        Does NOT sort the sigular values.
+    def svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
+        r"""
+        Compute the SVD of the linear operator :math:`\mathbf A \in \mathbb R^{M \times N}`
+        s.t. :math:`\mathbf A = \mathbf{U S V^\top}`.
+        This can be very slow for large tensors.
+        Should be special-cased for tensors with particular structure.
 
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator`:
-                The left singular vectors (`U`).
-            :obj:`torch.Tensor`:
-                The singular values (`S`).
-            :obj:`~linear_operator.lazy.LinearOperator`:
-                The right singular vectors (`V`).
+        .. note::
+            This method does NOT sort the sigular values.
+
+        :returns:
+            - The left singular vectors :math:`\mathbf U` (... x M, M),
+            - The singlar values :math:`\mathbf S` (... x min(M, N)),
+            - The right singluar vectors :math:`\mathbf V` (... x min(N, N)),
         """
         return self._svd()
 
     @cached(name="symeig")
-    def symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional["LinearOperator"]]:
+    def symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
         """
-        Compute the symmetric eigendecomposition of the lazy tensor. This can be very
-        slow for large tensors. Should be special-cased for tensors with particular
-        structure. Does NOT sort the eigenvalues.
+        Compute the symmetric eigendecomposition of the linear operator.
+        This can be very slow for large tensors.
+        Should be special-cased for tensors with particular structure.
 
-        Args:
-            :attr:`eigenvectors` (bool): If True, compute the eigenvectors in addition to the eigenvalues.
-        Returns:
-            :obj:`torch.Tensor`:
-                The eigenvalues.
-            :obj:`~linear_operator.lazy.LinearOperator`:
-                The eigenvectors. If `eigenvectors=False`, this is None. Otherwise, this LinearOperator
-                contains the orthonormal eigenvectors of the matrix.
+        .. note::
+            This method does NOT sort the eigenvalues.
+
+        :param eigenvectors: If True, compute the eigenvectors in addition to the eigenvalues.
+        :return:
+            - The eigenvalues (... x N)
+            - (Optionally) If :attr:`eigenvectors` is True, then this also returns the eigenvectors (... x N x N).
         """
         try:
             evals, evecs = pop_from_cache(self, "symeig", eigenvectors=True)
@@ -2018,19 +2100,22 @@ class LinearOperator(ABC):
             pass
         return self._symeig(eigenvectors=eigenvectors)
 
-    def to(self, *args, **kwargs):
+    def t(self) -> LinearOperator:
         """
-        A device-agnostic method of moving the linear_op to the specified device or dtype.
-        Note that we do NOT support non_blocking or other `torch.to` options other than
-        device and dtype and these options will be silently ignored.
-
-        Args:
-            device (:obj: `torch.device`): Which device to use (GPU or CPU).
-            dtype (:obj: `torch.dtype`): Which dtype to use (double, float, or half).
-        Returns:
-            :obj:`~linear_operator.lazy.LinearOperator`: New LinearOperator identical to self on specified device
+        Alias of :meth:`~linear_operator.LinearOperator.transpose` for 2D LinearOperator.
+        (Tranposes the two dimensions.)
         """
+        if self.ndimension() != 2:
+            raise RuntimeError("Cannot call t for more than 2 dimensions")
+        return self.transpose(0, 1)
 
+    def to(self, *args, **kwargs) -> LinearOperator:
+        """
+        A device-agnostic method of moving the LinearOperator to the specified device or dtype.
+        This method functions just like :meth:`torch.Tensor.to`.
+
+        :return: New LinearOperator identical to self on specified device/dtype.
+        """
         device, dtype = _to_helper(*args, **kwargs)
 
         new_args = []
@@ -2047,22 +2132,34 @@ class LinearOperator(ABC):
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
 
-    def t(self):
+    # TODO: rename to_dense
+    @cached
+    def evaluate(self) -> torch.Tensor:
         """
-        Alias of :meth:`~linear_operator.lazy.LinearOperator.transpose` for 2D LinearOperator.
-        (Tranposes the two dimensions.)
+        Explicitly evaluates the matrix this LinearOperator represents. This function
+        should return a :obj:`torch.Tensor` storing an exact representation of this LinearOperator.
         """
-        if self.ndimension() != 2:
-            raise RuntimeError("Cannot call t for more than 2 dimensions")
-        return self.transpose(0, 1)
+        num_rows, num_cols = self.matrix_shape
 
-    def transpose(self, dim1, dim2):
-        """
-        Transpose the dimensions `dim1` and `dim2` of the LinearOperator.
+        if num_rows < num_cols:
+            eye = torch.eye(num_rows, dtype=self.dtype, device=self.device)
+            eye = eye.expand(*self.batch_shape, num_rows, num_rows)
+            res = self.transpose(-1, -2).matmul(eye).transpose(-1, -2).contiguous()
+        else:
+            eye = torch.eye(num_cols, dtype=self.dtype, device=self.device)
+            eye = eye.expand(*self.batch_shape, num_cols, num_cols)
+            res = self.matmul(eye)
+        return res
 
-        Example:
-            >>> linear_op = linear_operator.lazy.DenseLinearOperator(torch.randn(3, 5))
+    def transpose(self, dim1: int, dim2: int) -> LinearOperator:
+        """
+        Transpose the dimensions :attr:`dim1` and :attr:`dim2` of the LinearOperator.
+
+            >>> linear_op = linear_operator.operators.DenseLinearOperator(torch.randn(3, 5))
             >>> linear_op.transpose(0, 1)
+
+        :param dim1: First dimension to transpose.
+        :param dim2: Second dimension to transpose.
         """
         ndimension = self.ndimension()
         if dim1 < 0:
@@ -2092,9 +2189,12 @@ class LinearOperator(ABC):
 
         return res
 
-    def type(self, dtype):
+    def type(self, dtype: torch.dtype) -> LinearOperator:
         """
-        This method operates similarly to :func:`torch.Tensor.type`.
+        A device-agnostic method of moving the LienarOperator to the specified dtype.
+        This method operates similarly to :func:`torch.Tensor.dtype`.
+
+        :param dtype: Target dtype.
         """
         attr_flag = _TYPES_DICT[dtype]
 
@@ -2118,7 +2218,14 @@ class LinearOperator(ABC):
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
 
-    def unsqueeze(self, dim):
+    def unsqueeze(self, dim: int) -> LinearOperator:
+        """
+        Inserts a singleton batch dimension of a LinearOperator, specifed by :attr:`dim`.
+        Note that :attr:`dim` cannot correspond to matrix dimension of the LinearOperator.
+
+        :param dim: Where to insert singleton dimension.
+        :return: The unsqueezed LinearOperator.
+        """
         positive_dim = (self.dim() + dim + 1) if dim < 0 else dim
         if positive_dim > len(self.batch_shape):
             raise ValueError(
@@ -2128,20 +2235,15 @@ class LinearOperator(ABC):
         res = self._unsqueeze_batch(positive_dim)
         return res
 
-    def zero_mean_mvn_samples(self, num_samples):
-        """
-        Assumes that self is a covariance matrix, or a batch of covariance matrices.
-        Returns samples from a zero-mean MVN, defined by self (as covariance matrix)
+    # TODO: repalce this method with something like sqrt_matmul.
+    def zero_mean_mvn_samples(self, num_samples: int) -> torch.Tensor:
+        r"""
+        Assumes that the LinearOpeator :math:`\mathbf A` is a covariance
+        matrix, or a batch of covariance matrices.
+        Returns samples from a zero-mean MVN, defined by :math:`\mathcal N( \mathbf 0, \mathbf A)`.
 
-        Self should be symmetric, either (batch_size x num_dim x num_dim) or (num_dim x num_dim)
-
-        Args:
-            :attr:`num_samples` (int):
-                Number of samples to draw.
-
-        Returns:
-            :obj:`torch.tensor`:
-                Samples from MVN (num_samples x batch_size x num_dim) or (num_samples x num_dim)
+        :param num_samples: Number of samples to draw.
+        :return: Samples from MVN :math:`\mathcal N( \mathbf 0, \mathbf A)`.
         """
         from ..utils.contour_integral_quad import contour_integral_quad
 
@@ -2181,19 +2283,7 @@ class LinearOperator(ABC):
 
         return samples
 
-    def __add__(self, other):
-        """
-        Return a :obj:`linear_operator.lazy.LinearOperator` that represents the
-        sum of this lazy tensor and another matrix or lazy tensor.
-
-        Args:
-            :attr:`other` (:obj:`torch.tensor` or :obj:`linear_operator.lazy.LinearOperator`):
-                Matrix to add to this one.
-
-        Returns:
-            :obj:`linear_operator.lazy.SumLinearOperator`:
-                A sum lazy tensor representing the sum of this lazy tensor and other.
-        """
+    def __add__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         from torch import Tensor
 
         from .added_diag_linear_operator import AddedDiagLinearOperator
@@ -2218,19 +2308,7 @@ class LinearOperator(ABC):
         else:
             return SumLinearOperator(self, other)
 
-    def __div__(self, other):
-        """
-        Return a :obj:`linear_operator.lazy.LinearOperator` that represents the product of this lazy tensor and
-        the elementwise reciprocal of another matrix or lazy tensor.
-
-        Args:
-            :attr:`other` (:obj:`torch.tensor` or :obj:`linear_operator.lazy.LinearOperator`):
-                Matrix to divide this one by.
-
-        Returns:
-            :obj:`linear_operator.lazy.MulLinearOperator`:
-                Result of division.
-        """
+    def __div__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         from .zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
@@ -2238,11 +2316,9 @@ class LinearOperator(ABC):
 
         return self.mul(1.0 / other)
 
-    def __getitem__(self, index):
-        """
-        Supports subindexing of the matrix this LinearOperator represents. This may return either another
-        :obj:`linear_operator.lazy.LinearOperator` or a :obj:`torch.tensor` depending on the exact implementation.
-        """
+    def __getitem__(
+        self, index: Tuple[Union[slice, torch.LongTensor, int, Ellipsis], ...]
+    ) -> Union[LinearOperator, torch.Tensor]:
         ndimension = self.ndimension()
 
         # Process the index
@@ -2328,57 +2404,26 @@ class LinearOperator(ABC):
         # We're done!
         return res
 
-    @cached(name="svd")
-    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
-        """Method that allows implementing special-cased SVD computation. Should not be called directly"""
-        # Using symeig is preferable here for psd LinearOperators.
-        # Will need to overwrite this function for non-psd LinearOperators.
-        evals, evecs = self.symeig(eigenvectors=True)
-        signs = torch.sign(evals)
-        U = evecs * signs.unsqueeze(-2)
-        S = torch.abs(evals)
-        V = evecs
-        return U, S, V
-
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional["LinearOperator"]]:
-        """Method that allows implementing special-cased symeig computation. Should not be called directly"""
-        from linear_operator.operators.dense_linear_operator import DenseLinearOperator
-
-        if settings.verbose_linalg.on():
-            settings.verbose_linalg.logger.debug(f"Running symeig on a matrix of size {self.shape}.")
-
-        # potentially perform decomposition in double precision for numerical stability
-        dtype = self.dtype
-        evals, evecs = torch.linalg.eigh(self.evaluate().to(dtype=settings._linalg_dtype_symeig.value()))
-        # chop any negative eigenvalues.
-        # TODO: warn if evals are significantly negative
-        evals = evals.clamp_min(0.0).to(dtype=dtype)
-        if eigenvectors:
-            evecs = DenseLinearOperator(evecs.to(dtype=dtype))
-        else:
-            evecs = None
-        return evals, evecs
-
-    def __matmul__(self, other):
+    def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
         return self.matmul(other)
 
-    def __rmatmul__(self, other: Tensor) -> Tensor:
+    def __rmatmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
         return self.rmatmul(other)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self.mul(other)
 
-    def __radd__(self, other):
+    def __radd__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self + other
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self.mul(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self + other.mul(-1)
 
 
-def _import_dotted_name(name):
+def _import_dotted_name(name: str):
     components = name.split(".")
     obj = __import__(components[0])
     for component in components[1:]:
@@ -2386,7 +2431,7 @@ def _import_dotted_name(name):
     return obj
 
 
-def to_dense(obj):
+def to_dense(obj: Union[LinearOperator, torch.Tensor]) -> torch.Tensor:
     """
     A function which ensures that `obj` is a (normal) Tensor.
 
