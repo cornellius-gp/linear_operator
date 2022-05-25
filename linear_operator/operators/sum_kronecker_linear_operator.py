@@ -44,7 +44,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         # now we compute L^{-1} M L^{-T} z
         # where M = (C^{-1/2}AC^{-1/2} \kron D^{-1/2} B D^{-1/2} + I_|C| \kron I_|D|)
         res = lt2_inv_root.transpose(-1, -2).matmul(rhs)
-        res = inner_mat.inv_matmul(res)
+        res = inner_mat.solve(res)
         res = lt2_inv_root.matmul(res)
 
         return res
@@ -75,7 +75,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         logdet_term = None
 
         if inv_quad_rhs is not None:
-            solve = self.inv_matmul(inv_quad_rhs)
+            solve = self.solve(inv_quad_rhs)
             inv_quad_term = (inv_quad_rhs * solve).sum(-2)
 
             if inv_quad_term.numel() and reduce_inv_quad:

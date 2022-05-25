@@ -398,7 +398,7 @@ class InterpolatedLinearOperator(LinearOperator):
     def matmul(self, tensor):
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.
-        # The _matmul_closure is optimized for repeated calls, such as for inv_matmul
+        # The _matmul_closure is optimized for repeated calls, such as for _solve
 
         if tensor.ndimension() == 1:
             is_vector = True

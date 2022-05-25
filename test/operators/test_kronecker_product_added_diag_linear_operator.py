@@ -24,7 +24,7 @@ class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOpera
         **LinearOperatorTestCase.tolerances,
         # eigh (used in Kronecker algebra) yields less precise solves
         "grad": {"rtol": 0.03, "atol": 1e-4},
-        "inv_matmul": {"rtol": 0.02, "atol": 1e-4},
+        "solve": {"rtol": 0.02, "atol": 1e-4},
     }
 
     def create_linear_op(self):
@@ -130,7 +130,7 @@ class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAdded
         rhs = torch.randn(linear_op.size(-1))
         # Check that cholesky is not called
         with mock.patch.object(linear_op, "cholesky") as chol_mock:
-            self._test_inv_matmul(rhs, cholesky=False)
+            self._test_solve(rhs, cholesky=False)
             chol_mock.assert_not_called()
 
     def test_root_inv_decomposition_no_cholesky(self):

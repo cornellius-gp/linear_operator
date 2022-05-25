@@ -62,22 +62,11 @@ class CholLinearOperator(RootLinearOperator):
         Linv = self.root.inverse()  # this could be slow in some cases w/ structured lazies
         return CholLinearOperator(TriangularLinearOperator(Linv, upper=not self.upper), upper=not self.upper)
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
-        is_vector = right_tensor.ndim == 1
-        if is_vector:
-            right_tensor = right_tensor.unsqueeze(-1)
-        res = self.root._cholesky_solve(right_tensor, upper=self.upper)
-        if is_vector:
-            res = res.squeeze(-1)
-        if left_tensor is not None:
-            res = left_tensor @ res
-        return res
-
     def inv_quad(self, tensor, reduce_inv_quad=True):
         if self.upper:
-            R = self.root._transpose_nonbatch().inv_matmul(tensor)
+            R = self.root._transpose_nonbatch().solve(tensor)
         else:
-            R = self.root.inv_matmul(tensor)
+            R = self.root.solve(tensor)
         inv_quad_term = (R**2).sum(dim=-2)
         if inv_quad_term.numel() and reduce_inv_quad:
             inv_quad_term = inv_quad_term.sum(-1)
@@ -124,3 +113,14 @@ class CholLinearOperator(RootLinearOperator):
     def root_inv_decomposition(self, method=None, initial_vectors=None, test_vectors=None):
         inv_root = self.root.inverse()
         return RootLinearOperator(inv_root._transpose_nonbatch())
+
+    def solve(self, right_tensor, left_tensor=None):
+        is_vector = right_tensor.ndim == 1
+        if is_vector:
+            right_tensor = right_tensor.unsqueeze(-1)
+        res = self.root._cholesky_solve(right_tensor, upper=self.upper)
+        if is_vector:
+            res = res.squeeze(-1)
+        if left_tensor is not None:
+            res = left_tensor @ res
+        return res

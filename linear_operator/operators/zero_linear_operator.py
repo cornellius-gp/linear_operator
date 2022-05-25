@@ -143,9 +143,6 @@ class ZeroLinearOperator(LinearOperator):
     def to_dense(self):
         return torch.zeros(*self.sizes)
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
-        raise RuntimeError("ZeroLinearOperators are not invertible!")
-
     def inv_quad(self, tensor):
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
@@ -171,6 +168,9 @@ class ZeroLinearOperator(LinearOperator):
     def mul(self, other):
         shape = _mul_broadcast_shape(self.shape, other.shape)
         return self.__class__(*shape, dtype=self._dtype, device=self._device)
+
+    def solve(self, right_tensor, left_tensor=None):
+        raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def transpose(self, dim1, dim2):
         sizes = self.sizes.copy()

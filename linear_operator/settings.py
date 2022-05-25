@@ -384,7 +384,7 @@ class _use_eval_tolerance(_feature_flag):
 class max_cholesky_size(_value_context):
     """
     If the size of of a LinearOperator is less than `max_cholesky_size`,
-    then `root_decomposition` and `inv_matmul` of LinearOperator will use Cholesky rather than Lanczos/CG.
+    then `root_decomposition` and `solve` of LinearOperator will use Cholesky rather than Lanczos/CG.
 
     (Default: 800)
     """

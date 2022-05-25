@@ -14,8 +14,6 @@ Functions
 
 .. autofunction:: dsmm
 
-.. autofunction:: inv_matmul
-
 .. autofunction:: inv_quad
 
 .. autofunction:: inv_quad_logdet
@@ -27,3 +25,5 @@ Functions
 .. autofunction:: root_decomposition
 
 .. autofunction:: root_inv_decomposition
+
+.. autofunction:: solve

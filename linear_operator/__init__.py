@@ -2,7 +2,6 @@
 from . import beta_features, operators, settings, utils
 from .functions import (  # Deprecated
     dsmm,
-    inv_matmul,
     inv_quad,
     inv_quad_logdet,
     logdet,
@@ -10,6 +9,7 @@ from .functions import (  # Deprecated
     pivoted_cholesky,
     root_decomposition,
     root_inv_decomposition,
+    solve,
 )
 from .operators import LinearOperator, cat, to_dense, to_linear_operator
 
@@ -24,7 +24,6 @@ __all__ = [
     # Functions
     "cat",
     "dsmm",
-    "inv_matmul",
     "inv_quad",
     "inv_quad_logdet",
     "logdet",
@@ -32,6 +31,7 @@ __all__ = [
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",
+    "solve",
     "to_dense",
     "to_linear_operator",
     # Context managers

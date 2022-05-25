@@ -120,12 +120,6 @@ class DiagLinearOperator(TriangularLinearOperator):
     def inverse(self):
         return self.__class__(self._diag.reciprocal())
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
-        res = self.inverse()._matmul(right_tensor)
-        if left_tensor is not None:
-            res = left_tensor @ res
-        return res
-
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
@@ -166,6 +160,12 @@ class DiagLinearOperator(TriangularLinearOperator):
         if isinstance(other, TriangularLinearOperator):
             return TriangularLinearOperator(self._diag.unsqueeze(-1) * other._tensor, upper=other.upper)
         return super().matmul(other)
+
+    def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
+        res = self.inverse()._matmul(right_tensor)
+        if left_tensor is not None:
+            res = left_tensor @ res
+        return res
 
     def sqrt(self):
         return self.__class__(self._diag.sqrt())

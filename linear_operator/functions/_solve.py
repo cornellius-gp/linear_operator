@@ -12,16 +12,16 @@ def _solve(linear_op, rhs):
     if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
         # May want to do this for some KroneckerProductLinearOperators and possibly
         # KroneckerProductAddedDiagLinearOperators as well
-        return linear_op.inv_matmul(rhs)
+        return linear_op.solve(rhs)
     if settings.fast_computations.solves.off() or linear_op.size(-1) <= settings.max_cholesky_size.value():
         return linear_op.cholesky()._cholesky_solve(rhs)
     else:
         with torch.no_grad():
-            preconditioner = linear_op.detach()._inv_matmul_preconditioner()
+            preconditioner = linear_op.detach()._solve_preconditioner()
         return linear_op._solve(rhs, preconditioner)
 
 
-class InvMatmul(Function):
+class Solve(Function):
     @staticmethod
     def forward(ctx, representation_tree, has_left, *args):
         left_tensor = None
@@ -94,7 +94,7 @@ class InvMatmul(Function):
 
             if not ctx.has_left:
                 # Compute self^{-1} grad_output
-                left_solves = InvMatmul.apply(ctx.representation_tree, False, grad_output, *matrix_args)
+                left_solves = Solve.apply(ctx.representation_tree, False, grad_output, *matrix_args)
 
                 if any(ctx.needs_input_grad[3:]):
                     # We call _bilinear_derivative to compute dl/dK

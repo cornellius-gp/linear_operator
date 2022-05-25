@@ -15,7 +15,7 @@ def _solve(linear_op, rhs):
         return linear_op.cholesky()._cholesky_solve(rhs)
     else:
         with torch.no_grad():
-            preconditioner = linear_op.detach()._inv_matmul_preconditioner()
+            preconditioner = linear_op.detach()._solve_preconditioner()
         return linear_op._solve(rhs, preconditioner)
 
 

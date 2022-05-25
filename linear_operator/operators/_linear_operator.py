@@ -15,12 +15,12 @@ import linear_operator
 
 from .. import settings, utils
 from ..functions._diagonalization import Diagonalization
-from ..functions._inv_matmul import InvMatmul
 from ..functions._inv_quad import InvQuad
 from ..functions._inv_quad_logdet import InvQuadLogdet
 from ..functions._matmul import Matmul
 from ..functions._pivoted_cholesky import PivotedCholesky
 from ..functions._root_decomposition import RootDecomposition
+from ..functions._solve import Solve
 from ..functions._sqrt_inv_matmul import SqrtInvMatmul
 from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _to_helper
 from ..utils.cholesky import psd_safe_cholesky
@@ -471,51 +471,6 @@ class LinearOperator(ABC):
         row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
         return self[..., row_col_iter, row_col_iter]
 
-    def _inv_matmul_preconditioner(self) -> Callable:
-        r"""
-        (Optional) define a preconditioner :math:`\mathbf P` that can be used for linear systems,
-        but not necessarily for log determinants. By default, this can call
-        :meth:`~linear_operator.LinearOperator._preconditioner`.
-
-        :return: a function which performs :math:`\mathbf P^{-1}(\cdot)`
-        """
-        base_precond, _, _ = self._preconditioner()
-
-        if base_precond is not None:
-            return base_precond
-        elif linear_operator.beta_features.default_preconditioner.on():
-            if hasattr(self, "_default_preconditioner_cache"):
-                U, S, V = self._default_preconditioner_cache
-            else:
-                precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
-                random_basis = torch.randn(
-                    self.batch_shape + torch.Size((self.size(-2), precond_basis_size)),
-                    device=self.device,
-                    dtype=self.dtype,
-                )
-                projected_mat = self._matmul(random_basis)
-                proj_q = torch.linalg.qr(projected_mat)
-                orthog_projected_mat = self._matmul(proj_q).transpose(-2, -1)
-                # Maybe log
-                if settings.verbose_linalg.on():
-                    settings.verbose_linalg.logger.debug(
-                        f"Running svd on a matrix of size {orthog_projected_mat.shape}."
-                    )
-                U, S, V = torch.svd(orthog_projected_mat)
-                U = proj_q.matmul(U)
-
-                self._default_preconditioner_cache = (U, S, V)
-
-            def preconditioner(v):
-                res = V.transpose(-2, -1).matmul(v)
-                res = (1 / S).unsqueeze(-1) * res
-                res = U.matmul(res)
-                return res
-
-            return preconditioner
-        else:
-            return None
-
     def _mul_constant(self, other: Union[float, torch.Tensor]) -> LinearOperator:
         """
         Multiplies the LinearOperator by a costant.
@@ -728,6 +683,51 @@ class LinearOperator(ABC):
             max_tridiag_iter=settings.max_lanczos_quadrature_iterations.value(),
             preconditioner=preconditioner,
         )
+
+    def _solve_preconditioner(self) -> Callable:
+        r"""
+        (Optional) define a preconditioner :math:`\mathbf P` that can be used for linear systems,
+        but not necessarily for log determinants. By default, this can call
+        :meth:`~linear_operator.LinearOperator._preconditioner`.
+
+        :return: a function which performs :math:`\mathbf P^{-1}(\cdot)`
+        """
+        base_precond, _, _ = self._preconditioner()
+
+        if base_precond is not None:
+            return base_precond
+        elif linear_operator.beta_features.default_preconditioner.on():
+            if hasattr(self, "_default_preconditioner_cache"):
+                U, S, V = self._default_preconditioner_cache
+            else:
+                precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
+                random_basis = torch.randn(
+                    self.batch_shape + torch.Size((self.size(-2), precond_basis_size)),
+                    device=self.device,
+                    dtype=self.dtype,
+                )
+                projected_mat = self._matmul(random_basis)
+                proj_q = torch.linalg.qr(projected_mat)
+                orthog_projected_mat = self._matmul(proj_q).transpose(-2, -1)
+                # Maybe log
+                if settings.verbose_linalg.on():
+                    settings.verbose_linalg.logger.debug(
+                        f"Running svd on a matrix of size {orthog_projected_mat.shape}."
+                    )
+                U, S, V = torch.svd(orthog_projected_mat)
+                U = proj_q.matmul(U)
+
+                self._default_preconditioner_cache = (U, S, V)
+
+            def preconditioner(v):
+                res = V.transpose(-2, -1).matmul(v)
+                res = (1 / S).unsqueeze(-1) * res
+                res = U.matmul(res)
+                return res
+
+            return preconditioner
+        else:
+            return None
 
     def _sum_batch(self, dim: int) -> LinearOperator:
         """
@@ -1410,60 +1410,6 @@ class LinearOperator(ABC):
         """
         return self.type(torch.half)
 
-    # TODO: rename to `solve_against`?
-    def inv_matmul(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
-        r"""
-        Computes a linear solve (w.r.t self = :math:`\mathbf A`) with several
-        right hand sides :math:`\mathbf R`.
-        I.e. computes
-
-        .. math::
-           \begin{equation}
-               \mathbf A^{-1} \mathbf R,
-           \end{equation}
-
-        where :math:`\mathbf R` is :attr:`right_tensor` and :math:`\mathbf A` is the LinearOperator.
-
-        If :attr:`left_tensor` is supplied, computes
-
-        .. math::
-           \begin{equation}
-               \mathbf L \mathbf A^{-1} \mathbf R,
-           \end{equation}
-
-        where :math:`\mathbf L` is :attr:`left_tensor`.
-        Supplying this can reduce the number of solver calls required in the backward pass.
-
-        :param right_tensor: :math:`\mathbf R` - the right hand side
-        :param left_tensor: :math:`\mathbf L` - the left hand side
-        :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
-        """
-        if not self.is_square:
-            raise RuntimeError(
-                "inv_matmul only operates on (batches of) square (positive semi-definite) LinearOperators. "
-                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
-            )
-
-        if self.dim() == 2 and right_tensor.dim() == 1:
-            if self.shape[-1] != right_tensor.numel():
-                raise RuntimeError(
-                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                        self.shape, right_tensor.shape
-                    )
-                )
-
-        func = InvMatmul
-        if left_tensor is None:
-            return func.apply(self.representation_tree(), False, right_tensor, *self.representation())
-        else:
-            return func.apply(
-                self.representation_tree(),
-                True,
-                left_tensor,
-                right_tensor,
-                *self.representation(),
-            )
-
     def inv_quad(self, tensor, reduce_inv_quad=True) -> torch.Tensor:
         r"""
         Equivalent to calling :meth:`inv_quad_logdet` with :attr:`logdet=False`.
@@ -2057,6 +2003,58 @@ class LinearOperator(ABC):
     @property
     def shape(self):
         return self.size()
+
+    def solve(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
+        r"""
+        Computes a linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
+        I.e. computes
+
+        .. math::
+           \begin{equation}
+               \mathbf A^{-1} \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf R` is :attr:`right_tensor` and :math:`\mathbf A` is the LinearOperator.
+
+        If :attr:`left_tensor` is supplied, computes
+
+        .. math::
+           \begin{equation}
+               \mathbf L \mathbf A^{-1} \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf L` is :attr:`left_tensor`.
+        Supplying this can reduce the number of solver calls required in the backward pass.
+
+        :param right_tensor: :math:`\mathbf R` - the right hand side
+        :param left_tensor: :math:`\mathbf L` - the left hand side
+        :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
+        """
+        if not self.is_square:
+            raise RuntimeError(
+                "solve only operates on (batches of) square (positive semi-definite) LinearOperators. "
+                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
+            )
+
+        if self.dim() == 2 and right_tensor.dim() == 1:
+            if self.shape[-1] != right_tensor.numel():
+                raise RuntimeError(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                        self.shape, right_tensor.shape
+                    )
+                )
+
+        func = Solve
+        if left_tensor is None:
+            return func.apply(self.representation_tree(), False, right_tensor, *self.representation())
+        else:
+            return func.apply(
+                self.representation_tree(),
+                True,
+                left_tensor,
+                right_tensor,
+                *self.representation(),
+            )
 
     def sqrt_inv_matmul(self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
         r"""

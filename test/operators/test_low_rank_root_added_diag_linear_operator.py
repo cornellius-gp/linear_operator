@@ -27,7 +27,7 @@ class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.Te
         root = linear_op._linear_op.root.tensor
         return root @ root.transpose(-1, -2) + diag.diag_embed(dim1=-2, dim2=-1)
 
-    def _test_inv_matmul(self, rhs, lhs=None, cholesky=False):
+    def _test_solve(self, rhs, lhs=None, cholesky=False):
         linear_op = self.create_linear_op().requires_grad_(True)
         linear_op_copy = linear_op.clone().detach_().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
@@ -45,12 +45,12 @@ class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.Te
             with linear_operator.settings.max_cholesky_size(
                 math.inf if cholesky else 0
             ), linear_operator.settings.cg_tolerance(1e-4):
-                # Perform the inv_matmul
+                # Perform the solve
                 if lhs is not None:
-                    res = linear_op.inv_matmul(rhs, lhs)
+                    res = linear_op.solve(rhs, lhs)
                     actual = lhs_copy @ evaluated.inverse() @ rhs_copy
                 else:
-                    res = linear_op.inv_matmul(rhs)
+                    res = linear_op.solve(rhs)
                     actual = evaluated.inverse().matmul(rhs_copy)
                 self.assertAllClose(res, actual, rtol=0.02, atol=1e-5)
 

@@ -40,9 +40,6 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return chol_cap_mat
 
-    def _inv_matmul_preconditioner(self):
-        return None
-
     def _mul_constant(self, constant):
         # We have to over-ride this here for the case where the constant is negative
         if constant > 0:
@@ -69,6 +66,9 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         solve = A_inv.matmul(rhs) - res
 
         return solve
+
+    def _solve_preconditioner(self):
+        return None
 
     def _sum_batch(self, dim):
         return SumBatchLinearOperator(self, dim)
@@ -129,10 +129,10 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return inv_quad_term, logdet_term
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
+    def solve(self, right_tensor, left_tensor=None):
         if not self.is_square:
             raise RuntimeError(
-                "inv_matmul only operates on (batches of) square (positive semi-definite) LinearOperators. "
+                "solve only operates on (batches of) square (positive semi-definite) LinearOperators. "
                 "Got a {} of size {}.".format(self.__class__.__name__, self.size())
             )
 

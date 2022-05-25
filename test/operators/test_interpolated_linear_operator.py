@@ -154,13 +154,6 @@ class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCas
     test_diag = empty_method
     test_eigh = empty_method
     test_eigvalsh = empty_method
-    test_inv_matmul_matrix = empty_method
-    test_inv_matmul_matrix_broadcast = empty_method
-    test_inv_matmul_matrix_cholesky = empty_method
-    test_inv_matmul_matrix_with_left = empty_method
-    test_inv_matmul_vector = empty_method
-    test_inv_matmul_vector_with_left = empty_method
-    test_inv_matmul_vector_with_left_cholesky = empty_method
     test_inv_quad_logdet = empty_method
     test_inv_quad_logdet_no_reduce = empty_method
     test_inv_quad_logdet_no_reduce_cholesky = empty_method
@@ -168,6 +161,13 @@ class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCas
     test_root_decomposition = empty_method
     test_root_decomposition_cholesky = empty_method
     test_root_inv_decomposition = empty_method
+    test_solve_matrix = empty_method
+    test_solve_matrix_broadcast = empty_method
+    test_solve_matrix_cholesky = empty_method
+    test_solve_matrix_with_left = empty_method
+    test_solve_vector = empty_method
+    test_solve_vector_with_left = empty_method
+    test_solve_vector_with_left_cholesky = empty_method
     test_sqrt_inv_matmul = empty_method
     test_sqrt_inv_matmul_no_lhs = empty_method
     test_svd = empty_method

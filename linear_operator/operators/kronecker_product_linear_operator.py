@@ -178,7 +178,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         return res
 
     def _solve(self, rhs, preconditioner=None, num_tridiag=0):
-        # Computes inv_matmul by exploiting the identity (A \kron B)^-1 = A^-1 \kron B^-1
+        # Computes solve by exploiting the identity (A \kron B)^-1 = A^-1 \kron B^-1
         # we perform the solve first before worrying about any tridiagonal matrices
 
         tsr_shapes = [q.size(-1) for q in self.linear_ops]
@@ -187,8 +187,8 @@ class KroneckerProductLinearOperator(LinearOperator):
         perm_batch = tuple(range(len(batch_shape)))
         y = rhs.clone().expand(*batch_shape, *rhs.shape[-2:])
         for n, q in zip(tsr_shapes, self.linear_ops):
-            # for KroneckerProductTriangularLinearOperator this inv_matmul is very cheap
-            y = q.inv_matmul(y.reshape(*batch_shape, n, -1))
+            # for KroneckerProductTriangularLinearOperator this solve is very cheap
+            y = q.solve(y.reshape(*batch_shape, n, -1))
             y = y.reshape(*batch_shape, n, n_rows // n, -1).permute(*perm_batch, -2, -3, -1)
         res = y.reshape(*batch_shape, n_rows, -1)
 
@@ -324,10 +324,6 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
         inverses = [lt.inverse() for lt in self.linear_ops]
         return self.__class__(*inverses, upper=self.upper)
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
-        # For triangular components, using triangular-triangular substition should generally be good
-        return self._inv_matmul(right_tensor=right_tensor, left_tensor=left_tensor)
-
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
         raise NotImplementedError("_cholesky not applicable to triangular lazy tensors")
@@ -335,16 +331,20 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
     def _cholesky_solve(self, rhs, upper=False):
         if upper:
             # res = (U.T @ U)^-1 @ v = U^-1 @ U^-T @ v
-            w = self._transpose_nonbatch().inv_matmul(rhs)
-            res = self.inv_matmul(w)
+            w = self._transpose_nonbatch().solve(rhs)
+            res = self.solve(w)
         else:
             # res = (L @ L.T)^-1 @ v = L^-T @ L^-1 @ v
-            w = self.inv_matmul(rhs)
-            res = self._transpose_nonbatch().inv_matmul(w)
+            w = self.solve(rhs)
+            res = self._transpose_nonbatch().solve(w)
         return res
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         raise NotImplementedError("_symeig not applicable to triangular lazy tensors")
+
+    def solve(self, right_tensor, left_tensor=None):
+        # For triangular components, using triangular-triangular substition should generally be good
+        return self._inv_matmul(right_tensor=right_tensor, left_tensor=left_tensor)
 
 
 class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTriangularLinearOperator):

@@ -354,7 +354,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         **RectangularLinearOperatorTestCase.tolerances,
         "cholesky": {"rtol": 1e-3, "atol": 1e-5},
         "diag": {"rtol": 1e-2, "atol": 1e-5},
-        "inv_matmul": {"rtol": 0.02, "atol": 1e-5},
         "inv_quad": {"rtol": 0.01, "atol": 0.01},
         "logdet": {"rtol": 0.2, "atol": 0.03},
         "prod": {"rtol": 1e-2, "atol": 1e-2},
@@ -362,6 +361,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         "root_decomposition": {"rtol": 0.05},
         "root_inv_decomposition": {"rtol": 0.05, "atol": 0.02},
         "sample": {"rtol": 0.3, "atol": 0.3},
+        "solve": {"rtol": 0.02, "atol": 1e-5},
         "sqrt_inv_matmul": {"rtol": 1e-2, "atol": 1e-3},
         "symeig": {
             "double": {"rtol": 1e-4, "atol": 1e-3},
@@ -369,50 +369,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         },
         "svd": {"rtol": 1e-4, "atol": 1e-3},
     }
-
-    def _test_inv_matmul(self, rhs, lhs=None, cholesky=False):
-        linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
-        evaluated = self.evaluate_linear_op(linear_op_copy)
-        evaluated.register_hook(_ensure_symmetric_grad)
-
-        # Create a test right hand side and left hand side
-        rhs.requires_grad_(True)
-        rhs_copy = rhs.clone().detach().requires_grad_(True)
-        if lhs is not None:
-            lhs.requires_grad_(True)
-            lhs_copy = lhs.clone().detach().requires_grad_(True)
-
-        _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
-        with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
-            with linear_operator.settings.max_cholesky_size(
-                math.inf if cholesky else 0
-            ), linear_operator.settings.cg_tolerance(1e-4):
-                # Perform the inv_matmul
-                if lhs is not None:
-                    res = linear_op.inv_matmul(rhs, lhs)
-                    actual = lhs_copy @ evaluated.inverse() @ rhs_copy
-                else:
-                    res = linear_op.inv_matmul(rhs)
-                    actual = evaluated.inverse().matmul(rhs_copy)
-                self.assertAllClose(res, actual, **self.tolerances["inv_matmul"])
-
-                # Perform backward pass
-                grad = torch.randn_like(res)
-                res.backward(gradient=grad)
-                actual.backward(gradient=grad)
-                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                        self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["grad"])
-                self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["grad"])
-                if lhs is not None:
-                    self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["grad"])
-
-            # Determine if we've called CG or not
-            if not cholesky and self.__class__.should_call_cg:
-                self.assertTrue(linear_cg_mock.called)
-            else:
-                self.assertFalse(linear_cg_mock.called)
 
     def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
         if not self.__class__.skip_slq_tests:
@@ -447,6 +403,50 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             self.assertAllClose(res_inv_quad, actual_inv_quad, **self.tolerances["inv_quad"])
             self.assertAllClose(res_logdet, actual_logdet, **self.tolerances["logdet"])
 
+            if not cholesky and self.__class__.should_call_cg:
+                self.assertTrue(linear_cg_mock.called)
+            else:
+                self.assertFalse(linear_cg_mock.called)
+
+    def _test_solve(self, rhs, lhs=None, cholesky=False):
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+        evaluated.register_hook(_ensure_symmetric_grad)
+
+        # Create a test right hand side and left hand side
+        rhs.requires_grad_(True)
+        rhs_copy = rhs.clone().detach().requires_grad_(True)
+        if lhs is not None:
+            lhs.requires_grad_(True)
+            lhs_copy = lhs.clone().detach().requires_grad_(True)
+
+        _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
+        with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
+            with linear_operator.settings.max_cholesky_size(
+                math.inf if cholesky else 0
+            ), linear_operator.settings.cg_tolerance(1e-4):
+                # Perform the solve
+                if lhs is not None:
+                    res = linear_op.solve(rhs, lhs)
+                    actual = lhs_copy @ evaluated.inverse() @ rhs_copy
+                else:
+                    res = linear_op.solve(rhs)
+                    actual = evaluated.inverse().matmul(rhs_copy)
+                self.assertAllClose(res, actual, **self.tolerances["solve"])
+
+                # Perform backward pass
+                grad = torch.randn_like(res)
+                res.backward(gradient=grad)
+                actual.backward(gradient=grad)
+                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                        self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["grad"])
+                self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["grad"])
+                if lhs is not None:
+                    self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["grad"])
+
+            # Determine if we've called CG or not
             if not cholesky and self.__class__.should_call_cg:
                 self.assertTrue(linear_cg_mock.called)
             else:
@@ -673,68 +673,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         self._test_half(linear_op)
 
-    def test_inv_matmul_vector(self, cholesky=False):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(linear_op.size(-1))
-
-        # We skip this test if we're dealing with batch LinearOperators
-        # They shouldn't multiply by a vec
-        if linear_op.ndimension() > 2:
-            return
-        else:
-            return self._test_inv_matmul(rhs)
-
-    def test_inv_matmul_vector_with_left(self, cholesky=False):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(linear_op.size(-1))
-        lhs = torch.randn(6, linear_op.size(-1))
-
-        # We skip this test if we're dealing with batch LinearOperators
-        # They shouldn't multiply by a vec
-        if linear_op.ndimension() > 2:
-            return
-        else:
-            return self._test_inv_matmul(rhs, lhs=lhs)
-
-    def test_inv_matmul_vector_with_left_cholesky(self):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
-        lhs = torch.randn(*linear_op.batch_shape, 6, linear_op.size(-1))
-        return self._test_inv_matmul(rhs, lhs=lhs, cholesky=True)
-
-    def test_inv_matmul_matrix(self, cholesky=False):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
-        return self._test_inv_matmul(rhs, cholesky=cholesky)
-
-    def test_inv_matmul_matrix_cholesky(self):
-        return self.test_inv_matmul_matrix(cholesky=True)
-
-    def test_inv_matmul_matrix_with_left(self):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
-        lhs = torch.randn(*linear_op.batch_shape, 3, linear_op.size(-1))
-        return self._test_inv_matmul(rhs, lhs=lhs)
-
-    def test_inv_matmul_matrix_broadcast(self):
-        linear_op = self.create_linear_op()
-
-        # Right hand size has one more batch dimension
-        batch_shape = torch.Size((3, *linear_op.batch_shape))
-        rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
-        self._test_inv_matmul(rhs)
-
-        if linear_op.ndimension() > 2:
-            # Right hand size has one fewer batch dimension
-            batch_shape = torch.Size(linear_op.batch_shape[1:])
-            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
-            self._test_inv_matmul(rhs)
-
-            # Right hand size has a singleton dimension
-            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
-            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
-            self._test_inv_matmul(rhs)
-
     def test_inv_quad_logdet(self):
         return self._test_inv_quad_logdet(reduce_inv_quad=False, cholesky=False)
 
@@ -827,7 +765,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
 
         res = root_approx.matmul(test_mat)
-        actual = linear_op.inv_matmul(test_mat)
+        actual = linear_op.solve(test_mat)
         self.assertAllClose(res, actual, **self.tolerances["root_inv_decomposition"])
 
     def test_sample(self):
@@ -838,6 +776,68 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             samples = linear_op.zero_mean_mvn_samples(50000)
             sample_covar = samples.unsqueeze(-1).matmul(samples.unsqueeze(-2)).mean(0)
             self.assertAllClose(sample_covar, evaluated, **self.tolerances["sample"])
+
+    def test_solve_vector(self, cholesky=False):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+
+        # We skip this test if we're dealing with batch LinearOperators
+        # They shouldn't multiply by a vec
+        if linear_op.ndimension() > 2:
+            return
+        else:
+            return self._test_solve(rhs)
+
+    def test_solve_vector_with_left(self, cholesky=False):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        lhs = torch.randn(6, linear_op.size(-1))
+
+        # We skip this test if we're dealing with batch LinearOperators
+        # They shouldn't multiply by a vec
+        if linear_op.ndimension() > 2:
+            return
+        else:
+            return self._test_solve(rhs, lhs=lhs)
+
+    def test_solve_vector_with_left_cholesky(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
+        lhs = torch.randn(*linear_op.batch_shape, 6, linear_op.size(-1))
+        return self._test_solve(rhs, lhs=lhs, cholesky=True)
+
+    def test_solve_matrix(self, cholesky=False):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
+        return self._test_solve(rhs, cholesky=cholesky)
+
+    def test_solve_matrix_cholesky(self):
+        return self.test_solve_matrix(cholesky=True)
+
+    def test_solve_matrix_with_left(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
+        lhs = torch.randn(*linear_op.batch_shape, 3, linear_op.size(-1))
+        return self._test_solve(rhs, lhs=lhs)
+
+    def test_solve_matrix_broadcast(self):
+        linear_op = self.create_linear_op()
+
+        # Right hand size has one more batch dimension
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
+        self._test_solve(rhs)
+
+        if linear_op.ndimension() > 2:
+            # Right hand size has one fewer batch dimension
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
+            self._test_solve(rhs)
+
+            # Right hand size has a singleton dimension
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
+            self._test_solve(rhs)
 
     def test_sqrt_inv_matmul(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)

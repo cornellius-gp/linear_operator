@@ -34,9 +34,9 @@ def matmul(mat, rhs):
     return mat.matmul(rhs)
 
 
-def inv_matmul(mat, right_tensor, left_tensor=None):
+def solve(mat, right_tensor, left_tensor=None):
     r"""
-    Computes a linear solve (w.r.t :attr:`mat` = :math:`A`) with several right hand sides :math:`R`.
+    Computes a linear solve (w.r.t :attr:`mat` = :math:`A`) with right hand side :math:`R`.
     I.e. computes
 
     ... math::
@@ -67,7 +67,7 @@ def inv_matmul(mat, right_tensor, left_tensor=None):
     """
     from ..operators import to_linear_operator
 
-    return to_linear_operator(mat).inv_matmul(right_tensor, left_tensor)
+    return to_linear_operator(mat).solve(right_tensor, left_tensor)
 
 
 def inv_quad(mat, tensor):
@@ -168,13 +168,13 @@ def root_inv_decomposition(mat, initial_vectors=None, test_vectors=None):
 
 __all__ = [
     "dsmm",
-    "inv_matmul",
     "inv_quad",
     "inv_quad_logdet",
     "logdet",
     "matmul",
     "normal_cdf",
     "pivoted_cholesky",
+    "solve",
     "root_decomposition",
     "root_inv_decomposition",
 ]

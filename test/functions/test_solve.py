@@ -17,7 +17,7 @@ def _ensure_symmetric_grad(grad):
     return res
 
 
-class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
+class TestSolveNonBatch(BaseTestCase, unittest.TestCase):
     seed = 0
 
     def _create_mat(self):
@@ -25,7 +25,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
         mat = mat @ mat.transpose(-1, -2)
         return mat
 
-    def test_inv_matmul_vec(self):
+    def test_solve_vec(self):
         mat = self._create_mat().detach().requires_grad_(True)
         if mat.dim() > 2:  # This isn't a feature for batch mode
             return
@@ -36,7 +36,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
 
         # Forward
         with settings.terminate_cg_by_size(False):
-            res = DenseLinearOperator(mat).inv_matmul(vec)
+            res = DenseLinearOperator(mat).solve(vec)
             actual = mat_copy.inverse().matmul(vec_copy)
             self.assertAllClose(res, actual)
 
@@ -47,7 +47,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
             self.assertAllClose(mat.grad, mat_copy.grad)
             self.assertAllClose(vec.grad, vec_copy.grad)
 
-    def test_inv_matmul_multiple_vecs(self):
+    def test_solve_multiple_vecs(self):
         mat = self._create_mat().detach().requires_grad_(True)
         mat_copy = mat.detach().clone().requires_grad_(True)
         mat_copy.register_hook(_ensure_symmetric_grad)
@@ -56,7 +56,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
 
         # Forward
         with settings.terminate_cg_by_size(False):
-            res = DenseLinearOperator(mat).inv_matmul(vecs)
+            res = DenseLinearOperator(mat).solve(vecs)
             actual = mat_copy.inverse().matmul(vecs_copy)
             self.assertAllClose(res, actual)
 
@@ -68,7 +68,7 @@ class TestInvMatmulNonBatch(BaseTestCase, unittest.TestCase):
             self.assertAllClose(vecs.grad, vecs_copy.grad)
 
 
-class TestInvMatmulBatch(TestInvMatmulNonBatch):
+class TestSolveBatch(TestSolveNonBatch):
     seed = 0
 
     def _create_mat(self):

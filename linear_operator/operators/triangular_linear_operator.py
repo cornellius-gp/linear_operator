@@ -70,16 +70,21 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         except NotImplementedError:
             if upper:
                 # res = (U.T @ U)^-1 @ v = U^-1 @ U^-T @ v
-                w = self._transpose_nonbatch().inv_matmul(rhs)
-                res = self.inv_matmul(w)
+                w = self._transpose_nonbatch().solve(rhs)
+                res = self.solve(w)
             else:
                 # res = (L @ L.T)^-1 @ v = L^-T @ L^-1 @ v
-                w = self.inv_matmul(rhs)
-                res = self._transpose_nonbatch().inv_matmul(w)
+                w = self.solve(rhs)
+                res = self._transpose_nonbatch().solve(w)
         return res
 
     def _diagonal(self) -> Tensor:
         return self._tensor._diagonal()
+
+    def _expand_batch(self, batch_shape):
+        if len(batch_shape) == 0:
+            return self
+        return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
@@ -105,8 +110,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         preconditioner: Callable[[Tensor], Tensor],
         num_tridiag: int = 0,
     ) -> Tensor:
-        # already triangular, can just call inv_matmul for the solve
-        return self.inv_matmul(rhs)
+        # already triangular, can just call solve for the solve
+        return self.solve(rhs)
 
     def _sum_batch(self, dim: int) -> "TriangularLinearOperator":
         return TriangularLinearOperator(self._tensor._sum_batch(dim), upper=self.upper)
@@ -131,20 +136,6 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def exp(self) -> "TriangularLinearOperator":
         return TriangularLinearOperator(self._tensor.exp(), upper=self.upper)
 
-    def inv_matmul(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
-        if isinstance(self._tensor, DenseLinearOperator):
-            res = torch.triangular_solve(right_tensor, self.to_dense(), upper=self.upper).solution
-        elif isinstance(self._tensor, BatchRepeatLinearOperator):
-            res = self._tensor.base_linear_op.inv_matmul(right_tensor, left_tensor)
-            # TODO: Proper broadcasting
-            res = res.expand(self._tensor.batch_repeat + res.shape[-2:])
-        else:
-            # TODO: Can we be smarter here?
-            res = self._tensor.inv_matmul(right_tensor=right_tensor, left_tensor=left_tensor)
-        if left_tensor is not None:
-            res = left_tensor @ res
-        return res
-
     def inv_quad_logdet(
         self,
         inv_quad_rhs: Optional[Tensor] = None,
@@ -154,8 +145,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
-            # triangular, inv_matmul is cheap
-            inv_quad_term = inv_quad_rhs.transpose(-1, -2) @ self.inv_matmul(inv_quad_rhs)
+            # triangular, solve is cheap
+            inv_quad_term = inv_quad_rhs.transpose(-1, -2) @ self.solve(inv_quad_rhs)
         if logdet:
             diag = self._diagonal()
             logdet_term = self._diagonal().abs().log().sum(-1)
@@ -170,10 +161,19 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     @cached
     def inverse(self) -> "TriangularLinearOperator":
         eye = torch.eye(self._tensor.size(-1), device=self._tensor.device, dtype=self._tensor.dtype)
-        inv = self.inv_matmul(eye)
+        inv = self.solve(eye)
         return TriangularLinearOperator(inv, upper=self.upper)
 
-    def _expand_batch(self, batch_shape):
-        if len(batch_shape) == 0:
-            return self
-        return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
+    def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
+        if isinstance(self._tensor, DenseLinearOperator):
+            res = torch.triangular_solve(right_tensor, self.to_dense(), upper=self.upper).solution
+        elif isinstance(self._tensor, BatchRepeatLinearOperator):
+            res = self._tensor.base_linear_op.solve(right_tensor, left_tensor)
+            # TODO: Proper broadcasting
+            res = res.expand(self._tensor.batch_repeat + res.shape[-2:])
+        else:
+            # TODO: Can we be smarter here?
+            res = self._tensor.solve(right_tensor=right_tensor, left_tensor=left_tensor)
+        if left_tensor is not None:
+            res = left_tensor @ res
+        return res

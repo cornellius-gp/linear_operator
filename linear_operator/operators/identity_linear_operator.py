@@ -125,12 +125,6 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def inverse(self):
         return self
 
-    def inv_matmul(self, right_tensor, left_tensor=None):
-        res = self._maybe_reshape_rhs(right_tensor)
-        if left_tensor is not None:
-            res = left_tensor @ res
-        return res
-
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
@@ -161,6 +155,12 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         res = self._maybe_reshape_rhs(other)
         if is_vec:
             res = res.squeeze(-1)
+        return res
+
+    def solve(self, right_tensor, left_tensor=None):
+        res = self._maybe_reshape_rhs(right_tensor)
+        if left_tensor is not None:
+            res = left_tensor @ res
         return res
 
     def sqrt(self):

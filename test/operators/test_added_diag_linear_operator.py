@@ -102,8 +102,8 @@ class TestAddedDiagLinearOperatorPrecondOverride(unittest.TestCase):
 
         # compute a solve - mostly to make sure that we can actually perform the solve
         rhs = torch.randn(1000, 1)
-        standard_solve = standard_lt.inv_matmul(rhs)
-        overrode_solve = overrode_lt.inv_matmul(rhs)
+        standard_solve = standard_lt.solve(rhs)
+        overrode_solve = overrode_lt.solve(rhs)
 
         # gut checking that our preconditioner is not breaking anything
         self.assertEqual(standard_solve.shape, overrode_solve.shape)
