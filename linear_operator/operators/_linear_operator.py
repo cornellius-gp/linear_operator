@@ -312,7 +312,7 @@ class LinearOperator(ABC):
                 col_interp_indices,
                 col_interp_values,
             )
-            .evaluate()
+            .to_dense()
             .squeeze(-2)
             .squeeze(-1)
         )
@@ -408,7 +408,7 @@ class LinearOperator(ABC):
         if any(isinstance(sub_mat, KeOpsLinearOperator) for sub_mat in evaluated_kern_mat._args):
             raise RuntimeError("Cannot run Cholesky with KeOps: it will either be really slow or not work.")
 
-        evaluated_mat = evaluated_kern_mat.evaluate()
+        evaluated_mat = evaluated_kern_mat.to_dense()
 
         # if the tensor is a scalar, we can just take the square root
         if evaluated_mat.size(-1) == 1:
@@ -523,7 +523,7 @@ class LinearOperator(ABC):
         self = self.evaluate_kernel()
         other = other.evaluate_kernel()
         if isinstance(self, DenseLinearOperator) or isinstance(other, DenseLinearOperator):
-            return DenseLinearOperator(self.evaluate() * other.evaluate())
+            return DenseLinearOperator(self.to_dense() * other.to_dense())
         else:
             left_linear_op = self if self._root_decomposition_size() < other._root_decomposition_size() else other
             right_linear_op = other if left_linear_op is self else self
@@ -565,7 +565,7 @@ class LinearOperator(ABC):
         if self.size(dim) == 1:
             return self.squeeze(dim)
 
-        roots = self.root_decomposition().root.evaluate()
+        roots = self.root_decomposition().root.to_dense()
         num_batch = roots.size(dim)
 
         while True:
@@ -598,7 +598,7 @@ class LinearOperator(ABC):
                 break
             else:
                 res = MulLinearOperator(RootLinearOperator(part1), RootLinearOperator(part2))
-                roots = res.root_decomposition().root.evaluate()
+                roots = res.root_decomposition().root.to_dense()
                 num_batch = num_batch // 2
 
         return res
@@ -742,7 +742,7 @@ class LinearOperator(ABC):
 
         # potentially perform decomposition in double precision for numerical stability
         dtype = self.dtype
-        evals, evecs = torch.linalg.eigh(self.evaluate().to(dtype=settings._linalg_dtype_symeig.value()))
+        evals, evecs = torch.linalg.eigh(self.to_dense().to(dtype=settings._linalg_dtype_symeig.value()))
         # chop any negative eigenvalues.
         # TODO: warn if evals are significantly negative
         evals = evals.clamp_min(0.0).to(dtype=dtype)
@@ -891,7 +891,7 @@ class LinearOperator(ABC):
 
             # return as a DenseLinearOperator if small enough to reduce memory overhead
             if new_linear_op.shape[-1] < settings.max_cholesky_size.value():
-                new_linear_op = to_linear_operator(new_linear_op.evaluate())
+                new_linear_op = to_linear_operator(new_linear_op.to_dense())
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
         # don't create one
@@ -933,7 +933,7 @@ class LinearOperator(ABC):
         else:
             updated_root = torch.cat(
                 (
-                    current_root.evaluate(),
+                    current_root.to_dense(),
                     torch.zeros(
                         *current_root.shape[:-1],
                         1,
@@ -1085,15 +1085,15 @@ class LinearOperator(ABC):
         # Get components for new root Z = [E 0; F G]
         E = self.root_decomposition(**root_decomp_kwargs).root  # E = L, LL^T = A
         m, n = E.shape[-2:]
-        R = self.root_inv_decomposition().root.evaluate()  # RR^T = A^{-1} (this is fast if L is triangular)
+        R = self.root_inv_decomposition().root.to_dense()  # RR^T = A^{-1} (this is fast if L is triangular)
         lower_left = B_ @ R  # F = BR
         schur = D - lower_left.matmul(lower_left.transpose(-2, -1))  # GG^T = new_mat - FF^T
-        schur_root = to_linear_operator(schur).root_decomposition().root.evaluate()  # G = (new_mat - FF^T)^{1/2}
+        schur_root = to_linear_operator(schur).root_decomposition().root.to_dense()  # G = (new_mat - FF^T)^{1/2}
 
         # Form new root matrix
         num_fant = schur_root.size(-2)
         new_root = torch.zeros(*batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype)
-        new_root[..., :m, :n] = E.evaluate()
+        new_root[..., :m, :n] = E.to_dense()
         new_root[..., m:, : lower_left.shape[-1]] = lower_left
         new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root
         if generate_inv_roots:
@@ -1847,7 +1847,7 @@ class LinearOperator(ABC):
             )
 
         if self.shape[-2:].numel() == 1:
-            return RootLinearOperator(self.evaluate().sqrt())
+            return RootLinearOperator(self.to_dense().sqrt())
 
         if method is None:
             method = self._choose_root_method()
@@ -1866,7 +1866,7 @@ class LinearOperator(ABC):
 
         if method == "pivoted_cholesky":
             return RootLinearOperator(
-                to_linear_operator(self.evaluate()).pivoted_cholesky(rank=self._root_decomposition_size())
+                to_linear_operator(self.to_dense()).pivoted_cholesky(rank=self._root_decomposition_size())
             )
         if method == "symeig":
             evals, evecs = self.symeig(eigenvectors=True)
@@ -1917,7 +1917,7 @@ class LinearOperator(ABC):
             )
 
         if self.shape[-2:].numel() == 1:
-            return RootLinearOperator(1 / self.evaluate().sqrt())
+            return RootLinearOperator(1 / self.to_dense().sqrt())
 
         if method is None:
             method = self._choose_root_method()
@@ -1968,7 +1968,7 @@ class LinearOperator(ABC):
             inv_root = U * S.clamp_min(1e-7).reciprocal().sqrt().unsqueeze(-2)
         elif method == "pinverse":
             # this is numerically unstable and should rarely be used
-            root = self.root_decomposition().root.evaluate()
+            root = self.root_decomposition().root.to_dense()
             inv_root = torch.pinverse(root).transpose(-1, -2)
         else:
             raise RuntimeError(f"Unknown root inv decomposition method '{method}'")
@@ -2182,7 +2182,7 @@ class LinearOperator(ABC):
 
     # TODO: rename to_dense
     @cached
-    def evaluate(self) -> torch.Tensor:
+    def to_dense(self) -> torch.Tensor:
         """
         Explicitly evaluates the matrix this LinearOperator represents. This function
         should return a :obj:`torch.Tensor` storing an exact representation of this LinearOperator.
@@ -2316,7 +2316,7 @@ class LinearOperator(ABC):
 
         else:
             if self.size()[-2:] == torch.Size([1, 1]):
-                covar_root = self.evaluate().sqrt()
+                covar_root = self.to_dense().sqrt()
             else:
                 covar_root = self.root_decomposition().root
 
@@ -2493,7 +2493,7 @@ def to_dense(obj: Union[LinearOperator, torch.Tensor]) -> torch.Tensor:
     if torch.is_tensor(obj):
         return obj
     elif isinstance(obj, LinearOperator):
-        return obj.evaluate()
+        return obj.to_dense()
     else:
         raise TypeError("object of class {} cannot be made into a Tensor".format(obj.__class__.__name__))
 

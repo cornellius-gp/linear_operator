@@ -78,16 +78,16 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op = self.create_linear_op()
         evals, evecs = linear_op.diagonalization()
         self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
-        self.assertAllClose(evecs.evaluate(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(evecs.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
     def test_exp(self):
         linear_op = self.create_linear_op()
-        exp = linear_op.exp().evaluate()
+        exp = linear_op.exp().to_dense()
         self.assertAllClose(exp, torch.eye(linear_op.size(-1)).expand(*linear_op.shape))
 
     def test_log(self):
         linear_op = self.create_linear_op()
-        log = linear_op.log().evaluate()
+        log = linear_op.log().to_dense()
         self.assertAllClose(log, torch.zeros(*linear_op.shape))
 
     def test_sqrt_inv_matmul(self):
@@ -139,20 +139,20 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def test_root_decomposition(self, cholesky=False):
         linear_op = self.create_linear_op()
         root_decomp = linear_op.root_decomposition().root
-        self.assertAllClose(root_decomp.evaluate(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(root_decomp.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
     def test_symeig(self):
         linear_op = self.create_linear_op()
         evals, evecs = linear_op.symeig()
         self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
-        self.assertAllClose(evecs.evaluate(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(evecs.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
     def test_svd(self):
         linear_op = self.create_linear_op()
         U, S, V = linear_op.svd()
         self.assertAllClose(S, torch.ones(linear_op.shape[:-1]))
-        self.assertAllClose(U.evaluate(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
-        self.assertAllClose(V.evaluate(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(U.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(V.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
 
 class TestIdentityLinearOperatorBatch(TestIdentityLinearOperator):

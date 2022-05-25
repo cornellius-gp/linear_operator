@@ -76,15 +76,15 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         evaluated = self.evaluate_linear_op(linear_op)
 
         rhs = torch.randn(linear_op.shape)
-        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
+        self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
 
         rhs = torch.randn(linear_op.matrix_shape)
-        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
+        self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
 
         rhs = torch.randn(2, *linear_op.shape)
-        self.assertAllClose((linear_op + rhs).evaluate(), evaluated + rhs)
+        self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
 
-        self.assertAllClose((linear_op + linear_op).evaluate(), evaluated * 2)
+        self.assertAllClose((linear_op + linear_op).to_dense(), evaluated * 2)
 
     def test_matmul_vec(self):
         linear_op = self.create_linear_op()
@@ -159,17 +159,17 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
     def test_constant_mul(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
-        self.assertAllClose((linear_op * 5.0).evaluate(), evaluated * 5.0)
+        self.assertAllClose((linear_op * 5.0).to_dense(), evaluated * 5.0)
 
     def test_neg_constant_mul(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
-        self.assertAllClose((linear_op * -5.0).evaluate(), evaluated * -5.0)
+        self.assertAllClose((linear_op * -5.0).to_dense(), evaluated * -5.0)
 
-    def test_evaluate(self):
+    def test_to_dense(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
-        self.assertAllClose(linear_op.evaluate(), evaluated)
+        self.assertAllClose(linear_op.to_dense(), evaluated)
 
     def test_getitem(self):
         linear_op = self.create_linear_op()
@@ -180,19 +180,19 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
             res = linear_op[1]
             actual = evaluated[1]
             self.assertAllClose(res, actual)
-            res = linear_op[0:2].evaluate()
+            res = linear_op[0:2].to_dense()
             actual = evaluated[0:2]
             self.assertAllClose(res, actual)
-            res = linear_op[:, 0:2].evaluate()
+            res = linear_op[:, 0:2].to_dense()
             actual = evaluated[:, 0:2]
             self.assertAllClose(res, actual)
-            res = linear_op[0:2, :].evaluate()
+            res = linear_op[0:2, :].to_dense()
             actual = evaluated[0:2, :]
             self.assertAllClose(res, actual)
-            res = linear_op[..., 0:2].evaluate()
+            res = linear_op[..., 0:2].to_dense()
             actual = evaluated[..., 0:2]
             self.assertAllClose(res, actual)
-            res = linear_op[0:2, ...].evaluate()
+            res = linear_op[0:2, ...].to_dense()
             actual = evaluated[0:2, ...]
             self.assertAllClose(res, actual)
             res = linear_op[..., 0:2, 2]
@@ -204,18 +204,18 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
         # Batch case
         else:
-            res = linear_op[1].evaluate()
+            res = linear_op[1].to_dense()
             actual = evaluated[1]
             self.assertAllClose(res, actual)
-            res = linear_op[0:2].evaluate()
+            res = linear_op[0:2].to_dense()
             actual = evaluated[0:2]
             self.assertAllClose(res, actual)
-            res = linear_op[:, 0:2].evaluate()
+            res = linear_op[:, 0:2].to_dense()
             actual = evaluated[:, 0:2]
             self.assertAllClose(res, actual)
 
             for batch_index in product([1, slice(0, 2, None)], repeat=(linear_op.dim() - 2)):
-                res = linear_op.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None))).evaluate()
+                res = linear_op.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None))).to_dense()
                 actual = evaluated.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None)))
                 self.assertAllClose(res, actual)
                 res = linear_op.__getitem__((*batch_index, 1, slice(0, 2, None)))
@@ -286,7 +286,7 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
                 res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
                 self.assertAllClose(res, actual)
                 index = (*batch_index, slice(None, None, None), slice(None, None, None))
-                res, actual = linear_op[index].evaluate(), evaluated[index]
+                res, actual = linear_op[index].to_dense(), evaluated[index]
                 self.assertAllClose(res, actual)
 
             # Ellipsis
@@ -304,7 +304,7 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         if linear_op.dim() >= 4:
             evaluated = self.evaluate_linear_op(linear_op)
             dims = torch.randperm(linear_op.dim() - 2).tolist()
-            res = linear_op.permute(*dims, -2, -1).evaluate()
+            res = linear_op.permute(*dims, -2, -1).to_dense()
             actual = evaluated.permute(*dims, -2, -1)
             self.assertAllClose(res, actual)
 
@@ -329,9 +329,9 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         self.assertAllClose(linear_op.sum(-1), evaluated.sum(-1))
         self.assertAllClose(linear_op.sum(-2), evaluated.sum(-2))
         if linear_op.ndimension() > 2:
-            self.assertAllClose(linear_op.sum(-3).evaluate(), evaluated.sum(-3))
+            self.assertAllClose(linear_op.sum(-3).to_dense(), evaluated.sum(-3))
         if linear_op.ndimension() > 3:
-            self.assertAllClose(linear_op.sum(-4).evaluate(), evaluated.sum(-4))
+            self.assertAllClose(linear_op.sum(-4).to_dense(), evaluated.sum(-4))
 
     def test_transpose_batch(self):
         linear_op = self.create_linear_op()
@@ -339,7 +339,7 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
         if linear_op.dim() >= 4:
             for i, j in combinations(range(linear_op.dim() - 2), 2):
-                res = linear_op.transpose(i, j).evaluate()
+                res = linear_op.transpose(i, j).to_dense()
                 actual = evaluated.transpose(i, j)
                 self.assertAllClose(res, actual, **self.tolerances["transpose"])
 
@@ -457,28 +457,28 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated = self.evaluate_linear_op(linear_op)
 
         other_diag = torch.tensor(1.5)
-        res = linear_op.add_diag(other_diag).evaluate()
+        res = linear_op.add_diag(other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.tensor([1.5])
-        res = linear_op.add_diag(other_diag).evaluate()
+        res = linear_op.add_diag(other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.randn(linear_op.size(-1)).pow(2)
-        res = linear_op.add_diag(other_diag).evaluate()
+        res = linear_op.add_diag(other_diag).to_dense()
         actual = evaluated + other_diag.diag().repeat(*linear_op.batch_shape, 1, 1)
         self.assertAllClose(res, actual)
 
         for sizes in product([1, None], repeat=(linear_op.dim() - 2)):
             batch_shape = [linear_op.batch_shape[i] if size is None else size for i, size in enumerate(sizes)]
             other_diag = torch.randn(*batch_shape, linear_op.size(-1)).pow(2)
-            res = linear_op.add_diag(other_diag).evaluate()
+            res = linear_op.add_diag(other_diag).to_dense()
             actual = evaluated.clone().detach()
             for i in range(other_diag.size(-1)):
                 actual[..., i, i] = actual[..., i, i] + other_diag[..., i]
@@ -494,7 +494,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         new_lt = linear_op.add_low_rank(new_rows)
 
         # check that the concatenation is okay
-        self.assertAllClose(new_lt.evaluate(), summed_lt)
+        self.assertAllClose(new_lt.to_dense(), summed_lt)
 
         # check that the root approximation is close
         rhs = torch.randn(linear_op.size(-1))
@@ -523,7 +523,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             new_lt = linear_op.cat_rows(new_rows, new_point)
 
             # check that the concatenation is okay
-            self.assertAllClose(new_lt.evaluate(), concatenated_lt)
+            self.assertAllClose(new_lt.to_dense(), concatenated_lt)
 
             # check that the root approximation is close
             rhs = torch.randn(linear_op.size(-1) + 1)
@@ -549,7 +549,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
         for upper in (False, True):
-            res = linear_op.cholesky(upper=upper).evaluate()
+            res = linear_op.cholesky(upper=upper).to_dense()
             actual = torch.linalg.cholesky(evaluated)
             if upper:
                 actual = actual.transpose(-1, -2)
@@ -669,9 +669,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             evaluated = self.evaluate_linear_op(linear_op)
 
             if linear_op.ndimension() > 2:
-                self.assertAllClose(linear_op.prod(-3).evaluate(), evaluated.prod(-3), **self.tolerances["prod"])
+                self.assertAllClose(linear_op.prod(-3).to_dense(), evaluated.prod(-3), **self.tolerances["prod"])
             if linear_op.ndimension() > 3:
-                self.assertAllClose(linear_op.prod(-4).evaluate(), evaluated.prod(-4), **self.tolerances["prod"])
+                self.assertAllClose(linear_op.prod(-4).to_dense(), evaluated.prod(-4), **self.tolerances["prod"])
 
     def test_root_decomposition(self, cholesky=False):
         _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
@@ -697,7 +697,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
             with linear_operator.settings.max_cholesky_size(math.inf if symeig else 0):
                 evals, evecs = linear_op.diagonalization()
-                evecs = evecs.evaluate()
+                evecs = evecs.to_dense()
                 approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-2, -1))
                 res = approx.matmul(test_mat)
                 actual = linear_op.matmul(test_mat)
@@ -844,7 +844,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             # Perform forward pass
             with linalg_dtypes(dtype):
                 evals_unsorted, evecs_unsorted = linear_op.symeig(eigenvectors=True)
-                evecs_unsorted = evecs_unsorted.evaluate()
+                evecs_unsorted = evecs_unsorted.to_dense()
 
             # since LinearOperator.symeig does not sort evals, we do this here for the check
             evals, idxr = torch.sort(evals_unsorted, dim=-1, descending=False)
@@ -895,7 +895,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Perform forward pass
         U_unsorted, S_unsorted, V_unsorted = linear_op.svd()
-        U_unsorted, V_unsorted = U_unsorted.evaluate(), V_unsorted.evaluate()
+        U_unsorted, V_unsorted = U_unsorted.to_dense(), V_unsorted.to_dense()
 
         # since LinearOperator.svd does not sort the singular values, we do this here for the check
         S, idxr = torch.sort(S_unsorted, dim=-1, descending=True)

@@ -41,7 +41,7 @@ class RootLinearOperator(LinearOperator):
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
             num_indices = row_index.numel()
             if num_indices > self.matrix_shape.numel():
-                return to_linear_operator(self.evaluate())._getitem(row_index, col_index, *batch_indices)
+                return to_linear_operator(self.to_dense())._getitem(row_index, col_index, *batch_indices)
 
         left_tensor = self.root._getitem(row_index, _noop_index, *batch_indices)
         if _equal_indices(row_index, col_index):
@@ -91,6 +91,6 @@ class RootLinearOperator(LinearOperator):
             return super().diag()
 
     @cached
-    def evaluate(self):
-        eval_root = self.root.evaluate()
+    def to_dense(self):
+        eval_root = self.root.to_dense()
         return torch.matmul(eval_root, eval_root.transpose(-1, -2))

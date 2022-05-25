@@ -81,7 +81,7 @@ class InvQuadLogdet(Function):
                 # because it requires Lanczos
                 # We don't have any other choice for when we want to use deterministic probes, however
                 if precond_lt.size()[-2:] == torch.Size([1, 1]):
-                    covar_root = precond_lt.evaluate().sqrt()
+                    covar_root = precond_lt.to_dense().sqrt()
                 else:
                     covar_root = precond_lt.root_decomposition().root
 
@@ -144,7 +144,7 @@ class InvQuadLogdet(Function):
                     t_mat = t_mat.unsqueeze(1)
                 eigenvalues, eigenvectors = lanczos_tridiag_to_diag(t_mat)
                 slq = StochasticLQ()
-                (logdet_term,) = slq.evaluate(ctx.matrix_shape, eigenvalues, eigenvectors, [lambda x: x.log()])
+                (logdet_term,) = slq.to_dense(ctx.matrix_shape, eigenvalues, eigenvectors, [lambda x: x.log()])
 
         # Extract inv_quad solves from all the solves
         if ctx.inv_quad:

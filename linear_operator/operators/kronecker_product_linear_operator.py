@@ -213,7 +213,7 @@ class KroneckerProductLinearOperator(LinearOperator):
             evals, _ = self.diagonalization()
             evals_repeated = evals.unsqueeze(0).repeat(num_tridiag, *[1] * evals.ndim)
             lazy_evals = DiagLinearOperator(evals_repeated)
-            batch_repeated_evals = lazy_evals.evaluate()
+            batch_repeated_evals = lazy_evals.to_dense()
             return res, batch_repeated_evals
 
     def _inv_matmul(self, right_tensor, left_tensor=None):

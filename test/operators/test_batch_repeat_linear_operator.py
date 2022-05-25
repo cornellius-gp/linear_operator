@@ -18,7 +18,7 @@ class TestBatchRepeatLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((3,)))
 
     def evaluate_linear_op(self, linear_op):
-        evaluated = linear_op.base_linear_op.evaluate()
+        evaluated = linear_op.base_linear_op.to_dense()
         return evaluated.repeat(*linear_op.batch_repeat, 1, 1)
 
 
@@ -31,7 +31,7 @@ class TestBatchRepeatLinearOperatorNonSquare(RectangularLinearOperatorTestCase, 
         return BatchRepeatLinearOperator(to_linear_operator(rand_mat), torch.Size((10,)))
 
     def evaluate_linear_op(self, linear_op):
-        evaluated = linear_op.base_linear_op.evaluate()
+        evaluated = linear_op.base_linear_op.to_dense()
         return evaluated.repeat(*linear_op.batch_repeat, 1, 1)
 
 
@@ -45,7 +45,7 @@ class TestBatchRepeatLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCa
         return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((3,)))
 
     def evaluate_linear_op(self, linear_op):
-        evaluated = linear_op.base_linear_op.evaluate()
+        evaluated = linear_op.base_linear_op.to_dense()
         return evaluated.repeat(*linear_op.batch_repeat, 1, 1)
 
 
@@ -62,7 +62,7 @@ class TestBatchRepeatLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.T
         return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((2, 3, 1, 4)))
 
     def evaluate_linear_op(self, linear_op):
-        evaluated = linear_op.base_linear_op.evaluate()
+        evaluated = linear_op.base_linear_op.to_dense()
         return evaluated.repeat(*linear_op.batch_repeat, 1, 1)
 
 

@@ -109,7 +109,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self._diag
 
     @cached
-    def evaluate(self):
+    def to_dense(self):
         if self._diag.dim() == 0:
             return self._diag
         return torch.diag_embed(self._diag)

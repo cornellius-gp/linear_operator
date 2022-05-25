@@ -25,7 +25,7 @@ class DenseLinearOperator(LinearOperator):
         self.tensor = tsr
 
     def _cholesky_solve(self, rhs, upper=False):
-        return torch.cholesky_solve(rhs, self.evaluate(), upper=upper)
+        return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
     def _expand_batch(self, batch_shape):
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
@@ -69,7 +69,7 @@ class DenseLinearOperator(LinearOperator):
             row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
             return self.tensor[..., row_col_iter, row_col_iter].view(*self.batch_shape, -1)
 
-    def evaluate(self):
+    def to_dense(self):
         return self.tensor
 
     def __add__(self, other):

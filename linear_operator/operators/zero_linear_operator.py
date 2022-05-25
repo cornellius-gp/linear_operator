@@ -142,7 +142,7 @@ class ZeroLinearOperator(LinearOperator):
         return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 
     @cached
-    def evaluate(self):
+    def to_dense(self):
         return torch.zeros(*self.sizes)
 
     def inv_matmul(self, right_tensor, left_tensor=None):

@@ -43,7 +43,7 @@ class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOpera
         return KroneckerProductAddedDiagLinearOperator(kp_linear_op, diag_linear_op)
 
     def evaluate_linear_op(self, linear_op):
-        tensor = linear_op._linear_op.evaluate()
+        tensor = linear_op._linear_op.to_dense()
         diag = linear_op._diag_tensor._diag
         return tensor + diag.diag()
 
@@ -141,7 +141,7 @@ class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAdded
             with mock.patch.object(linear_op, "cholesky") as chol_mock:
                 root_approx = linear_op.root_inv_decomposition()
                 res = root_approx.matmul(test_mat)
-                actual = torch.linalg.solve(linear_op.evaluate(), test_mat)
+                actual = torch.linalg.solve(linear_op.to_dense(), test_mat)
                 self.assertAllClose(res, actual, rtol=0.05, atol=0.02)
                 chol_mock.assert_not_called()
 

@@ -46,16 +46,16 @@ class CholLinearOperator(RootLinearOperator):
     @cached
     def diag(self):
         # TODO: Can we be smarter here?
-        return (self.root.evaluate() ** 2).sum(-1)
+        return (self.root.to_dense() ** 2).sum(-1)
 
     @cached
-    def evaluate(self):
+    def to_dense(self):
         root = self.root
         if self.upper:
             res = root._transpose_nonbatch() @ root
         else:
             res = root @ root._transpose_nonbatch()
-        return res.evaluate()
+        return res.to_dense()
 
     @cached
     def inverse(self):

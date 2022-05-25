@@ -55,7 +55,7 @@ class TestConstantMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.T
     def evaluate_linear_op(self, linear_op):
         constant = linear_op.expanded_constant
         toeplitz = linear_op.base_linear_op
-        return toeplitz.evaluate() * constant
+        return toeplitz.to_dense() * constant
 
 
 class TestConstantMulLinearOperatorMultiBatchBroadcastConstant(LinearOperatorTestCase, unittest.TestCase):
@@ -73,7 +73,7 @@ class TestConstantMulLinearOperatorMultiBatchBroadcastConstant(LinearOperatorTes
     def evaluate_linear_op(self, linear_op):
         constant = linear_op.expanded_constant
         toeplitz = linear_op.base_linear_op
-        return toeplitz.evaluate() * constant
+        return toeplitz.to_dense() * constant
 
 
 if __name__ == "__main__":

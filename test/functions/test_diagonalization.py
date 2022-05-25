@@ -24,7 +24,7 @@ class TestDiagonalization(BaseTestCase, unittest.TestCase):
         for method in ["symeig", "lanczos"]:
             # Forward
             evals, evecs = DenseLinearOperator(mat).diagonalization(method=method)
-            evecs = evecs.evaluate()
+            evecs = evecs.to_dense()
             res = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-1, -2))
             self.assertAllClose(res, mat)
 

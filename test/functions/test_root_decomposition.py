@@ -22,7 +22,7 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
         mat_clone = mat.detach().clone().requires_grad_(True)
 
         # Forward
-        root = DenseLinearOperator(mat).root_decomposition().root.evaluate()
+        root = DenseLinearOperator(mat).root_decomposition().root.to_dense()
         res = root.matmul(root.transpose(-1, -2))
         self.assertAllClose(res, mat)
 
@@ -41,7 +41,7 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
         root = (
             DenseLinearOperator(mat)
             .root_inv_decomposition(method="lanczos", initial_vectors=probe_vectors, test_vectors=test_vectors)
-            .root.evaluate()
+            .root.to_dense()
         )
         res = root.matmul(root.transpose(-1, -2))
         actual = mat_clone.inverse()

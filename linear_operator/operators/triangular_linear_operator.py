@@ -125,15 +125,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor.diag()
 
     @cached
-    def evaluate(self) -> Tensor:
-        return self._tensor.evaluate()
+    def to_dense(self) -> Tensor:
+        return self._tensor.to_dense()
 
     def exp(self) -> "TriangularLinearOperator":
         return TriangularLinearOperator(self._tensor.exp(), upper=self.upper)
 
     def inv_matmul(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
         if isinstance(self._tensor, DenseLinearOperator):
-            res = torch.triangular_solve(right_tensor, self.evaluate(), upper=self.upper).solution
+            res = torch.triangular_solve(right_tensor, self.to_dense(), upper=self.upper).solution
         elif isinstance(self._tensor, BatchRepeatLinearOperator):
             res = self._tensor.base_linear_op.inv_matmul(right_tensor, left_tensor)
             # TODO: Proper broadcasting
