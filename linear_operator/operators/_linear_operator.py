@@ -769,6 +769,25 @@ class LinearOperator(ABC):
         """
         return self.transpose(-1, -2)._matmul(rhs)
 
+    def add(self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None) -> LinearOperator:
+        r"""
+        Each element of the tensor :attr:`other` is multiplied by the scalar :attr:`alpha`
+        and added to each element of the :obj:`~linear_operator.operators.LinearOperator`.
+        The resulting :obj:`~linear_operator.operators.LinearOperator` is returned.
+
+        .. math::
+            \text{out} = \text{self} + \text{alpha} ( \text{other} )
+
+        :param other: object to add to :attr:`self`.
+        :param alpha: Optional scalar multiple to apply to :attr:`other`.
+        :return: :math:`\mathbf A + \alpha \mathbf O`, where :math:`\mathbf A`
+            is the linear operator and :math:`\mathbf O` is :attr:`other`.
+        """
+        if alpha is None:
+            return self + other
+        else:
+            return self + alpha * other
+
     def add_diag(self, diag: torch.Tensor) -> LinearOperator:
         r"""
         Adds an element to the diagonal of the matrix.
@@ -1244,6 +1263,16 @@ class LinearOperator(ABC):
         Alias of :meth:`~linear_operator.operators.LinearOperator.ndimension`
         """
         return self.ndimension()
+
+    def div(self, other: Union[float, torch.Tensor]) -> LinearOperator:
+        """
+        Returns the product of this LinearOperator
+        the elementwise reciprocal of another matrix.
+
+        :param other: Object to divide against
+        :return: Result of division.
+        """
+        return self.__div__(other)
 
     def double(self, device_id: Optional[str] = None) -> LinearOperator:
         """
@@ -2019,6 +2048,25 @@ class LinearOperator(ABC):
             index = tuple(index)
             return self[index]
 
+    def sub(self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None) -> LinearOperator:
+        r"""
+        Each element of the tensor :attr:`other` is multiplied by the scalar :attr:`alpha`
+        and subtracted to each element of the :obj:`~linear_operator.operators.LinearOperator`.
+        The resulting :obj:`~linear_operator.operators.LinearOperator` is returned.
+
+        .. math::
+            \text{out} = \text{self} - \text{alpha} ( \text{other} )
+
+        :param other: object to subtract against :attr:`self`.
+        :param alpha: Optional scalar multiple to apply to :attr:`other`.
+        :return: :math:`\mathbf A - \alpha \mathbf O`, where :math:`\mathbf A`
+            is the linear operator and :math:`\mathbf O` is :attr:`other`.
+        """
+        if alpha is None:
+            return self - other
+        else:
+            return self + (alpha * -1) * other
+
     def sum(self, dim: Optional[int] = None) -> Union["LinearOperator", torch.Tensor]:
         """
         Sum the LinearOperator across a dimension.
@@ -2418,6 +2466,9 @@ class LinearOperator(ABC):
 
     def __rmul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self.mul(other)
+
+    def __rsub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+        return self.mul(-1) + other
 
     def __sub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self + other.mul(-1)
