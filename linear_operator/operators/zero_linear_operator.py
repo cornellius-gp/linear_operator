@@ -57,7 +57,7 @@ class ZeroLinearOperator(LinearOperator):
         del sizes[dim]
         return self.__class__(*sizes, dtype=self._dtype, device=self._device)
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
     def _root_decomposition(self):

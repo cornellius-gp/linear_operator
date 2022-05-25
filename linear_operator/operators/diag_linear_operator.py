@@ -69,7 +69,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     def _prod_batch(self, dim):
         return self.__class__(self._diag.prod(dim))
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
         if not self._diag.requires_grad:
             return (None,)
@@ -257,7 +257,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
     def _prod_batch(self, dim):
         return self.__class__(self.diag_values.prod(dim), diag_shape=self.diag_shape)
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
         if not self.diag_values.requires_grad:
             return (None,)

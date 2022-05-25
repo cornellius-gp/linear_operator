@@ -81,14 +81,14 @@ class MatmulLinearOperator(LinearOperator):
     def _t_matmul(self, right_linear_op):
         return self.right_linear_op._t_matmul(self.left_linear_op._t_matmul(right_linear_op))
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)
         right_vecs_times_right_linear_op = self.right_linear_op._matmul(right_vecs)
         left_vecs_times_left_linear_op_t = self.left_linear_op._t_matmul(left_vecs)
-        left_grad = self.left_linear_op._quad_form_derivative(left_vecs, right_vecs_times_right_linear_op)
-        right_grad = self.right_linear_op._quad_form_derivative(left_vecs_times_left_linear_op_t, right_vecs)
+        left_grad = self.left_linear_op._bilinear_derivative(left_vecs, right_vecs_times_right_linear_op)
+        right_grad = self.right_linear_op._bilinear_derivative(left_vecs_times_left_linear_op_t, right_vecs)
 
         left_grad = (left_grad,) if not isinstance(left_grad, tuple) else left_grad
         right_grad = (right_grad,) if not isinstance(right_grad, tuple) else right_grad

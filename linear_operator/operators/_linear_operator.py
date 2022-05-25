@@ -252,6 +252,58 @@ class LinearOperator(ABC):
     ####
     # The following methods PROBABLY should be over-written by LinearOperator subclasses for efficiency
     ####
+    def _bilinear_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        r"""
+        Given :math:`\mathbf U` (left_vecs) and :math:`\mathbf V` (right_vecs),
+        Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.
+
+        Assume a :math:`\ldots x M X N` linear operator :math:`\mathbf K(\boldsymbol \theta)`,
+        represented by tensors/sub-operators :math:`\boldsymbol \theta`.
+        If :math:`\mathbf U \in \mathcal R^{\ldots \times M \times D}` and
+        :math:`\mathbf V \in \mathcal R^{\ldots \times N \times D}`, this function computes:
+
+        .. math::
+            \sum_{i=1}^D \frac{\partial \mathbf u_i^\top \mathbf K(\boldsymbol \theta) v_i}
+                {\partial \boldsymbol \theta}
+
+        Note that the columns of :math:`\mathbf U` and :math:`\mathbf V` are summed over.
+
+        .. note::
+            This method is intended to be used only internally by various
+            Functions that support backpropagation.  For example, this method
+            is used internally by :func:`~linear_operator.LinearOperator.inv_quad_logdet`.
+            It is not likely that users will need to call this method directly.
+
+        :param left_vecs: The vectors :math:`\mathbf U = [\mathbf u_1, \ldots, \mathbf u_D]`
+        :param right_vecs: The vectors :math:`\mathbf V = [\mathbf v_1, \ldots, \mathbf v_D]`
+        :return: Derivative with respect to the arguments (:math:`\boldsymbol \theta`) that
+            represent this this LinearOperator.
+        """
+        from collections import deque
+
+        args = tuple(self.representation())
+        args_with_grads = tuple(arg for arg in args if arg.requires_grad)
+
+        # Easy case: if we don't require any gradients, then just return!
+        if not len(args_with_grads):
+            return tuple(None for _ in args)
+
+        # Normal case: we'll use the autograd to get us a derivative
+        with torch.autograd.enable_grad():
+            loss = (left_vecs * self._matmul(right_vecs)).sum()
+            loss.requires_grad_(True)
+            actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
+
+        # Now make sure that the object we return has one entry for every item in args
+        grads = []
+        for arg in args:
+            if arg.requires_grad:
+                grads.append(actual_grads.popleft())
+            else:
+                grads.append(None)
+
+        return tuple(grads)
+
     def _expand_batch(self, batch_shape: torch.Size) -> LinearOperator:
         """
         Expands along batch dimensions. Return size will be *batch_shape x *matrix_shape.
@@ -317,47 +369,6 @@ class LinearOperator(ABC):
             .squeeze(-1)
         )
         return res
-
-    def _quad_form_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
-        r"""
-        Given :math:`\mathbf u` (left_vecs) and :math:`\mathbf v` (right_vecs),
-        Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.
-
-        ..note::
-            This method is intended to be used only internally by various
-            Functions that support backpropagation.  For example, this method
-            is used internally by :func:`~linear_operator.LinearOperator.inv_quad_logdet`.
-            It is not likely that users will need to call this method directly.
-
-        :param left_vecs: The vectors :math:`\mathbf u`
-        :param right_vecs: The vectors :math:`\mathbf v`
-        :return: Derivative with respect to the arguments that are actually
-            used to represent this this LinearOperator.
-        """
-        from collections import deque
-
-        args = tuple(self.representation())
-        args_with_grads = tuple(arg for arg in args if arg.requires_grad)
-
-        # Easy case: if we don't require any gradients, then just return!
-        if not len(args_with_grads):
-            return tuple(None for _ in args)
-
-        # Normal case: we'll use the autograd to get us a derivative
-        with torch.autograd.enable_grad():
-            loss = (left_vecs * self._matmul(right_vecs)).sum()
-            loss.requires_grad_(True)
-            actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
-
-        # Now make sure that the object we return has one entry for every item in args
-        grads = []
-        for arg in args:
-            if arg.requires_grad:
-                grads.append(actual_grads.popleft())
-            else:
-                grads.append(None)
-
-        return tuple(grads)
 
     ####
     # Class definitions

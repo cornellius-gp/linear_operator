@@ -106,7 +106,7 @@ class ConstantMulLinearOperator(LinearOperator):
             self.base_linear_op._permute_batch(*dims), self._constant.expand(self.batch_shape).permute(*dims)
         )
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         # Gradient with respect to the constant
         constant_deriv = left_vecs * self.base_linear_op._matmul(right_vecs)
         constant_deriv = constant_deriv.sum(-2).sum(-1)
@@ -118,7 +118,7 @@ class ConstantMulLinearOperator(LinearOperator):
 
         # Get derivaties of everything else
         left_vecs = left_vecs * self.expanded_constant
-        res = self.base_linear_op._quad_form_derivative(left_vecs, right_vecs)
+        res = self.base_linear_op._bilinear_derivative(left_vecs, right_vecs)
 
         return tuple(res) + (constant_deriv,)
 

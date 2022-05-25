@@ -78,7 +78,7 @@ class InvQuad(Function):
         if any(ctx.needs_input_grad[2:]):
             left_factors = neg_inv_quad_solves_times_grad_out
             right_factors = inv_quad_solves
-            matrix_arg_grads = linear_op._quad_form_derivative(left_factors, right_factors)
+            matrix_arg_grads = linear_op._bilinear_derivative(left_factors, right_factors)
 
         # input_2 gradients
         if ctx.needs_input_grad[1]:

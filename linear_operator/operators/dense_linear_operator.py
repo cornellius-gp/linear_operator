@@ -46,7 +46,7 @@ class DenseLinearOperator(LinearOperator):
     def _prod_batch(self, dim):
         return self.__class__(self.tensor.prod(dim))
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         res = left_vecs.matmul(right_vecs.transpose(-1, -2))
         return (res,)
 

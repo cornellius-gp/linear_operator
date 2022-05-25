@@ -43,7 +43,7 @@ class Matmul(Function):
         if any(ctx.needs_input_grad[2:]):
             rhs = rhs.unsqueeze(-1) if (rhs.ndimension() == 1) else rhs
             grad_output_matrix = grad_output.unsqueeze(-1) if grad_output.ndimension() == 1 else grad_output
-            arg_grads = ctx.representation_tree(*matrix_args)._quad_form_derivative(grad_output_matrix, rhs)
+            arg_grads = ctx.representation_tree(*matrix_args)._bilinear_derivative(grad_output_matrix, rhs)
 
         # input_2 gradient
         if ctx.needs_input_grad[1]:

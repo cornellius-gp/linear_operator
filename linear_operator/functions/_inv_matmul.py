@@ -97,10 +97,10 @@ class InvMatmul(Function):
                 left_solves = InvMatmul.apply(ctx.representation_tree, False, grad_output, *matrix_args)
 
                 if any(ctx.needs_input_grad[3:]):
-                    # We call _quad_form_derivative to compute dl/dK
+                    # We call _bilinear_derivative to compute dl/dK
                     # To ensure that this term is symmetric, we concatenate the left and right solves together,
                     # and divide the result by 1/2
-                    arg_grads = linear_op._quad_form_derivative(
+                    arg_grads = linear_op._bilinear_derivative(
                         torch.cat([left_solves, right_solves], -1), torch.cat([right_solves, left_solves], -1).mul(-0.5)
                     )
                 if ctx.needs_input_grad[2]:
@@ -117,7 +117,7 @@ class InvMatmul(Function):
                     left_grad = grad_output @ right_solves.transpose(-1, -2)
                 if any(ctx.needs_input_grad[4:]):
                     # We do this concatenation to ensure that the gradient of linear_op is symmetric
-                    arg_grads = linear_op._quad_form_derivative(
+                    arg_grads = linear_op._bilinear_derivative(
                         torch.cat([left_solves, right_solves], -1), torch.cat([right_solves, left_solves], -1).mul(-0.5)
                     )
                 if ctx.needs_input_grad[3]:

@@ -380,8 +380,8 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
     def _mul_constant(self, constant):
         return DiagLinearOperator(self._diag * constant.unsqueeze(-1))
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
-        return KroneckerProductTriangularLinearOperator._quad_form_derivative(self, left_vecs, right_vecs)
+    def _bilinear_derivative(self, left_vecs, right_vecs):
+        return KroneckerProductTriangularLinearOperator._bilinear_derivative(self, left_vecs, right_vecs)
 
     def sqrt(self):
         return self.__class__(*[lt.sqrt() for lt in self.linear_ops])

@@ -183,7 +183,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         res = self.__class__(self.base_linear_op._permute_batch(*dims), batch_repeat=new_batch_repeat)
         return res
 
-    def _quad_form_derivative(self, left_vectors, right_vectors):
+    def _bilinear_derivative(self, left_vectors, right_vectors):
         if self.is_square:
             left_output_shape = _matmul_broadcast_shape(self.shape, left_vectors.shape)
             if left_output_shape != left_vectors.shape:
@@ -196,9 +196,9 @@ class BatchRepeatLinearOperator(LinearOperator):
             left_vectors = self._move_repeat_batches_to_columns(left_vectors, left_output_shape)
             right_vectors = self._move_repeat_batches_to_columns(right_vectors, right_output_shape)
 
-            return self.base_linear_op._quad_form_derivative(left_vectors, right_vectors)
+            return self.base_linear_op._bilinear_derivative(left_vectors, right_vectors)
         else:
-            return super()._quad_form_derivative(left_vectors, right_vectors)
+            return super()._bilinear_derivative(left_vectors, right_vectors)
 
     def _root_decomposition(self):
         return self.base_linear_op._root_decomposition().repeat(*self.batch_repeat, 1, 1)

@@ -110,7 +110,7 @@ class BlockLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         if left_vecs.ndim == 1:
             left_vecs = left_vecs.unsqueeze(-1)
             right_vecs = right_vecs.unsqueeze(-1)
@@ -119,7 +119,7 @@ class BlockLinearOperator(LinearOperator):
             left_vecs = left_vecs.unsqueeze(-1)
         left_vecs = self._add_batch_dim(left_vecs)
         right_vecs = self._add_batch_dim(right_vecs)
-        res = self.base_linear_op._quad_form_derivative(left_vecs, right_vecs)
+        res = self.base_linear_op._bilinear_derivative(left_vecs, right_vecs)
         return res
 
     def _permute_batch(self, *dims):

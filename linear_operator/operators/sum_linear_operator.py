@@ -41,9 +41,9 @@ class SumLinearOperator(LinearOperator):
         # We're using a custom method here - the constant mul is applied to the base_linear_ops
         return self.__class__(*[lt._mul_constant(other) for lt in self.linear_ops])
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         return tuple(
-            var for linear_op in self.linear_ops for var in linear_op._quad_form_derivative(left_vecs, right_vecs)
+            var for linear_op in self.linear_ops for var in linear_op._bilinear_derivative(left_vecs, right_vecs)
         )
 
     def _size(self):

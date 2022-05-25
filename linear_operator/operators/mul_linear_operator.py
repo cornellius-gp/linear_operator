@@ -72,7 +72,7 @@ class MulLinearOperator(LinearOperator):
             res = super()._mul_constant(constant)
         return res
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)
@@ -92,7 +92,7 @@ class MulLinearOperator(LinearOperator):
 
         left_factor = left_factor.view(*batch_shape, n, num_vecs * right_rank)
         right_factor = right_factor.view(*batch_shape, n, num_vecs * right_rank)
-        left_deriv_args = self.left_linear_op._quad_form_derivative(left_factor, right_factor)
+        left_deriv_args = self.left_linear_op._bilinear_derivative(left_factor, right_factor)
 
         if isinstance(self.left_linear_op, RootLinearOperator):
             left_root = self.left_linear_op.root.to_dense()
@@ -107,7 +107,7 @@ class MulLinearOperator(LinearOperator):
 
         left_factor = left_factor.view(*batch_shape, n, num_vecs * left_rank)
         right_factor = right_factor.view(*batch_shape, n, num_vecs * left_rank)
-        right_deriv_args = self.right_linear_op._quad_form_derivative(left_factor, right_factor)
+        right_deriv_args = self.right_linear_op._bilinear_derivative(left_factor, right_factor)
 
         return tuple(list(left_deriv_args) + list(right_deriv_args))
 

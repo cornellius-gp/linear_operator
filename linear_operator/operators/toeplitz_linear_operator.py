@@ -33,7 +33,7 @@ class ToeplitzLinearOperator(LinearOperator):
         # Matrix is symmetric
         return self._matmul(rhs)
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)

@@ -206,10 +206,10 @@ class InvQuadLogdet(Function):
 
         left_factors = torch.cat(left_factors_list, -1)
         right_factors = torch.cat(right_factors_list, -1)
-        matrix_arg_grads = linear_op._quad_form_derivative(left_factors, right_factors)
+        matrix_arg_grads = linear_op._bilinear_derivative(left_factors, right_factors)
 
         # precond gradient
-        precond_arg_grads = precond_lt._quad_form_derivative(
+        precond_arg_grads = precond_lt._bilinear_derivative(
             -precond_probe_vectors * coef, precond_probe_vectors * logdet_grad_output
         )
 

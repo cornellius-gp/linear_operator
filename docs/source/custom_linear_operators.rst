@@ -17,9 +17,9 @@ the matrix that the LinearOperator represents)
 
 In addition to these, the following methods should be implemented for maximum efficiency
 
-* :meth:`~linear_operator.operators.LinearOperator._quad_form_derivative`,
-  which computes the derivative of a quadratic form with the LinearOperator
-  (e.g. :math:`d (\mathbf b^T \mathbf A \mathbf c) / d \mathbf A`).
+* :meth:`~linear_operator.operators.LinearOperator._bilinear_derivative`,
+  which computes the derivative of a quadratic form with the LinearOperator's representation
+  (e.g. :math:`\partial (\mathbf b^T \mathbf A(\boldsymbol \theta) \mathbf c) / \partial \boldsymbol \theta`).
 * :meth:`~linear_operator.operators.LinearOperator._get_indices`, which returns
   a :class:`torch.Tensor` containing elements that are given by various tensor indices.
 * :meth:`~linear_operator.operators.LinearOperator._expand_batch`, which

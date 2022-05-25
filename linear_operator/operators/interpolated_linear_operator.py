@@ -226,7 +226,7 @@ class InterpolatedLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -238,7 +238,7 @@ class InterpolatedLinearOperator(LinearOperator):
         # base_linear_op grad
         left_res = sparse.bdsmm(left_interp_t, left_vecs)
         right_res = sparse.bdsmm(right_interp_t, right_vecs)
-        base_lv_grad = list(self.base_linear_op._quad_form_derivative(left_res, right_res))
+        base_lv_grad = list(self.base_linear_op._bilinear_derivative(left_res, right_res))
 
         # left_interp_values grad
         n_vecs = right_res.size(-1)

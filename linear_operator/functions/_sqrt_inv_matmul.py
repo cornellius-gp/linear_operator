@@ -68,7 +68,7 @@ class SqrtInvMatmul(Function):
             # Compute matrix grads
             terms1 = torch.cat([lhs_no_shift_solves.unsqueeze(0), lhs_solves], 0)
             terms2 = torch.cat([neg_inv_quad_solves_mul_grad.unsqueeze(0), weighted_rhs_solves_mul_grad], 0)
-            matrix_arg_grads = ctx.linear_op._quad_form_derivative(
+            matrix_arg_grads = ctx.linear_op._bilinear_derivative(
                 torch.cat([terms1, terms2], -1), torch.cat([terms2, terms1], -1).mul_(0.5)
             )
 
@@ -94,7 +94,7 @@ class SqrtInvMatmul(Function):
             # Compute matrix grads
             terms1 = grad_solves_mul_weights
             terms2 = rhs_solves
-            matrix_arg_grads = ctx.linear_op._quad_form_derivative(
+            matrix_arg_grads = ctx.linear_op._bilinear_derivative(
                 torch.cat([terms1, terms2], -1), torch.cat([terms2, terms1], -1).mul_(0.5)
             )
 

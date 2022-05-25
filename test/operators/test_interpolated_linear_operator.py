@@ -12,7 +12,7 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
     should_test_sample = True
 
-    def test_quad_form_derivative(self):
+    def test_bilinear_derivative(self):
         # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
@@ -49,7 +49,7 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
     seed = 0
     should_test_sample = True
 
-    def test_quad_form_derivative(self):
+    def test_bilinear_derivative(self):
         # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
@@ -95,7 +95,7 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
     should_test_sample = False
     skip_slq_tests = True
 
-    def test_quad_form_derivative(self):
+    def test_bilinear_derivative(self):
         # InterpolatedLinearOperator's representation includes int variables (the interp. indices),
         # so the default derivative doesn't apply
         pass
@@ -162,7 +162,7 @@ class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCas
     test_inv_quad_logdet = empty_method
     test_inv_quad_logdet_no_reduce = empty_method
     test_inv_quad_logdet_no_reduce_cholesky = empty_method
-    test_quad_form_derivative = empty_method
+    test_bilinear_derivative = empty_method
     test_root_decomposition = empty_method
     test_root_decomposition_cholesky = empty_method
     test_root_inv_decomposition = empty_method

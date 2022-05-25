@@ -165,7 +165,7 @@ class RootDecomposition(Function):
             else:
                 left_factor = left_factor.contiguous()
                 right_factor = right_factor.contiguous()
-            res = linear_op._quad_form_derivative(left_factor, right_factor)
+            res = linear_op._bilinear_derivative(left_factor, right_factor)
 
             return tuple([None] * 9 + list(res))
         else:

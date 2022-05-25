@@ -308,14 +308,14 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
             actual = evaluated.permute(*dims, -2, -1)
             self.assertAllClose(res, actual)
 
-    def test_quad_form_derivative(self):
+    def test_bilinear_derivative(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_clone = linear_op.clone().detach().requires_grad_(True)
         left_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-2), 2)
         right_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 2)
 
-        deriv_custom = linear_op._quad_form_derivative(left_vecs, right_vecs)
-        deriv_auto = linear_operator.operators.LinearOperator._quad_form_derivative(
+        deriv_custom = linear_op._bilinear_derivative(left_vecs, right_vecs)
+        deriv_auto = linear_operator.operators.LinearOperator._bilinear_derivative(
             linear_op_clone, left_vecs, right_vecs
         )
 

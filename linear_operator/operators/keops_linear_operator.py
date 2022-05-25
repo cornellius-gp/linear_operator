@@ -83,10 +83,10 @@ class KeOpsLinearOperator(LinearOperator):
         # Now construct a kernel with those indices
         return self.__class__(x1, x2, covar_func=self.covar_func, **self.params)
 
-    def _quad_form_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs, right_vecs):
         """
         Use default behavior, but KeOps does not automatically make args contiguous like torch.matmul.
 
         This is necessary for variational GP models.
         """
-        return super()._quad_form_derivative(left_vecs.contiguous(), right_vecs.contiguous())
+        return super()._bilinear_derivative(left_vecs.contiguous(), right_vecs.contiguous())
