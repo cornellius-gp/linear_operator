@@ -288,11 +288,11 @@ class BatchRepeatLinearOperator(LinearOperator):
 
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
-        U_, S_, V_ = self.base_linear_op.svd()
+        U_, S_, Vt_ = self.base_linear_op.svd()
         U = U_.repeat(*self.batch_repeat, 1, 1)
         S = S_.repeat(*self.batch_repeat, 1)
-        V = V_.repeat(*self.batch_repeat, 1, 1)
-        return U, S, V
+        Vt = Vt_.repeat(*self.batch_repeat, 1, 1)
+        return U, S, Vt
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)

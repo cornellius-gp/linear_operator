@@ -154,10 +154,10 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def test_svd(self):
         linear_op = self.create_linear_op()
-        U, S, V = linear_op.svd()
+        U, S, Vt = linear_op.svd()
         self.assertAllClose(S, torch.ones(linear_op.shape[:-1]))
         self.assertAllClose(U.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
-        self.assertAllClose(V.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(Vt.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
 
 class TestIdentityLinearOperatorBatch(TestIdentityLinearOperator):

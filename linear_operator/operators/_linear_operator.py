@@ -700,7 +700,7 @@ class LinearOperator(ABC):
             return base_precond
         elif linear_operator.beta_features.default_preconditioner.on():
             if hasattr(self, "_default_preconditioner_cache"):
-                U, S, V = self._default_preconditioner_cache
+                U, S, Vt = self._default_preconditioner_cache
             else:
                 precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
                 random_basis = torch.randn(
@@ -716,13 +716,13 @@ class LinearOperator(ABC):
                     settings.verbose_linalg.logger.debug(
                         f"Running svd on a matrix of size {orthog_projected_mat.shape}."
                     )
-                U, S, V = torch.svd(orthog_projected_mat)
+                U, S, Vt = torch.linalg.svd(orthog_projected_mat)
                 U = proj_q.matmul(U)
 
-                self._default_preconditioner_cache = (U, S, V)
+                self._default_preconditioner_cache = (U, S, Vt)
 
             def preconditioner(v):
-                res = V.mT.matmul(v)
+                res = Vt.matmul(v)
                 res = (1 / S).unsqueeze(-1) * res
                 res = U.matmul(res)
                 return res
@@ -754,8 +754,8 @@ class LinearOperator(ABC):
         signs = torch.sign(evals)
         U = evecs * signs.unsqueeze(-2)
         S = torch.abs(evals)
-        V = evecs
-        return U, S, V
+        Vt = evecs.mT
+        return U, S, Vt
 
     def _symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
         r"""
@@ -939,7 +939,7 @@ class LinearOperator(ABC):
         pvector = current_inv_root.matmul(low_rank_mat)
         # USV^T = p; when p is a vector this saves us the trouble of computing an orthonormal basis
         pvector = to_dense(pvector)
-        U, S, _ = torch.svd(pvector, some=False)
+        U, S, _ = torch.linalg.svd(pvector, full_matrices=True)
 
         # we want the root decomposition of I_r + U S^2 U^T but S is q so we need to pad.
         one_padding = torch.ones(*S.shape[:-1], U.shape[-2] - S.shape[-1], device=S.device, dtype=S.dtype)

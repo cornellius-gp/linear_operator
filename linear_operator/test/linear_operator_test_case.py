@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import itertools
 import math
 from abc import abstractmethod
 from itertools import combinations, product
@@ -918,38 +917,31 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op_copy = linear_op.clone().detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
+        # Create a random diagonal to prevent repeated eigenvalues
+        rand_diag = torch.randn(linear_op.size(-1)).abs()
+        add_diag_linear_op = linear_op.add_diagonal(rand_diag)
+        evaluated = evaluated + torch.diag_embed(rand_diag)
+
         # Perform forward pass
-        U_unsorted, S_unsorted, V_unsorted = linear_op.svd()
-        U_unsorted, V_unsorted = U_unsorted.to_dense(), V_unsorted.to_dense()
+        U_unsorted, S_unsorted, Vt_unsorted = add_diag_linear_op.svd()
+        U_unsorted, V_unsorted = U_unsorted.to_dense(), Vt_unsorted.to_dense()
 
         # since LinearOperator.svd does not sort the singular values, we do this here for the check
         S, idxr = torch.sort(S_unsorted, dim=-1, descending=True)
         idxr = idxr.unsqueeze(-2).expand(U_unsorted.shape)
         U = torch.gather(U_unsorted, dim=-1, index=idxr)
-        V = torch.gather(V_unsorted, dim=-1, index=idxr)
+        Vt = torch.gather(V_unsorted, dim=-2, index=idxr.mT)
 
         # compute expected result from full tensor
-        U_actual, S_actual, V_actual = torch.svd(evaluated.double())
+        U_actual, S_actual, Vt_actual = torch.linalg.svd(evaluated.double())
         U_actual = U_actual.to(dtype=evaluated.dtype)
         S_actual = S_actual.to(dtype=evaluated.dtype)
-        V_actual = V_actual.to(dtype=evaluated.dtype)
+        Vt_actual = Vt_actual.to(dtype=evaluated.dtype)
 
         # Check forward pass
         self.assertAllClose(S, S_actual, **self.tolerances["svd"])
-        lt_from_svd = U @ torch.diag_embed(S) @ V.mT
+        lt_from_svd = U @ torch.diag_embed(S) @ Vt
         self.assertAllClose(lt_from_svd, evaluated, **self.tolerances["svd"])
-
-        # if there are repeated singular values, we'll skip checking the singular vectors
-        U_abs, U_actual_abs = U.abs(), U_actual.abs()
-        V_abs, V_actual_abs = V.abs(), V_actual.abs()
-        any_svals_repeated = False
-        for idx in itertools.product(*[range(b) for b in S_actual.shape[:-1]]):
-            Si = S_actual[idx]
-            if torch.unique(Si.detach()).shape[-1] == Si.shape[-1]:  # detach to avoid pytorch/pytorch#41389
-                self.assertAllClose(U_abs[idx], U_actual_abs[idx], **self.tolerances["svd"])
-                self.assertAllClose(V_abs[idx], V_actual_abs[idx], **self.tolerances["svd"])
-            else:
-                any_svals_repeated = True
 
         # Perform backward pass
         svd_grad = torch.randn_like(S)
@@ -957,7 +949,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         ((S_actual * svd_grad).sum()).backward()
 
         # Check grads if there were no repeated singular values
-        if not any_svals_repeated:
-            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                    self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
