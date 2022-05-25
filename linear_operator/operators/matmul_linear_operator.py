@@ -2,7 +2,7 @@
 
 import torch
 
-from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _pad_with_singletons
+from ..utils.broadcasting import _matmul_broadcast_shape, _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -24,14 +24,14 @@ class MatmulLinearOperator(LinearOperator):
         right_linear_op = to_linear_operator(right_linear_op)
 
         # Match batch dimensions
-        batch_shape = _mul_broadcast_shape(left_linear_op.batch_shape, right_linear_op.batch_shape)
+        batch_shape = torch.broadcast_shapes(left_linear_op.batch_shape, right_linear_op.batch_shape)
         if left_linear_op.batch_shape != batch_shape:
             left_linear_op = left_linear_op._expand_batch(batch_shape)
         if right_linear_op.batch_shape != batch_shape:
             right_linear_op = right_linear_op._expand_batch(batch_shape)
 
         super().__init__(left_linear_op, right_linear_op)
-        batch_shape = _mul_broadcast_shape(left_linear_op.batch_shape, right_linear_op.batch_shape)
+        batch_shape = torch.broadcast_shapes(left_linear_op.batch_shape, right_linear_op.batch_shape)
         if left_linear_op.batch_shape != batch_shape:
             self.left_linear_op = left_linear_op._expand_batch(batch_shape)
         else:

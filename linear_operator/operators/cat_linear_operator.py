@@ -2,7 +2,7 @@
 
 import torch
 
-from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _to_helper
+from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
 from ..utils.deprecation import bool_compat
 from ..utils.getitem import _noop_index
 from ._linear_operator import LinearOperator, to_dense
@@ -169,7 +169,7 @@ class CatLinearOperator(LinearOperator):
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         indices = [*batch_indices, row_index, col_index]
-        target_shape = _mul_broadcast_shape(*[index.shape for index in indices])
+        target_shape = torch.broadcast_shapes(*[index.shape for index in indices])
         indices = [index.expand(target_shape).reshape(-1) for index in indices]
         cat_dim_indices = indices[self.cat_dim]
 

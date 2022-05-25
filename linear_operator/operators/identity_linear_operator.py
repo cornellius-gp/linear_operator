@@ -5,7 +5,6 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 
-from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.getitem import _compute_getitem_size, _is_noop_index
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -48,7 +47,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def _maybe_reshape_rhs(self, rhs):
         if self._batch_shape != rhs.shape[:-2]:
-            batch_shape = _mul_broadcast_shape(rhs.shape[:-2], self._batch_shape)
+            batch_shape = torch.broadcast_shapes(rhs.shape[:-2], self._batch_shape)
             return rhs.expand(*batch_shape, *rhs.shape[-2:])
         else:
             return rhs

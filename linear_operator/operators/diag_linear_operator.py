@@ -6,7 +6,6 @@ import torch
 from torch import Tensor
 
 from .. import settings
-from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .dense_linear_operator import DenseLinearOperator
@@ -105,7 +104,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag.abs())
 
     def add_diagonal(self, added_diag):
-        shape = _mul_broadcast_shape(self._diag.shape, added_diag.shape)
+        shape = torch.broadcast_shapes(self._diag.shape, added_diag.shape)
         return DiagLinearOperator(self._diag.expand(shape) + added_diag.expand(shape))
 
     @cached

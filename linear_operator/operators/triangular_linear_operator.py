@@ -5,7 +5,6 @@ from typing import Callable, Optional, Tuple, Union
 import torch
 from torch import Tensor
 
-from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.errors import NotPSDError
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -125,7 +124,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def add_diagonal(self, added_diag: Tensor) -> "TriangularLinearOperator":
         from .added_diag_linear_operator import AddedDiagLinearOperator
 
-        shape = _mul_broadcast_shape(self._diag.shape, added_diag.shape)
+        shape = torch.broadcast_shapes(self._diag.shape, added_diag.shape)
         added_diag_lt = AddedDiagLinearOperator(self._tensor.expand(shape), added_diag.expand(shape))
         return TriangularLinearOperator(added_diag_lt, upper=self.upper)
 

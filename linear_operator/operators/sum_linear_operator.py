@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+
+import torch
 from torch import Tensor
 
-from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .dense_linear_operator import to_linear_operator
@@ -16,7 +17,7 @@ class SumLinearOperator(LinearOperator):
             linear_ops = tuple(to_linear_operator(lt) for lt in linear_ops)
         except TypeError:
             raise TypeError("All arguments of a SumLinearOperator should be LinearOperators or Tensors")
-        batch_shape = _mul_broadcast_shape(*[lt.batch_shape for lt in linear_ops])
+        batch_shape = torch.broadcast_shapes(*[lt.batch_shape for lt in linear_ops])
         linear_ops = tuple(lt._expand_batch(batch_shape) if lt.batch_shape != batch_shape else lt for lt in linear_ops)
         super(SumLinearOperator, self).__init__(*linear_ops, **kwargs)
 
@@ -50,7 +51,7 @@ class SumLinearOperator(LinearOperator):
         )
 
     def _size(self):
-        return _mul_broadcast_shape(*[lt.shape for lt in self.linear_ops])
+        return torch.broadcast_shapes(*[lt.shape for lt in self.linear_ops])
 
     def _sum_batch(self, dim):
         return self.__class__(*(linear_op._sum_batch(dim) for linear_op in self.linear_ops))
@@ -80,7 +81,7 @@ class SumLinearOperator(LinearOperator):
             return SumLinearOperator(*(list(self.linear_ops) + [other]))
         elif isinstance(other, Tensor):
             # get broadcast shape, assuming mul broadcasting the same as add broadcasting
-            broadcasted_shape = _mul_broadcast_shape(self.shape, other.shape)
+            broadcasted_shape = torch.broadcast_shapes(self.shape, other.shape)
 
             # to_linear_operator + broadcast other
             broadcasted_other = to_linear_operator(other.expand(broadcasted_shape))

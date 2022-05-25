@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 
 from .. import settings
-from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape
+from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .dense_linear_operator import to_linear_operator
@@ -183,7 +183,7 @@ class KroneckerProductLinearOperator(LinearOperator):
 
         tsr_shapes = [q.size(-1) for q in self.linear_ops]
         n_rows = rhs.size(-2)
-        batch_shape = _mul_broadcast_shape(self.shape[:-2], rhs.shape[:-2])
+        batch_shape = torch.broadcast_shapes(self.shape[:-2], rhs.shape[:-2])
         perm_batch = tuple(range(len(batch_shape)))
         y = rhs.clone().expand(*batch_shape, *rhs.shape[-2:])
         for n, q in zip(tsr_shapes, self.linear_ops):

@@ -2,7 +2,6 @@
 
 import torch
 
-from ..utils.broadcasting import _mul_broadcast_shape
 from ..utils.getitem import _compute_getitem_size
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -166,7 +165,7 @@ class ZeroLinearOperator(LinearOperator):
         return ZeroLinearOperator(*output_shape, dtype=tensor.dtype, device=tensor.device)
 
     def mul(self, other):
-        shape = _mul_broadcast_shape(self.shape, other.shape)
+        shape = torch.broadcast_shapes(self.shape, other.shape)
         return self.__class__(*shape, dtype=self._dtype, device=self._device)
 
     def solve(self, right_tensor, left_tensor=None):

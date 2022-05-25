@@ -4,7 +4,6 @@ import warnings
 import torch
 
 from .. import settings
-from .broadcasting import _mul_broadcast_shape
 from .linear_cg import linear_cg
 from .minres import minres
 from .warnings import NumericalWarning
@@ -39,7 +38,7 @@ def contour_integral_quad(
     if num_contour_quadrature is None:
         num_contour_quadrature = settings.num_contour_quadrature.value()
 
-    output_batch_shape = _mul_broadcast_shape(linear_op.batch_shape, rhs.shape[:-2])
+    output_batch_shape = torch.broadcast_shapes(linear_op.batch_shape, rhs.shape[:-2])
     preconditioner, preconditioner_lt, _ = linear_op._preconditioner()
 
     def sqrt_precond_matmul(rhs):

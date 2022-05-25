@@ -7,7 +7,6 @@ import torch
 from torch import Tensor
 
 from .. import settings
-from ..utils import broadcasting
 from ..utils.memoize import cached
 from ..utils.warnings import NumericalWarning
 from ._linear_operator import LinearOperator
@@ -28,8 +27,6 @@ class AddedDiagLinearOperator(SumLinearOperator):
         super(AddedDiagLinearOperator, self).__init__(*linear_ops, preconditioner_override=preconditioner_override)
         if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
-
-        broadcasting._mul_broadcast_shape(linear_ops[0].shape, linear_ops[1].shape)
 
         if isinstance(linear_ops[0], DiagLinearOperator) and isinstance(linear_ops[1], DiagLinearOperator):
             raise RuntimeError(

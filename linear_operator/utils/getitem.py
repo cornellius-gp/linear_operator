@@ -3,7 +3,7 @@
 import torch
 
 from .. import settings
-from .broadcasting import _mul_broadcast_shape, _pad_with_singletons
+from .broadcasting import _pad_with_singletons
 
 # A slice that does nothing to a dimension
 _noop_index = slice(None, None, None)
@@ -69,7 +69,7 @@ def _compute_getitem_size(obj, indices):
             # goes to the front
             else:
                 try:
-                    tensor_idx_shape = _mul_broadcast_shape(tensor_idx_shape, idx.shape)
+                    tensor_idx_shape = torch.broadcast_shapes(tensor_idx_shape, idx.shape)
                 except RuntimeError:
                     raise IndexError(
                         "Incompatible tensor indices in index - got shapes of {} .".format(
@@ -110,7 +110,7 @@ def _convert_indices_to_tensors(obj, indices):
     """
     slice_indices = tuple(index for index in indices if isinstance(index, slice))
     tensor_indices = tuple(index for index in indices if torch.is_tensor(index))
-    tensor_index_shape = _mul_broadcast_shape(*[tensor_index.shape for tensor_index in tensor_indices])
+    tensor_index_shape = torch.broadcast_shapes(*[tensor_index.shape for tensor_index in tensor_indices])
 
     # How many dimensions will the new tensor index have?
     num_final_dims = len(slice_indices) + len(tensor_index_shape)

@@ -22,7 +22,7 @@ from ..functions._pivoted_cholesky import PivotedCholesky
 from ..functions._root_decomposition import RootDecomposition
 from ..functions._solve import Solve
 from ..functions._sqrt_inv_matmul import SqrtInvMatmul
-from ..utils.broadcasting import _matmul_broadcast_shape, _mul_broadcast_shape, _to_helper
+from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.deprecation import _deprecate_renamed_methods
 from ..utils.errors import CachingError
@@ -337,7 +337,9 @@ class LinearOperator(ABC):
         :param batch_indices: indices to select from batch dimensions.
         :return: Tensor (size determined by broadcasted shape of indices) of selected values
         """
-        final_shape = _mul_broadcast_shape(*(index.shape for index in batch_indices), row_index.shape, col_index.shape)
+        final_shape = torch.broadcast_shapes(
+            *(index.shape for index in batch_indices), row_index.shape, col_index.shape
+        )
         row_index = row_index.expand(final_shape)
         col_index = col_index.expand(final_shape)
         batch_indices = tuple(index.expand(final_shape) for index in batch_indices)
@@ -1084,7 +1086,7 @@ class LinearOperator(ABC):
         D = to_linear_operator(new_mat)
         batch_shape = B.shape[:-2]
         if self.ndimension() < cross_mat.ndimension():
-            expand_shape = _mul_broadcast_shape(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
+            expand_shape = torch.broadcast_shapes(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
             A = self.expand(expand_shape)
         else:
             A = self
@@ -1619,7 +1621,7 @@ class LinearOperator(ABC):
             other = torch.tensor(other, dtype=self.dtype, device=self.device)
 
         try:
-            _mul_broadcast_shape(self.shape, other.shape)
+            torch.broadcast_shapes(self.shape, other.shape)
         except RuntimeError:
             raise RuntimeError(
                 "Cannot multiply LinearOperator of size {} by an object of size {}".format(self.shape, other.shape)
@@ -2393,7 +2395,7 @@ class LinearOperator(ABC):
             return self.add_low_rank(other.root)
         elif isinstance(other, Tensor):
             other = to_linear_operator(other)
-            shape = _mul_broadcast_shape(self.shape, other.shape)
+            shape = torch.broadcast_shapes(self.shape, other.shape)
             new_self = self if self.shape[:-2] == shape[:-2] else self._expand_batch(shape[:-2])
             new_other = other if other.shape[:-2] == shape[:-2] else other._expand_batch(shape[:-2])
             return SumLinearOperator(new_self, new_other)
