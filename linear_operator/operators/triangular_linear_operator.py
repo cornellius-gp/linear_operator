@@ -165,7 +165,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
 
     def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
         if isinstance(self._tensor, DenseLinearOperator):
-            res = torch.triangular_solve(right_tensor, self.to_dense(), upper=self.upper).solution
+            res = torch.linalg.solve_triangular(self.to_dense(), right_tensor, upper=self.upper)
         elif isinstance(self._tensor, BatchRepeatLinearOperator):
             res = self._tensor.base_linear_op.solve(right_tensor, left_tensor)
             # TODO: Proper broadcasting

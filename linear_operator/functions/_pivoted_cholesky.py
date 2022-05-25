@@ -116,7 +116,7 @@ class PivotedCholesky(Function):
 
             # Compute (Krows * L^{-T}) - the (pivoted) result of Pivoted Cholesky
             res_pivoted = torch.cat(
-                [L, torch.triangular_solve(Krows[..., m:, :].mT, L, upper=False)[0].mT],
+                [L, torch.linalg.solve_triangular(L, Krows[..., m:, :].mT, upper=False).mT],
                 dim=-2,
             )
             res = apply_permutation(res_pivoted, left_permutation=_inverse_permutation, right_permutation=None)
