@@ -40,10 +40,11 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
     def _test_matmul(self, rhs):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
-        res = linear_op.matmul(rhs)
+        # Test operator
+        res = linear_op @ rhs
         actual = evaluated.matmul(rhs)
         self.assertAllClose(res, actual)
 
@@ -54,13 +55,24 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["matmul"])
 
+        # Test __torch_function__
+        res = torch.matmul(linear_op, rhs)
+        actual = evaluated.matmul(rhs)
+        self.assertAllClose(res, actual)
+
     def _test_rmatmul(self, lhs):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
+        # Test operator
         res = lhs @ linear_op
         actual = lhs @ evaluated
+        self.assertAllClose(res, actual)
+
+        # Test __torch_function__
+        res = torch.matmul(lhs, linear_op)
+        actual = torch.matmul(lhs, evaluated)
         self.assertAllClose(res, actual)
 
         grad = torch.randn_like(res)
@@ -75,7 +87,12 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         evaluated = self.evaluate_linear_op(linear_op)
 
         rhs = torch.randn(linear_op.shape)
+        # Test operator functionality
         self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
+        self.assertAllClose((rhs + linear_op).to_dense(), evaluated + rhs)
+        # Test __torch_function__ functionality
+        self.assertAllClose(torch.add(linear_op, rhs).to_dense(), evaluated + rhs)
+        self.assertAllClose(torch.add(rhs, linear_op).to_dense(), evaluated + rhs)
 
         rhs = torch.randn(linear_op.matrix_shape)
         self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
@@ -96,74 +113,35 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         rhs = torch.randn(linear_op.size(-1))
         return self._test_matmul(rhs)
 
-    def test_rmatmul_vec(self):
-        linear_op = self.create_linear_op()
-
-        # We skip this test if we're dealing with batch LinearOperators
-        # They shouldn't multiply by a vec
-        if linear_op.ndimension() > 2:
-            return
-
-        lhs = torch.randn(linear_op.size(-2))
-        return self._test_rmatmul(lhs)
-
-    def test_matmul_matrix(self):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 4)
-        return self._test_matmul(rhs)
-
-    def test_rmatmul_matrix(self):
-        linear_op = self.create_linear_op()
-        lhs = torch.randn(*linear_op.batch_shape, 4, linear_op.size(-2))
-        return self._test_rmatmul(lhs)
-
-    def test_matmul_matrix_broadcast(self):
-        linear_op = self.create_linear_op()
-
-        # Right hand size has one more batch dimension
-        batch_shape = torch.Size((3, *linear_op.batch_shape))
-        rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
-        self._test_matmul(rhs)
-
-        if linear_op.ndimension() > 2:
-            # Right hand size has one fewer batch dimension
-            batch_shape = torch.Size(linear_op.batch_shape[1:])
-            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
-            self._test_matmul(rhs)
-
-            # Right hand size has a singleton dimension
-            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
-            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
-            self._test_matmul(rhs)
-
-    def test_rmatmul_matrix_broadcast(self):
-        linear_op = self.create_linear_op()
-
-        # Left hand size has one more batch dimension
-        batch_shape = torch.Size((3, *linear_op.batch_shape))
-        lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
-        self._test_rmatmul(lhs)
-
-        if linear_op.ndimension() > 2:
-            # Left hand size has one fewer batch dimension
-            batch_shape = torch.Size(linear_op.batch_shape[1:])
-            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
-            self._test_rmatmul(lhs)
-
-            # Left hand size has a singleton dimension
-            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
-            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
-            self._test_rmatmul(lhs)
-
     def test_constant_mul(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
-        self.assertAllClose((linear_op * 5.0).to_dense(), evaluated * 5.0)
 
-    def test_neg_constant_mul(self):
+        # Test operator functionality
+        self.assertAllClose((linear_op * 5.0).to_dense(), evaluated * 5.0)
+        self.assertAllClose((linear_op * torch.tensor(5.0)).to_dense(), evaluated * 5.0)
+        self.assertAllClose((5.0 * linear_op).to_dense(), evaluated * 5.0)
+        self.assertAllClose((torch.tensor(5.0) * linear_op).to_dense(), evaluated * 5.0)
+
+        # Test __torch_function__ functionality
+        self.assertAllClose(torch.mul(linear_op, torch.tensor(5.0)).to_dense(), evaluated * 5.0)
+        self.assertAllClose(torch.mul(torch.tensor(5.0), linear_op).to_dense(), evaluated * 5.0)
+
+    def test_constant_mul_neg(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
         self.assertAllClose((linear_op * -5.0).to_dense(), evaluated * -5.0)
+
+    def test_constant_div(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        # Test operator functionality
+        self.assertAllClose((linear_op / 5.0).to_dense(), evaluated / 5.0)
+        self.assertAllClose((linear_op / torch.tensor(5.0)).to_dense(), evaluated / 5.0)
+
+        # Test __torch_function__ functionality
+        self.assertAllClose(torch.div(linear_op, torch.tensor(5.0)).to_dense(), evaluated / 5.0)
 
     def test_to_dense(self):
         linear_op = self.create_linear_op()
@@ -303,34 +281,116 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         if linear_op.dim() >= 4:
             evaluated = self.evaluate_linear_op(linear_op)
             dims = torch.randperm(linear_op.dim() - 2).tolist()
-            res = linear_op.permute(*dims, -2, -1).to_dense()
-            actual = evaluated.permute(*dims, -2, -1)
+
+            # Call using __torch_function__
+            res = torch.permute(linear_op, (*dims, -2, -1)).to_dense()
+            actual = torch.permute(evaluated, (*dims, -2, -1))
             self.assertAllClose(res, actual)
 
-    def test_bilinear_derivative(self):
-        linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_clone = linear_op.clone().detach().requires_grad_(True)
-        left_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-2), 2)
-        right_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 2)
+            # Call using method
+            res = linear_op.permute(*dims, -2, -1).to_dense()
+            actual = torch.permute(evaluated, (*dims, -2, -1))
+            self.assertAllClose(res, actual)
 
-        deriv_custom = linear_op._bilinear_derivative(left_vecs, right_vecs)
-        deriv_auto = linear_operator.operators.LinearOperator._bilinear_derivative(
-            linear_op_clone, left_vecs, right_vecs
-        )
+    def test_rmatmul_vec(self):
+        linear_op = self.create_linear_op()
 
-        for dc, da in zip(deriv_custom, deriv_auto):
-            self.assertAllClose(dc, da)
+        # We skip this test if we're dealing with batch LinearOperators
+        # They shouldn't multiply by a vec
+        if linear_op.ndimension() > 2:
+            return
+
+        lhs = torch.randn(linear_op.size(-2))
+        return self._test_rmatmul(lhs)
+
+    def test_matmul_matrix(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 4)
+        return self._test_matmul(rhs)
+
+    def test_rmatmul_matrix(self):
+        linear_op = self.create_linear_op()
+        lhs = torch.randn(*linear_op.batch_shape, 4, linear_op.size(-2))
+        return self._test_rmatmul(lhs)
+
+    def test_matmul_matrix_broadcast(self):
+        linear_op = self.create_linear_op()
+
+        # Right hand size has one more batch dimension
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+        self._test_matmul(rhs)
+
+        if linear_op.ndimension() > 2:
+            # Right hand size has one fewer batch dimension
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+            self._test_matmul(rhs)
+
+            # Right hand size has a singleton dimension
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+            self._test_matmul(rhs)
+
+    def test_rmatmul_matrix_broadcast(self):
+        linear_op = self.create_linear_op()
+
+        # Left hand size has one more batch dimension
+        batch_shape = torch.Size((3, *linear_op.batch_shape))
+        lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+        self._test_rmatmul(lhs)
+
+        if linear_op.ndimension() > 2:
+            # Left hand size has one fewer batch dimension
+            batch_shape = torch.Size(linear_op.batch_shape[1:])
+            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+            self._test_rmatmul(lhs)
+
+            # Left hand size has a singleton dimension
+            batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+            lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+            self._test_rmatmul(lhs)
+
+    def test_rsub(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        rhs = torch.randn(linear_op.shape)
+        # Test operator functionality
+        self.assertAllClose((rhs - linear_op).to_dense(), rhs - evaluated)
+        # Test __torch_function__ functionality
+        self.assertAllClose(torch.sub(rhs, linear_op).to_dense(), rhs - evaluated)
+
+    def test_sub(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        rhs = torch.randn(linear_op.shape)
+        # Test operator functionality
+        self.assertAllClose((linear_op - rhs).to_dense(), evaluated - rhs)
+        # Test __torch_function__ functionality
+        self.assertAllClose(torch.sub(linear_op, rhs).to_dense(), evaluated - rhs)
 
     def test_sum(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
 
-        self.assertAllClose(linear_op.sum(-1), evaluated.sum(-1))
-        self.assertAllClose(linear_op.sum(-2), evaluated.sum(-2))
+        self.assertAllClose(torch.sum(linear_op, -1), torch.sum(evaluated, -1))
+        self.assertAllClose(torch.sum(linear_op, -2), torch.sum(evaluated, -2))
         if linear_op.ndimension() > 2:
-            self.assertAllClose(linear_op.sum(-3).to_dense(), evaluated.sum(-3))
+            self.assertAllClose(torch.sum(linear_op, -3).to_dense(), torch.sum(evaluated, -3))
         if linear_op.ndimension() > 3:
-            self.assertAllClose(linear_op.sum(-4).to_dense(), evaluated.sum(-4))
+            self.assertAllClose(torch.sum(linear_op, -4).to_dense(), torch.sum(evaluated, -4))
+
+    def test_squeeze_unsqueeze(self):
+        linear_operator = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_operator)
+
+        unsqueezed = torch.unsqueeze(linear_operator, -3)
+        self.assertAllClose(unsqueezed.to_dense(), evaluated.unsqueeze(-3))
+
+        squeezed = torch.squeeze(unsqueezed, -3)
+        self.assertAllClose(squeezed.to_dense(), evaluated)
 
     def test_transpose_batch(self):
         linear_op = self.create_linear_op()
@@ -338,8 +398,8 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
         if linear_op.dim() >= 4:
             for i, j in combinations(range(linear_op.dim() - 2), 2):
-                res = linear_op.transpose(i, j).to_dense()
-                actual = evaluated.transpose(i, j)
+                res = torch.transpose(linear_op, i, j).to_dense()
+                actual = torch.transpose(evaluated, i, j)
                 self.assertAllClose(res, actual, **self.tolerances["transpose"])
 
 
@@ -409,7 +469,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def _test_solve(self, rhs, lhs=None, cholesky=False):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
@@ -430,7 +490,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                     res = linear_op.solve(rhs, lhs)
                     actual = lhs_copy @ evaluated.inverse() @ rhs_copy
                 else:
-                    res = linear_op.solve(rhs)
+                    res = torch.linalg.solve(linear_op, rhs)
                     actual = evaluated.inverse().matmul(rhs_copy)
                 self.assertAllClose(res, actual, **self.tolerances["solve"])
 
@@ -506,6 +566,20 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         root_inv_solve = new_lt.root_inv_decomposition().matmul(rhs)
         self.assertAllClose(root_inv_solve, summed_solve, **self.tolerances["root_inv_decomposition"])
 
+    def test_bilinear_derivative(self):
+        linear_op = self.create_linear_op().detach().requires_grad_(True)
+        linear_op_clone = torch.clone(linear_op).detach().requires_grad_(True)
+        left_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-2), 2)
+        right_vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 2)
+
+        deriv_custom = linear_op._bilinear_derivative(left_vecs, right_vecs)
+        deriv_auto = linear_operator.operators.LinearOperator._bilinear_derivative(
+            linear_op_clone, left_vecs, right_vecs
+        )
+
+        for dc, da in zip(deriv_custom, deriv_auto):
+            self.assertAllClose(dc, da)
+
     def test_cat_rows(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -548,10 +622,8 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
         for upper in (False, True):
-            res = linear_op.cholesky(upper=upper).to_dense()
-            actual = torch.linalg.cholesky(evaluated)
-            if upper:
-                actual = actual.transpose(-1, -2)
+            res = torch.linalg.cholesky(linear_op, upper=upper).to_dense()
+            actual = torch.linalg.cholesky(evaluated, upper=upper)
             self.assertAllClose(res, actual, **self.tolerances["cholesky"])
             # TODO: Check gradients
 
@@ -567,9 +639,8 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
 
-        res = linear_op.diagonal(dim1=-1, dim2=-2)
-        actual = evaluated.diagonal(dim1=-2, dim2=-1)
-        actual = actual.view(*linear_op.batch_shape, -1)
+        res = torch.diagonal(linear_op, dim1=-1, dim2=-2)
+        actual = torch.diagonal(evaluated, dim1=-2, dim2=-1)
         self.assertAllClose(res, actual, **self.tolerances["diag"])
 
     def test_eigh(self):
@@ -578,7 +649,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             tolerances = self.tolerances["symeig"][name]
 
             linear_op = self.create_linear_op().detach().requires_grad_(True)
-            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+            linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
             evaluated = self.evaluate_linear_op(linear_op_copy)
 
             # Create a random diagonal to prevent repeated eigenvalues
@@ -588,7 +659,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
             # Perform forward pass
             with linalg_dtypes(dtype):
-                evals_unsorted, evecs_unsorted = add_diag_linear_op.eigh()
+                evals_unsorted, evecs_unsorted = torch.linalg.eigh(add_diag_linear_op)
                 evecs_unsorted = evecs_unsorted.to_dense()
 
             # since LinearOperator.eigh does not sort evals, we do this here for the check
@@ -624,7 +695,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             tolerances = self.tolerances["symeig"][name]
 
             linear_op = self.create_linear_op().detach().requires_grad_(True)
-            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+            linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
             evaluated = self.evaluate_linear_op(linear_op_copy)
 
             # Create a random diagonal to prevent repeated eigenvalues
@@ -634,7 +705,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
             # Perform forward pass
             with linalg_dtypes(dtype):
-                evals, _ = add_diag_linear_op.eigvalsh().sort(dim=-1, descending=False)
+                evals, _ = torch.linalg.eigvalsh(add_diag_linear_op).sort(dim=-1, descending=False)
 
             # since LinearOperator.eigh does not sort evals, we do this here for the check
             evals_actual = torch.linalg.eigvalsh(evaluated.type(dtype))
@@ -648,7 +719,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             ((evals * symeig_grad).sum()).backward()
             ((evals_actual * symeig_grad).sum()).backward()
 
-            # Check grads if there were no repeated evals
             for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
                 if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                     self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
@@ -681,15 +751,49 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_inv_quad_logdet_no_reduce_cholesky(self):
         return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True)
 
+    def test_logdet(self):
+        tolerances = self.tolerances["logdet"]
+
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        linear_op.requires_grad_(True)
+        linear_op_copy.requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+
+        # Add a diagonal
+        linear_op_added_diag = linear_op.add_jitter(0.5)
+        evaluated = evaluated + torch.eye(evaluated.size(-1)).mul(0.5)
+
+        # Here, we just want to check that __torch_function__ works correctly
+        # So we'll just use cholesky
+        # The cg functionality of logdet is tested by test_inv_quad_logdet
+        with linear_operator.settings.max_cholesky_size(10000000):
+            logdet = torch.logdet(linear_op_added_diag)
+            logdet_actual = torch.logdet(evaluated)
+            self.assertAllClose(logdet, logdet_actual, **tolerances)
+
+        # Backwards
+        logdet.sum().backward()
+        logdet_actual.sum().backward()
+
+        # Check grads
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+
     def test_prod(self):
         with linear_operator.settings.fast_computations(covar_root_decomposition=False):
             linear_op = self.create_linear_op()
             evaluated = self.evaluate_linear_op(linear_op)
 
             if linear_op.ndimension() > 2:
-                self.assertAllClose(linear_op.prod(-3).to_dense(), evaluated.prod(-3), **self.tolerances["prod"])
+                self.assertAllClose(
+                    torch.prod(linear_op, -3).to_dense(), torch.prod(evaluated, -3), **self.tolerances["prod"]
+                )
             if linear_op.ndimension() > 3:
-                self.assertAllClose(linear_op.prod(-4).to_dense(), evaluated.prod(-4), **self.tolerances["prod"])
+                self.assertAllClose(
+                    torch.prod(linear_op, -4).to_dense(), torch.prod(evaluated, -4), **self.tolerances["prod"]
+                )
 
     def test_root_decomposition(self, cholesky=False):
         _wrapped_lanczos = MagicMock(wraps=linear_operator.utils.lanczos.lanczos_tridiag)
@@ -764,7 +868,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
 
         res = root_approx.matmul(test_mat)
-        actual = linear_op.solve(test_mat)
+        actual = torch.linalg.solve(linear_op, test_mat)
         self.assertAllClose(res, actual, **self.tolerances["root_inv_decomposition"])
 
     def test_sample(self):
@@ -843,7 +947,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         if len(linear_op.batch_shape):
             return
 
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
@@ -883,7 +987,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         if len(linear_op.batch_shape):
             return
 
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(_ensure_symmetric_grad)
 
@@ -914,7 +1018,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_svd(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
         # Create a random diagonal to prevent repeated eigenvalues
@@ -923,7 +1027,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated = evaluated + torch.diag_embed(rand_diag)
 
         # Perform forward pass
-        U_unsorted, S_unsorted, Vt_unsorted = add_diag_linear_op.svd()
+        U_unsorted, S_unsorted, Vt_unsorted = torch.linalg.svd(add_diag_linear_op)
         U_unsorted, V_unsorted = U_unsorted.to_dense(), Vt_unsorted.to_dense()
 
         # since LinearOperator.svd does not sort the singular values, we do this here for the check

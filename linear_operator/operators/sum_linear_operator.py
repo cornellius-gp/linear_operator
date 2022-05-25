@@ -65,7 +65,7 @@ class SumLinearOperator(LinearOperator):
 
     @cached
     def to_dense(self):
-        return sum(linear_op.to_dense() for linear_op in self.linear_ops)
+        return (sum(linear_op.to_dense() for linear_op in self.linear_ops)).contiguous()
 
     def __add__(self, other):
         from .added_diag_linear_operator import AddedDiagLinearOperator

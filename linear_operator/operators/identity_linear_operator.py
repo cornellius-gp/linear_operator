@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 from typing import Optional, Tuple
 
 import torch
@@ -109,11 +111,26 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def _size(self):
         return torch.Size([*self._batch_shape, self.diag_shape, self.diag_shape])
 
+    @cached(name="svd")
+    def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
+        return self, self._diag, self
+
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
+        return self._diag, self
+
     def _t_matmul(self, rhs):
         return self._maybe_reshape_rhs(rhs)
 
     def _transpose_nonbatch(self):
         return self
+
+    def _unsqueeze_batch(self, dim: int) -> IdentityLinearOperator:
+        batch_shape = list(self._batch_shape)
+        batch_shape.insert(dim, 1)
+        batch_shape = torch.Size(batch_shape)
+        return IdentityLinearOperator(
+            diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
+        )
 
     def abs(self):
         return self
@@ -184,10 +201,3 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def zero_mean_mvn_samples(self, num_samples):
         base_samples = torch.randn(num_samples, *self.shape[:-1], dtype=self.dtype, device=self.device)
         return base_samples
-
-    @cached(name="svd")
-    def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
-        return self, self._diag, self
-
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
-        return self._diag, self

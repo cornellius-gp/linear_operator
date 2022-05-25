@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
+from typing import Tuple, Union
+
 import torch
 
 from .. import settings
@@ -9,7 +13,9 @@ from .broadcasting import _pad_with_singletons
 _noop_index = slice(None, None, None)
 
 
-def _compute_getitem_size(obj, indices):
+def _compute_getitem_size(
+    obj: Union[torch.Tensor, "LinearOperator"], indices: Tuple[Union[slice, torch.LongTensor, int], ...]  # noqa F811
+) -> torch.Size:
     """
     Given an object and a tuple of indices, computes the final size of the
     Indices is a tuple containing ints, slices, and tensors
@@ -17,12 +23,9 @@ def _compute_getitem_size(obj, indices):
     .. note::
         The length of indices must match the dimensionality of obj
 
-    Args:
-        obj - tensor or LinearOperator
-        indices - tuple of ints, slices, tensors
-
-    Returns:
-        :class:`torch.Size`
+    :param obj: Object in question
+    :param indices: Indices of each dimension
+    :return: Expected size of resulting tensor/LinearOperator
     """
     if obj.dim() != len(indices):
         raise RuntimeError(
@@ -88,7 +91,9 @@ def _compute_getitem_size(obj, indices):
     return torch.Size(final_shape)
 
 
-def _convert_indices_to_tensors(obj, indices):
+def _convert_indices_to_tensors(
+    obj: Union[torch.Tensor, "LinearOperator"], indices: Tuple[Union[slice, torch.LongTensor, int], ...]  # noqa F811
+) -> Tuple[torch.LongTensor, ...]:
     """
     Given an index made up of tensors/slices/ints, returns a tensor-only index that has the
     same outcome as the original index (when applied to the obj)
@@ -96,17 +101,14 @@ def _convert_indices_to_tensors(obj, indices):
     .. note::
         The length of indices must match the dimensionality of obj
 
-    Args:
-        obj - tensor or LinearOperator
-        indices - tuple of slices, tensors, ints
-
-    Returns:
-        tuple of tensor indices (shapes of tensors will involve broadcasting)
-
     Example:
         >>> x = torch.randn(3, 6, 4)
         >>> _convert_indices_to_tensors(x, (torch.tensor([0, 1]), 2, slice(None, None, None)))
         >>> # (torch.tensor([[[0]], [[1]]]), torch.tensor([[[2]]]), torch.tensor([[[0, 1, 2, 3]]]))
+
+    :param obj: Object in question
+    :param indices: Indices to convert
+    :return: Tensor indices (shapes of tensors will involve broadcasting)
     """
     slice_indices = tuple(index for index in indices if isinstance(index, slice))
     tensor_indices = tuple(index for index in indices if torch.is_tensor(index))

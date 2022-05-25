@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+from __future__ import annotations
+
 from typing import Optional
 
 import torch
@@ -73,7 +76,7 @@ class ConstantMulLinearOperator(LinearOperator):
         res = self.base_linear_op._diagonal()
         return res * self._constant.unsqueeze(-1)
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(self, batch_shape: torch.Size) -> ConstantMulLinearOperator:
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self._constant.expand(*batch_shape) if len(batch_shape) else self._constant,
@@ -136,6 +139,12 @@ class ConstantMulLinearOperator(LinearOperator):
 
     def _transpose_nonbatch(self):
         return ConstantMulLinearOperator(self.base_linear_op._transpose_nonbatch(), self._constant)
+
+    def _unsqueeze_batch(self, dim: int) -> ConstantMulLinearOperator:
+        broadcasted_shape = self.batch_shape
+        base_linear_op = self.base_linear_op._expand_batch(broadcasted_shape)._unsqueeze_batch(dim)
+        constant = self._constant.expand(broadcasted_shape).unsqueeze(dim)
+        return ConstantMulLinearOperator(base_linear_op=base_linear_op, constant=constant)
 
     @property
     def expanded_constant(self):

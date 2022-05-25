@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
+from typing import Tuple, Union
+
 import torch
 
 from ..utils import sparse
@@ -131,7 +135,12 @@ class InterpolatedLinearOperator(LinearOperator):
         res = (base_vals * interp_values).sum([-2, -1])
         return res
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(
+        self,
+        row_index: Union[slice, torch.LongTensor],
+        col_index: Union[slice, torch.LongTensor],
+        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+    ) -> LinearOperator:
         # Handle batch dimensions
         # Construt a new LinearOperator
         base_linear_op = self.base_linear_op

@@ -101,6 +101,10 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         log = linear_op.log().to_dense()
         self.assertAllClose(log, torch.zeros(*linear_op.shape))
 
+    def test_logdet(self):
+        linear_op = self.create_linear_op()
+        self.assertAllClose(torch.logdet(linear_op), torch.zeros(linear_op.batch_shape))
+
     def test_sqrt_inv_matmul(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         if len(linear_op.batch_shape):

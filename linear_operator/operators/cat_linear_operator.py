@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
+from typing import Tuple, Union
+
 import torch
 
 from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
@@ -207,10 +211,23 @@ class CatLinearOperator(LinearOperator):
         else:
             return torch.cat(res_list).view(target_shape).to(self.device)
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(
+        self,
+        row_index: Union[slice, torch.LongTensor],
+        col_index: Union[slice, torch.LongTensor],
+        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+    ) -> LinearOperator:
         indices = [*batch_indices, row_index, col_index]
         cat_dim_indices = indices[self.cat_dim]
 
+        # If any of the (non-cat_dim) batch indices are ints, make sure that we appropriately update the cat_dim
+        updated_cat_dim = self.cat_dim
+        if self.cat_dim < -2:
+            batch_indices_below_cat_dim = batch_indices[self.cat_dim + 3 :]
+            num_collapsed_dims = len(tuple(idx for idx in batch_indices_below_cat_dim if isinstance(idx, int)))
+            updated_cat_dim += num_collapsed_dims
+
+        # Process the cat_dim index
         if isinstance(cat_dim_indices, slice):
             if cat_dim_indices == _noop_index:
                 res_list = [linear_op._getitem(row_index, col_index, *batch_indices) for linear_op in self.linear_ops]
@@ -260,11 +277,16 @@ class CatLinearOperator(LinearOperator):
             indices[self.cat_dim] = cat_dim_indices
             res_list = [self.linear_ops[target_tensor]._getitem(indices[-2], indices[-1], *indices[:-2])]
 
+        else:
+            raise RuntimeError(
+                "Unexpected index type {cat_dim_indices.__class__.__name__}. This is a bug in LinearOperator."
+            )
+
         # Process the list
         if len(res_list) == 1:
             return res_list[0].to(self.output_device)
         else:
-            res = self.__class__(*res_list, dim=self.cat_dim, output_device=self.output_device)
+            res = self.__class__(*res_list, dim=updated_cat_dim, output_device=self.output_device)
             return res
 
     def _matmul(self, rhs):
