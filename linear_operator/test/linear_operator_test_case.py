@@ -573,6 +573,87 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         actual = actual.view(*linear_op.batch_shape, -1)
         self.assertAllClose(res, actual, **self.tolerances["diag"])
 
+    def test_eigh(self):
+        dtypes = {"double": torch.double, "float": torch.float}
+        for name, dtype in dtypes.items():
+            tolerances = self.tolerances["symeig"][name]
+
+            linear_op = self.create_linear_op().detach().requires_grad_(True)
+            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+            evaluated = self.evaluate_linear_op(linear_op_copy)
+
+            # Create a random diagonal to prevent repeated eigenvalues
+            rand_diag = torch.randn(linear_op.size(-1)).abs()
+            add_diag_linear_op = linear_op.add_diagonal(rand_diag)
+            evaluated = evaluated + torch.diag_embed(rand_diag)
+
+            # Perform forward pass
+            with linalg_dtypes(dtype):
+                evals_unsorted, evecs_unsorted = add_diag_linear_op.eigh()
+                evecs_unsorted = evecs_unsorted.to_dense()
+
+            # since LinearOperator.eigh does not sort evals, we do this here for the check
+            evals, idxr = torch.sort(evals_unsorted, dim=-1, descending=False)
+            evecs = torch.gather(
+                evecs_unsorted,
+                dim=-1,
+                index=idxr.unsqueeze(-2).expand(evecs_unsorted.shape),
+            )
+
+            evals_actual, evecs_actual = torch.linalg.eigh(evaluated.type(dtype))
+            evals_actual = evals_actual.to(dtype=evaluated.dtype)
+            evecs_actual = evecs_actual.to(dtype=evaluated.dtype)
+
+            # Check forward pass
+            self.assertAllClose(evals, evals_actual, **tolerances)
+            lt_from_eigendecomp = evecs @ torch.diag_embed(evals) @ evecs.transpose(-1, -2)
+            self.assertAllClose(lt_from_eigendecomp, evaluated, **tolerances)
+
+            # Perform backward pass
+            symeig_grad = torch.randn_like(evals)
+            ((evals * symeig_grad).sum()).backward()
+            ((evals_actual * symeig_grad).sum()).backward()
+
+            # Check grads if there were no repeated evals
+            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                    self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+
+    def test_eigvalsh(self):
+        dtypes = {"double": torch.double, "float": torch.float}
+        for name, dtype in dtypes.items():
+            tolerances = self.tolerances["symeig"][name]
+
+            linear_op = self.create_linear_op().detach().requires_grad_(True)
+            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
+            evaluated = self.evaluate_linear_op(linear_op_copy)
+
+            # Create a random diagonal to prevent repeated eigenvalues
+            rand_diag = torch.randn(linear_op.size(-1)).abs()
+            add_diag_linear_op = linear_op.add_diagonal(rand_diag)
+            evaluated = evaluated + torch.diag_embed(rand_diag)
+
+            # Perform forward pass
+            with linalg_dtypes(dtype):
+                evals, _ = add_diag_linear_op.eigvalsh().sort(dim=-1, descending=False)
+
+            # since LinearOperator.eigh does not sort evals, we do this here for the check
+            evals_actual = torch.linalg.eigvalsh(evaluated.type(dtype))
+            evals_actual = evals_actual.to(dtype=evaluated.dtype)
+
+            # Check forward pass
+            self.assertAllClose(evals, evals_actual, **tolerances)
+
+            # Perform backward pass
+            symeig_grad = torch.randn_like(evals)
+            ((evals * symeig_grad).sum()).backward()
+            ((evals_actual * symeig_grad).sum()).backward()
+
+            # Check grads if there were no repeated evals
+            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                    self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+
     def test_float(self):
         linear_op = self.create_linear_op().double()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -831,62 +912,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["sqrt_inv_matmul"])
-
-    def test_symeig(self):
-        dtypes = {"double": torch.double, "float": torch.float}
-        for name, dtype in dtypes.items():
-            tolerances = self.tolerances["symeig"][name]
-
-            linear_op = self.create_linear_op().detach().requires_grad_(True)
-            linear_op_copy = linear_op.clone().detach().requires_grad_(True)
-            evaluated = self.evaluate_linear_op(linear_op_copy)
-
-            # Perform forward pass
-            with linalg_dtypes(dtype):
-                evals_unsorted, evecs_unsorted = linear_op.symeig(eigenvectors=True)
-                evecs_unsorted = evecs_unsorted.to_dense()
-
-            # since LinearOperator.symeig does not sort evals, we do this here for the check
-            evals, idxr = torch.sort(evals_unsorted, dim=-1, descending=False)
-            evecs = torch.gather(
-                evecs_unsorted,
-                dim=-1,
-                index=idxr.unsqueeze(-2).expand(evecs_unsorted.shape),
-            )
-
-            evals_actual, evecs_actual = torch.linalg.eigh(evaluated.type(dtype))
-            evals_actual = evals_actual.to(dtype=evaluated.dtype)
-            evecs_actual = evecs_actual.to(dtype=evaluated.dtype)
-
-            # Check forward pass
-            self.assertAllClose(evals, evals_actual, **tolerances)
-            lt_from_eigendecomp = evecs @ torch.diag_embed(evals) @ evecs.transpose(-1, -2)
-            self.assertAllClose(lt_from_eigendecomp, evaluated, **tolerances)
-
-            # if there are repeated evals, we'll skip checking the eigenvectors for those
-            any_evals_repeated = False
-            evecs_abs, evecs_actual_abs = evecs.abs(), evecs_actual.abs()
-            for idx in itertools.product(*[range(b) for b in evals_actual.shape[:-1]]):
-                eval_i = evals_actual[idx]
-                if torch.unique(eval_i.detach()).shape[-1] == eval_i.shape[-1]:  # detach to avoid pytorch/pytorch#41389
-                    self.assertAllClose(evecs_abs[idx], evecs_actual_abs[idx], **tolerances)
-                else:
-                    any_evals_repeated = True
-
-            # Perform backward pass
-            symeig_grad = torch.randn_like(evals)
-            ((evals * symeig_grad).sum()).backward()
-            ((evals_actual * symeig_grad).sum()).backward()
-
-            # Check grads if there were no repeated evals
-            if not any_evals_repeated:
-                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                        self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
-
-            # Test with eigenvectors=False
-            _, evecs = linear_op.symeig(eigenvectors=False)
-            self.assertIsNone(evecs)
 
     def test_svd(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)

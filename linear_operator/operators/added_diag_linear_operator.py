@@ -172,7 +172,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
-            evals_, evecs = self._linear_op.symeig(eigenvectors=eigenvectors)
+            evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor._diagonal()
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)

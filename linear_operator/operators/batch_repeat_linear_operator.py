@@ -295,7 +295,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
-        evals, evecs = self.base_linear_op.symeig(eigenvectors=eigenvectors)
+        evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)
         evals = evals.repeat(*self.batch_repeat, 1)
         if eigenvectors:
             evecs = evecs.repeat(*self.batch_repeat, 1, 1)

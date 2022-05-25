@@ -126,7 +126,7 @@ class BlockDiagLinearOperator(BlockLinearOperator):
         return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
-        evals, evecs = self.base_linear_op.symeig(eigenvectors=eigenvectors)
+        evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)
         # Doesn't make much sense to sort here, o/w we lose the structure
         evals = evals.reshape(*evals.shape[:-2], evals.shape[-2:].numel())
         if eigenvectors:

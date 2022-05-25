@@ -280,7 +280,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         # method above)
         evals, evecs = [], []
         for lt in self.linear_ops:
-            evals_, evecs_ = lt.symeig(eigenvectors=eigenvectors)
+            evals_, evecs_ = lt._symeig(eigenvectors=eigenvectors)
             evals.append(evals_)
             evecs.append(evecs_)
         evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])
@@ -383,7 +383,7 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
         # method above)
         evals, evecs = [], []
         for lt in self.linear_ops:
-            evals_, evecs_ = lt.symeig(eigenvectors=eigenvectors)
+            evals_, evecs_ = lt._symeig(eigenvectors=eigenvectors)
             evals.append(evals_)
             evecs.append(evecs_)
         evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])

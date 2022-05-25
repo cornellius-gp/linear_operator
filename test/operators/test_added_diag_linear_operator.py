@@ -80,7 +80,7 @@ class TestAddedDiagLinearOperatorPrecondOverride(unittest.TestCase):
         diag = torch.abs(torch.randn(1000))
 
         standard_lt = AddedDiagLinearOperator(RootLinearOperator(tensor), DiagLinearOperator(diag))
-        evals, evecs = standard_lt.symeig(eigenvectors=True)
+        evals, evecs = standard_lt.eigh()
 
         # this preconditioner is a simple example of near deflation
         def nonstandard_preconditioner(self):

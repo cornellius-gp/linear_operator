@@ -72,7 +72,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _logdet(self):
         if self._diag_is_constant:
             # symeig requires computing the eigenvectors for it to be differentiable
-            evals, _ = self.linear_op.symeig(eigenvectors=True)
+            evals, _ = self.linear_op._symeig(eigenvectors=True)
             evals_plus_diag = evals + self.diag_tensor._diagonal()
             return torch.log(evals_plus_diag).sum(dim=-1)
         if self.shape[-1] >= settings.max_cholesky_size.value() and isinstance(
@@ -87,7 +87,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
                 # as D is assumed to have constant components, we can look solely at the diag_values
                 diag_term = self.diag_tensor._diagonal().clamp(min=1e-7).log().sum(dim=-1)
                 # symeig requires computing the eigenvectors for it to be differentiable
-                evals, _ = self.linear_op.symeig(eigenvectors=True)
+                evals, _ = self.linear_op._symeig(eigenvectors=True)
                 const_times_evals = KroneckerProductLinearOperator(
                     *[ee * d.diag_values for ee, d in zip(evals.linear_ops, self.diag_tensor.linear_ops)]
                 )
@@ -265,7 +265,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
         if self._diag_is_constant:
-            evals, evecs = self.linear_op.symeig(eigenvectors=eigenvectors)
+            evals, evecs = self.linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals + self.diag_tensor.diag_values
 
             return evals, evecs

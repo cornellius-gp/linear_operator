@@ -152,6 +152,8 @@ class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCas
     # Disable tests meant for square matrices
     test_add_diag = empty_method
     test_diag = empty_method
+    test_eigh = empty_method
+    test_eigvalsh = empty_method
     test_inv_matmul_matrix = empty_method
     test_inv_matmul_matrix_broadcast = empty_method
     test_inv_matmul_matrix_cholesky = empty_method
@@ -168,7 +170,6 @@ class TestInterpolatedLinearOperatorRectangular(RectangularLinearOperatorTestCas
     test_root_inv_decomposition = empty_method
     test_sqrt_inv_matmul = empty_method
     test_sqrt_inv_matmul_no_lhs = empty_method
-    test_symeig = empty_method
     test_svd = empty_method
 
 

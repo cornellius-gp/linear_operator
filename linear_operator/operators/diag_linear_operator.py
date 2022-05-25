@@ -185,7 +185,7 @@ class DiagLinearOperator(TriangularLinearOperator):
 
     @cached(name="svd")
     def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
-        evals, evecs = self.symeig(eigenvectors=True)
+        evals, evecs = self._symeig(eigenvectors=True)
         S = torch.abs(evals)
         U = evecs
         V = evecs * torch.sign(evals).unsqueeze(-1)

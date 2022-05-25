@@ -22,7 +22,7 @@ class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOpera
     skip_slq_tests = True
     tolerances = {
         **LinearOperatorTestCase.tolerances,
-        # symeig (used in Kronecker algebra) yields less precise solves
+        # eigh (used in Kronecker algebra) yields less precise solves
         "grad": {"rtol": 0.03, "atol": 1e-4},
         "inv_matmul": {"rtol": 0.02, "atol": 1e-4},
     }

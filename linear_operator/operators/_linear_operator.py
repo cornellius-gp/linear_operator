@@ -748,7 +748,7 @@ class LinearOperator(ABC):
         """Method that allows implementing special-cased SVD computation. Should not be called directly"""
         # Using symeig is preferable here for psd LinearOperators.
         # Will need to overwrite this function for non-psd LinearOperators.
-        evals, evecs = self.symeig(eigenvectors=True)
+        evals, evecs = self._symeig(eigenvectors=True)
         signs = torch.sign(evals)
         U = evecs * signs.unsqueeze(-2)
         S = torch.abs(evals)
@@ -1282,7 +1282,7 @@ class LinearOperator(ABC):
             evecs = to_linear_operator(evecs)
 
         elif method == "symeig":
-            evals, evecs = self.symeig(eigenvectors=True)
+            evals, evecs = self._symeig(eigenvectors=True)
         else:
             raise RuntimeError(f"Unknown diagonalization method '{method}'")
 
@@ -1314,6 +1314,44 @@ class LinearOperator(ABC):
     @property
     def dtype(self) -> torch.dtype:
         return self._args[0].dtype
+
+    def eigh(self) -> Tuple[torch.Tensor, "LinearOperator"]:
+        """
+        Compute the symmetric eigendecomposition of the linear operator.
+        This can be very slow for large tensors.
+        Should be special-cased for tensors with particular structure.
+
+        .. note::
+            This method does NOT sort the eigenvalues.
+
+        :return:
+            - The eigenvalues (... x N)
+            - The eigenvectors (... x N x N).
+        """
+        try:
+            evals, evecs = pop_from_cache(self, "symeig", eigenvectors=True)
+            return evals, None
+        except CachingError:
+            pass
+        return self._symeig(eigenvectors=True)
+
+    def eigvalsh(self) -> torch.Tensor:
+        """
+        Compute the eigenvalues of symmetric linear operator.
+        This can be very slow for large tensors.
+        Should be special-cased for tensors with particular structure.
+
+        .. note::
+            This method does NOT sort the eigenvalues.
+
+        :return: the eigenvalues (... x N)
+        """
+        try:
+            evals, evecs = pop_from_cache(self, "symeig", eigenvectors=True)
+            return evals, None
+        except CachingError:
+            pass
+        return self._symeig(eigenvectors=False)[0]
 
     # TODO: remove
     def evaluate_kernel(self):
@@ -1899,7 +1937,7 @@ class LinearOperator(ABC):
                 to_linear_operator(self.to_dense()).pivoted_cholesky(rank=self._root_decomposition_size())
             )
         if method == "symeig":
-            evals, evecs = self.symeig(eigenvectors=True)
+            evals, evecs = self._symeig(eigenvectors=True)
             # TODO: only use non-zero evals (req. dealing w/ batches...)
             root = evecs * evals.clamp_min(0.0).sqrt().unsqueeze(-2)
         elif method == "diagonalization":
@@ -1986,7 +2024,7 @@ class LinearOperator(ABC):
             if initial_vectors is not None and initial_vectors.size(-1) > 1:
                 inv_root = _postprocess_lanczos_root_inv_decomp(self, inv_root, initial_vectors, test_vectors)
         elif method == "symeig":
-            evals, evecs = self.symeig(eigenvectors=True)
+            evals, evecs = self._symeig(eigenvectors=True)
             # TODO: only use non-zero evals (req. dealing w/ batches...)
             inv_root = evecs * evals.clamp_min(1e-7).reciprocal().sqrt().unsqueeze(-2)
         elif method == "diagonalization":
@@ -2155,28 +2193,6 @@ class LinearOperator(ABC):
             - The right singluar vectors :math:`\mathbf V` (... x min(N, N)),
         """
         return self._svd()
-
-    @cached(name="symeig")
-    def symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
-        """
-        Compute the symmetric eigendecomposition of the linear operator.
-        This can be very slow for large tensors.
-        Should be special-cased for tensors with particular structure.
-
-        .. note::
-            This method does NOT sort the eigenvalues.
-
-        :param eigenvectors: If True, compute the eigenvectors in addition to the eigenvalues.
-        :return:
-            - The eigenvalues (... x N)
-            - (Optionally) If :attr:`eigenvectors` is True, then this also returns the eigenvectors (... x N x N).
-        """
-        try:
-            evals, evecs = pop_from_cache(self, "symeig", eigenvectors=True)
-            return evals, None
-        except CachingError:
-            pass
-        return self._symeig(eigenvectors=eigenvectors)
 
     def t(self) -> LinearOperator:
         """

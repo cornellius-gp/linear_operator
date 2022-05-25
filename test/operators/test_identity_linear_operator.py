@@ -80,6 +80,17 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
         self.assertAllClose(evecs.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
+    def test_eigh(self):
+        linear_op = self.create_linear_op()
+        evals, evecs = linear_op.eigh()
+        self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
+        self.assertAllClose(evecs.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+
+    def test_eigvalsh(self):
+        linear_op = self.create_linear_op()
+        evals = linear_op.eigvalsh()
+        self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
+
     def test_exp(self):
         linear_op = self.create_linear_op()
         exp = linear_op.exp().to_dense()
@@ -140,12 +151,6 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op = self.create_linear_op()
         root_decomp = linear_op.root_decomposition().root
         self.assertAllClose(root_decomp.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
-
-    def test_symeig(self):
-        linear_op = self.create_linear_op()
-        evals, evecs = linear_op.symeig()
-        self.assertAllClose(evals, torch.ones(linear_op.shape[:-1]))
-        self.assertAllClose(evecs.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
     def test_svd(self):
         linear_op = self.create_linear_op()
