@@ -13,4 +13,4 @@ class DSMM(Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        return None, bdsmm(ctx.sparse.transpose(-1, -2), grad_output)
+        return None, bdsmm(ctx.sparse.mT, grad_output)

@@ -25,7 +25,7 @@ class TestLinearCG(unittest.TestCase):
     def test_cg(self):
         size = 100
         matrix = torch.randn(size, size, dtype=torch.float64)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
@@ -40,7 +40,7 @@ class TestLinearCG(unittest.TestCase):
     def test_cg_with_tridiag(self):
         size = 10
         matrix = torch.randn(size, size, dtype=torch.float64)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
@@ -64,7 +64,7 @@ class TestLinearCG(unittest.TestCase):
         batch = 5
         size = 100
         matrix = torch.randn(batch, size, size, dtype=torch.float64)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
@@ -80,7 +80,7 @@ class TestLinearCG(unittest.TestCase):
         batch = 5
         size = 10
         matrix = torch.randn(batch, size, size, dtype=torch.float64)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 

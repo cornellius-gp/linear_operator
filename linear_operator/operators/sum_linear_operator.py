@@ -60,7 +60,7 @@ class SumLinearOperator(LinearOperator):
         return sum(linear_op._t_matmul(rhs) for linear_op in self.linear_ops)
 
     def _transpose_nonbatch(self):
-        linear_ops_t = [linear_op.transpose(-1, -2) for linear_op in self.linear_ops]
+        linear_ops_t = [linear_op.mT for linear_op in self.linear_ops]
         return self.__class__(*linear_ops_t)
 
     @cached

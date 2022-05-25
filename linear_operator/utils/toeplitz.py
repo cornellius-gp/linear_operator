@@ -136,11 +136,11 @@ def toeplitz_matmul(toeplitz_column, toeplitz_row, tensor):
     )
     temp_tensor[..., :orig_size, :] = tensor
 
-    fft_M = fft(temp_tensor.transpose(-1, -2).contiguous())
+    fft_M = fft(temp_tensor.mT.contiguous())
     fft_c = fft(c_r_rev).unsqueeze(-2).expand_as(fft_M)
     fft_product = fft_M.mul_(fft_c)
 
-    output = ifft(fft_product).real.transpose(-1, -2)
+    output = ifft(fft_product).real.mT
     output = output[..., :orig_size, :]
     return output
 
@@ -184,8 +184,8 @@ def sym_toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
     toeplitz_size = left_vectors.size(-2)
     num_vectors = left_vectors.size(-1)
 
-    left_vectors = left_vectors.transpose(-1, -2).contiguous()
-    right_vectors = right_vectors.transpose(-1, -2).contiguous()
+    left_vectors = left_vectors.mT.contiguous()
+    right_vectors = right_vectors.mT.contiguous()
 
     columns = torch.zeros_like(left_vectors)
     columns[..., 0] = left_vectors[..., 0]

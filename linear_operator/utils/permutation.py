@@ -40,7 +40,7 @@ def apply_permutation(
 
     Example:
         >>> _factor = torch.randn(2, 3, 5, 5)
-        >>> matrix = factor @ factor.transpose(-1, -2)  # 2 x 3 x 5 x 5
+        >>> matrix = factor @ factor.mT  # 2 x 3 x 5 x 5
         >>> left_permutation = torch.tensor([
         >>>     [ 1, 3, 2, 4, 0 ],
         >>>     [ 2, 1, 0, 3, 4 ],

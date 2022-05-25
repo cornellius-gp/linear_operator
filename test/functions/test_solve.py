@@ -13,7 +13,7 @@ def _ensure_symmetric_grad(grad):
     """
     A gradient-hook hack to ensure that symmetric matrix gradients are symmetric
     """
-    res = torch.add(grad, grad.transpose(-1, -2)).mul(0.5)
+    res = torch.add(grad, grad.mT).mul(0.5)
     return res
 
 
@@ -22,7 +22,7 @@ class TestSolveNonBatch(BaseTestCase, unittest.TestCase):
 
     def _create_mat(self):
         mat = torch.randn(8, 8)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         return mat
 
     def test_solve_vec(self):
@@ -73,7 +73,7 @@ class TestSolveBatch(TestSolveNonBatch):
 
     def _create_mat(self):
         mats = torch.randn(2, 8, 8)
-        mats = mats @ mats.transpose(-1, -2)
+        mats = mats @ mats.mT
         return mats
 
 

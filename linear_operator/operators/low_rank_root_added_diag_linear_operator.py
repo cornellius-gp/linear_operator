@@ -32,7 +32,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def chol_cap_mat(self):
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._linear_op.root
-        V = self._linear_op.root.transpose(-2, -1)
+        V = self._linear_op.root.mT
         C = ConstantDiagLinearOperator(torch.ones(*V.batch_shape, 1, device=V.device, dtype=V.dtype), V.shape[-2])
 
         cap_mat = to_dense(C + V.matmul(A_inv.matmul(U)))
@@ -56,7 +56,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _solve(self, rhs, preconditioner=None, num_tridiag=0):
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._linear_op.root
-        V = self._linear_op.root.transpose(-2, -1)
+        V = self._linear_op.root.mT
         chol_cap_mat = self.chol_cap_mat
 
         res = V.matmul(A_inv.matmul(rhs))

@@ -20,7 +20,7 @@ def _ensure_symmetric_grad(grad):
     """
     A gradient-hook hack to ensure that symmetric matrix gradients are symmetric
     """
-    res = torch.add(grad, grad.transpose(-1, -2)).mul(0.5)
+    res = torch.add(grad, grad.mT).mul(0.5)
     return res
 
 
@@ -490,7 +490,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated = self.evaluate_linear_op(linear_op)
         new_rows = torch.randn(*linear_op.shape[:-1], 3)
 
-        summed_lt = evaluated + new_rows.matmul(new_rows.transpose(-1, -2))
+        summed_lt = evaluated + new_rows.matmul(new_rows.mT)
         new_lt = linear_op.add_low_rank(new_rows)
 
         # check that the concatenation is okay
@@ -517,7 +517,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
             # we need to expand here to be able to concat (this happens automatically in cat_rows)
             cat_col1 = torch.cat((evaluated.expand(*batch_shape, *evaluated.shape), new_rows), dim=-2)
-            cat_col2 = torch.cat((new_rows.transpose(-1, -2), new_point), dim=-2)
+            cat_col2 = torch.cat((new_rows.mT, new_point), dim=-2)
 
             concatenated_lt = torch.cat((cat_col1, cat_col2), dim=-1)
             new_lt = linear_op.cat_rows(new_rows, new_point)
@@ -606,7 +606,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
             # Check forward pass
             self.assertAllClose(evals, evals_actual, **tolerances)
-            lt_from_eigendecomp = evecs @ torch.diag_embed(evals) @ evecs.transpose(-1, -2)
+            lt_from_eigendecomp = evecs @ torch.diag_embed(evals) @ evecs.mT
             self.assertAllClose(lt_from_eigendecomp, evaluated, **tolerances)
 
             # Perform backward pass
@@ -717,7 +717,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             with linear_operator.settings.max_cholesky_size(math.inf if symeig else 0):
                 evals, evecs = linear_op.diagonalization()
                 evecs = evecs.to_dense()
-                approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-2, -1))
+                approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.mT)
                 res = approx.matmul(test_mat)
                 actual = linear_op.matmul(test_mat)
                 self.assertAllClose(res, actual, rtol=0.05)
@@ -858,7 +858,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         with linear_operator.settings.max_cg_iterations(200):
             sqrt_inv_matmul_res, inv_quad_res = linear_op.sqrt_inv_matmul(rhs, lhs)
         evals, evecs = torch.linalg.eigh(evaluated)
-        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
+        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = lhs_copy @ matrix_inv_root @ rhs_copy
         inv_quad_actual = (lhs_copy @ matrix_inv_root).pow(2).sum(dim=-1)
 
@@ -896,7 +896,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         with linear_operator.settings.max_cg_iterations(200):
             sqrt_inv_matmul_res = linear_op.sqrt_inv_matmul(rhs)
         evals, evecs = torch.linalg.eigh(evaluated)
-        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
+        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = matrix_inv_root @ rhs_copy
 
         # Check forward pass
@@ -936,7 +936,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Check forward pass
         self.assertAllClose(S, S_actual, **self.tolerances["svd"])
-        lt_from_svd = U @ torch.diag_embed(S) @ V.transpose(-1, -2)
+        lt_from_svd = U @ torch.diag_embed(S) @ V.mT
         self.assertAllClose(lt_from_svd, evaluated, **self.tolerances["svd"])
 
         # if there are repeated singular values, we'll skip checking the singular vectors

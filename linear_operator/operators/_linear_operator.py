@@ -710,7 +710,7 @@ class LinearOperator(ABC):
                 )
                 projected_mat = self._matmul(random_basis)
                 proj_q = torch.linalg.qr(projected_mat)
-                orthog_projected_mat = self._matmul(proj_q).transpose(-2, -1)
+                orthog_projected_mat = self._matmul(proj_q).mT
                 # Maybe log
                 if settings.verbose_linalg.on():
                     settings.verbose_linalg.logger.debug(
@@ -722,7 +722,7 @@ class LinearOperator(ABC):
                 self._default_preconditioner_cache = (U, S, V)
 
             def preconditioner(v):
-                res = V.transpose(-2, -1).matmul(v)
+                res = V.mT.matmul(v)
                 res = (1 / S).unsqueeze(-1) * res
                 res = U.matmul(res)
                 return res
@@ -793,7 +793,7 @@ class LinearOperator(ABC):
         :param rhs: the matrix :math:`\mathbf M` to multiply with.
         :return: :math:`\mathbf K^\top \mathbf M`
         """
-        return self.transpose(-1, -2)._matmul(rhs)
+        return self.mT._matmul(rhs)
 
     def add(self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None) -> LinearOperator:
         r"""
@@ -908,11 +908,11 @@ class LinearOperator(ABC):
         from .triangular_linear_operator import TriangularLinearOperator
 
         if not isinstance(self, SumLinearOperator):
-            new_linear_op = self + to_linear_operator(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2)))
+            new_linear_op = self + to_linear_operator(low_rank_mat.matmul(low_rank_mat.mT))
         else:
             new_linear_op = SumLinearOperator(
                 *self.linear_ops,
-                to_linear_operator(low_rank_mat.matmul(low_rank_mat.transpose(-1, -2))),
+                to_linear_operator(low_rank_mat.matmul(low_rank_mat.mT)),
             )
 
             # return as a DenseLinearOperator if small enough to reduce memory overhead
@@ -933,7 +933,7 @@ class LinearOperator(ABC):
         return_triangular = isinstance(current_root, TriangularLinearOperator)
 
         # and MM^T = A^{-1}
-        current_inv_root = self.root_inv_decomposition(method=root_inv_decomp_method).root.transpose(-1, -2)
+        current_inv_root = self.root_inv_decomposition(method=root_inv_decomp_method).root.mT
 
         # compute p = M B and take its SVD
         pvector = current_inv_root.matmul(low_rank_mat)
@@ -975,7 +975,7 @@ class LinearOperator(ABC):
         # compute the new inverse inner root: U \tilde{S}^{-1}
         inner_inv_root = U.matmul(torch.diag_embed(stacked_inv_root_S))
         # finally \tilde{L}^{-1} = L^{-1} U \tilde{S}^{-1}
-        updated_inv_root = current_inv_root.transpose(-1, -2).matmul(inner_inv_root)
+        updated_inv_root = current_inv_root.mT.matmul(inner_inv_root)
 
         if return_triangular:
             updated_root = TriangularLinearOperator(updated_root)
@@ -1093,7 +1093,7 @@ class LinearOperator(ABC):
 
         # form matrix C = [A B; B^T D], where A = self, B = cross_mat, D = new_mat
         upper_row = CatLinearOperator(A, B, dim=-2, output_device=A.device)
-        lower_row = CatLinearOperator(B.transpose(-1, -2), D, dim=-2, output_device=A.device)
+        lower_row = CatLinearOperator(B.mT, D, dim=-2, output_device=A.device)
         new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
@@ -1113,7 +1113,7 @@ class LinearOperator(ABC):
         m, n = E.shape[-2:]
         R = self.root_inv_decomposition().root.to_dense()  # RR^T = A^{-1} (this is fast if L is triangular)
         lower_left = B_ @ R  # F = BR
-        schur = D - lower_left.matmul(lower_left.transpose(-2, -1))  # GG^T = new_mat - FF^T
+        schur = D - lower_left.matmul(lower_left.mT)  # GG^T = new_mat - FF^T
         schur_root = to_linear_operator(schur).root_decomposition().root.to_dense()  # G = (new_mat - FF^T)^{1/2}
 
         # Form new root matrix
@@ -1129,10 +1129,10 @@ class LinearOperator(ABC):
                     raise NotImplementedError
                 # in this case we know new_root is triangular as well
                 new_root = TriangularLinearOperator(new_root)
-                new_inv_root = new_root.inverse().transpose(-1, -2)
+                new_inv_root = new_root.inverse().mT
             else:
                 # otherwise we use the pseudo-inverse of Z as new inv root
-                new_inv_root = stable_pinverse(new_root).transpose(-2, -1)
+                new_inv_root = stable_pinverse(new_root).mT
             add_to_cache(
                 new_linear_op,
                 "root_inv_decomposition",
@@ -1601,6 +1601,13 @@ class LinearOperator(ABC):
     def matrix_shape(self) -> torch.Size:
         return torch.Size(self.shape[-2:])
 
+    @property
+    def mT(self) -> LinearOperator:
+        """
+        Alias of transpose(-1, -2)
+        """
+        return self.transpose(-1, -2)
+
     def mul(self, other: Union[float, torch.Tensor, "LinearOperator"]) -> LinearOperator:
         """
         Multiplies the matrix by a constant, or elementwise the matrix by another matrix.
@@ -1838,8 +1845,8 @@ class LinearOperator(ABC):
             The return type will be the same as :attr:`other`'s type.
         """
         if other.ndim == 1:
-            return self.transpose(-1, -2).matmul(other)
-        return self.transpose(-1, -2).matmul(other.transpose(-1, -2)).transpose(-1, -2)
+            return self.mT.matmul(other)
+        return self.mT.matmul(other.mT).mT
 
     @cached(name="root_decomposition")
     def root_decomposition(self, method: Optional[str] = None) -> LinearOperator:
@@ -1945,7 +1952,7 @@ class LinearOperator(ABC):
             # we don't need the batch shape here, thanks to broadcasting
             Eye = torch.eye(L.shape[-2], device=L.device, dtype=L.dtype)
             Linv = torch.triangular_solve(Eye, L, upper=False).solution
-            res = to_linear_operator(Linv.transpose(-1, -2))
+            res = to_linear_operator(Linv.mT)
             inv_root = res
         elif method == "lanczos":
             if initial_vectors is not None:
@@ -1985,7 +1992,7 @@ class LinearOperator(ABC):
         elif method == "pinverse":
             # this is numerically unstable and should rarely be used
             root = self.root_decomposition().root.to_dense()
-            inv_root = torch.pinverse(root).transpose(-1, -2)
+            inv_root = torch.pinverse(root).mT
         else:
             raise RuntimeError(f"Unknown root inv decomposition method '{method}'")
 
@@ -2170,7 +2177,7 @@ class LinearOperator(ABC):
         # Case: summing across rows
         elif dim == (self.dim() - 2):
             ones = torch.ones(self.size(-2), 1, dtype=self.dtype, device=self.device)
-            return (self.transpose(-1, -2) @ ones).squeeze(-1)
+            return (self.mT @ ones).squeeze(-1)
         # Otherwise: it's a batch dimension
         elif dim < self.dim():
             return self._sum_batch(dim)
@@ -2193,6 +2200,13 @@ class LinearOperator(ABC):
             - The right singluar vectors :math:`\mathbf V` (... x min(N, N)),
         """
         return self._svd()
+
+    @property
+    def T(self) -> LinearOperator:
+        """
+        Alias of t()
+        """
+        return self.t()
 
     def t(self) -> LinearOperator:
         """
@@ -2238,7 +2252,7 @@ class LinearOperator(ABC):
         if num_rows < num_cols:
             eye = torch.eye(num_rows, dtype=self.dtype, device=self.device)
             eye = eye.expand(*self.batch_shape, num_rows, num_rows)
-            res = self.transpose(-1, -2).matmul(eye).transpose(-1, -2).contiguous()
+            res = self.mT.matmul(eye).mT.contiguous()
         else:
             eye = torch.eye(num_cols, dtype=self.dtype, device=self.device)
             eye = eye.expand(*self.batch_shape, num_cols, num_cols)

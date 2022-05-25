@@ -104,7 +104,7 @@ class InvQuadLogdet(Function):
                 probe_vectors = covar_root.matmul(base_samples).permute(-1, *range(precond_lt.dim() - 1))
             else:
                 probe_vectors = precond_lt.zero_mean_mvn_samples(num_random_probes)
-            probe_vectors = probe_vectors.unsqueeze(-2).transpose(0, -2).squeeze(0).transpose(-2, -1).contiguous()
+            probe_vectors = probe_vectors.unsqueeze(-2).transpose(0, -2).squeeze(0).mT.contiguous()
             probe_vector_norms = torch.norm(probe_vectors, p=2, dim=-2, keepdim=True)
             probe_vectors = probe_vectors.div(probe_vector_norms)
 

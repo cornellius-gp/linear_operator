@@ -54,7 +54,7 @@ class RootLinearOperator(LinearOperator):
             res = self.__class__(left_tensor)
         else:
             right_tensor = self.root._getitem(col_index, _noop_index, *batch_indices)
-            res = MatmulLinearOperator(left_tensor, right_tensor.transpose(-1, -2))
+            res = MatmulLinearOperator(left_tensor, right_tensor.mT)
 
         return res
 
@@ -93,4 +93,4 @@ class RootLinearOperator(LinearOperator):
     @cached
     def to_dense(self):
         eval_root = self.root.to_dense()
-        return torch.matmul(eval_root, eval_root.transpose(-1, -2))
+        return torch.matmul(eval_root, eval_root.mT)

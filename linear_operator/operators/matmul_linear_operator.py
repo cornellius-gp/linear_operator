@@ -66,7 +66,7 @@ class MatmulLinearOperator(LinearOperator):
         if isinstance(self.left_linear_op, DenseLinearOperator) and isinstance(
             self.right_linear_op, DenseLinearOperator
         ):
-            return (self.left_linear_op.tensor * self.right_linear_op.tensor.transpose(-1, -2)).sum(-1)
+            return (self.left_linear_op.tensor * self.right_linear_op.tensor.mT).sum(-1)
         elif isinstance(self.left_linear_op, DiagLinearOperator) or isinstance(
             self.right_linear_op, DiagLinearOperator
         ):

@@ -23,7 +23,7 @@ def _kron_diag(*lts) -> Tensor:
         return lead_diag
     trail_diag = _kron_diag(*lts[1:])
     diag = lead_diag.unsqueeze(-2) * trail_diag.unsqueeze(-1)
-    return diag.transpose(-1, -2).reshape(*diag.shape[:-2], -1)
+    return diag.mT.reshape(*diag.shape[:-2], -1)
 
 
 def _prod(iterable):

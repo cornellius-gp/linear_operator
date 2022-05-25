@@ -94,7 +94,7 @@ class PivotedCholesky(Function):
 
         # Save items for backward pass, and return output
         ctx.save_for_backward(permutation, permutation[..., :m], *matrix_args)
-        return L[..., :m, :].transpose(-1, -2).contiguous(), permutation
+        return L[..., :m, :].mT.contiguous(), permutation
 
     def backward(ctx, grad_output, _):
         full_permutation, short_permutation, *_matrix_args = ctx.saved_tensors
@@ -116,7 +116,7 @@ class PivotedCholesky(Function):
 
             # Compute (Krows * L^{-T}) - the (pivoted) result of Pivoted Cholesky
             res_pivoted = torch.cat(
-                [L, torch.triangular_solve(Krows[..., m:, :].transpose(-1, -2), L, upper=False)[0].transpose(-1, -2)],
+                [L, torch.triangular_solve(Krows[..., m:, :].mT, L, upper=False)[0].mT],
                 dim=-2,
             )
             res = apply_permutation(res_pivoted, left_permutation=_inverse_permutation, right_permutation=None)

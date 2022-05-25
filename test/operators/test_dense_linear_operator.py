@@ -14,7 +14,7 @@ class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         mat = torch.randn(5, 6)
-        mat = mat.matmul(mat.transpose(-1, -2))
+        mat = mat.matmul(mat.mT)
         mat.requires_grad_(True)
         return DenseLinearOperator(mat)
 
@@ -36,7 +36,7 @@ class TestDenseLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         mat = torch.randn(3, 5, 6)
-        mat = mat.matmul(mat.transpose(-1, -2))
+        mat = mat.matmul(mat.mT)
         mat.requires_grad_(True)
         return DenseLinearOperator(mat)
 
@@ -61,7 +61,7 @@ class TestDenseLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCas
 
     def create_linear_op(self):
         mat = torch.randn(2, 3, 5, 6)
-        mat = mat.matmul(mat.transpose(-1, -2))
+        mat = mat.matmul(mat.mT)
         mat.requires_grad_(True)
         return DenseLinearOperator(mat)
 

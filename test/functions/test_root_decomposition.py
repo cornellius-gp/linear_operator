@@ -13,7 +13,7 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
 
     def _create_mat(self):
         mat = torch.randn(4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4))
         return mat
 
@@ -23,7 +23,7 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
 
         # Forward
         root = DenseLinearOperator(mat).root_decomposition().root.to_dense()
-        res = root.matmul(root.transpose(-1, -2))
+        res = root.matmul(root.mT)
         self.assertAllClose(res, mat)
 
         # Backward
@@ -43,7 +43,7 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
             .root_inv_decomposition(method="lanczos", initial_vectors=probe_vectors, test_vectors=test_vectors)
             .root.to_dense()
         )
-        res = root.matmul(root.transpose(-1, -2))
+        res = root.matmul(root.mT)
         actual = mat_clone.inverse()
         self.assertAllClose(res, actual)
 
@@ -58,7 +58,7 @@ class TestRootDecompositionBatch(TestRootDecomposition):
 
     def _create_mat(self):
         mat = torch.randn(3, 4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4).unsqueeze_(0))
         return mat
 
@@ -68,7 +68,7 @@ class TestRootDecompositionMultiBatch(TestRootDecomposition):
 
     def _create_mat(self):
         mat = torch.randn(2, 3, 4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4).unsqueeze_(0))
         return mat
 

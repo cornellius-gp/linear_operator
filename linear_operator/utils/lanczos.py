@@ -192,7 +192,7 @@ def _postprocess_lanczos_root_inv_decomp(linear_op, inv_roots, initial_vectors, 
     test_vectors = test_vectors.unsqueeze(0)
 
     # Compute solves
-    solves = inv_roots.matmul(inv_roots.transpose(-1, -2).matmul(test_vectors))
+    solves = inv_roots.matmul(inv_roots.mT.matmul(test_vectors))
 
     # Compute linear_op * solves
     solves = (

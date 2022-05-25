@@ -48,9 +48,9 @@ class TestPsdSumLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCa
 
     def create_linear_op(self):
         mat1 = torch.randn(2, 3, 4, 4)
-        lt1 = DenseLinearOperator(mat1 @ mat1.transpose(-1, -2))
+        lt1 = DenseLinearOperator(mat1 @ mat1.mT)
         mat2 = torch.randn(2, 3, 4, 4)
-        lt2 = DenseLinearOperator(mat2 @ mat2.transpose(-1, -2))
+        lt2 = DenseLinearOperator(mat2 @ mat2.mT)
         return PsdSumLinearOperator(lt1, lt2)
 
     def evaluate_linear_op(self, linear_op):

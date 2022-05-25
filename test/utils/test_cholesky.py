@@ -40,7 +40,7 @@ class TestPSDSafeCholesky(BaseTestCase, unittest.TestCase):
                 L_safe = psd_safe_cholesky(A)
                 self.assertTrue(torch.allclose(L, L_safe))
                 # upper
-                L = torch.linalg.cholesky(A).transpose(-1, -2)
+                L = torch.linalg.cholesky(A).mT
                 L_safe = psd_safe_cholesky(A, upper=True)
                 self.assertTrue(torch.allclose(L, L_safe))
                 # output tensors
@@ -51,7 +51,7 @@ class TestPSDSafeCholesky(BaseTestCase, unittest.TestCase):
                 self.assertTrue(torch.allclose(L, L_safe))
                 # output tensors, upper
                 torch.linalg.cholesky(A, out=L)
-                L = L.transpose(-1, -2)
+                L = L.mT
                 psd_safe_cholesky(A, upper=True, out=L_safe)
                 self.assertTrue(torch.allclose(L, L_safe))
                 # make sure jitter doesn't do anything if p.d.

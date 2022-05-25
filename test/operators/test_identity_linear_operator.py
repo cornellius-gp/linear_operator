@@ -118,7 +118,7 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # Perform forward pass
         sqrt_inv_matmul_res, inv_quad_res = linear_op.sqrt_inv_matmul(rhs, lhs)
         evals, evecs = torch.linalg.eigh(evaluated)
-        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
+        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = lhs_copy @ matrix_inv_root @ rhs_copy
         inv_quad_actual = (lhs_copy @ matrix_inv_root).pow(2).sum(dim=-1)
 
@@ -141,7 +141,7 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # Perform forward pass
         sqrt_inv_matmul_res = linear_op.sqrt_inv_matmul(rhs)
         evals, evecs = torch.linalg.eigh(evaluated)
-        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.transpose(-1, -2))
+        matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = matrix_inv_root @ rhs_copy
 
         # Check forward pass

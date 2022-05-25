@@ -195,7 +195,7 @@ class InterpolatedLinearOperator(LinearOperator):
         base_res = self.base_linear_op._matmul(right_interp_res)
 
         # left_interp * base_linear_op * right_interp^T * rhs
-        left_interp_mat = left_interp_t.transpose(-1, -2)
+        left_interp_mat = left_interp_t.mT
         res = sparse.bdsmm(left_interp_mat, base_res)
 
         # Squeeze if necessary
@@ -232,7 +232,7 @@ class InterpolatedLinearOperator(LinearOperator):
         base_res = self.base_linear_op._t_matmul(left_interp_res)
 
         # left_interp * base_linear_op * right_interp^T * rhs
-        right_interp_mat = right_interp_t.transpose(-1, -2)
+        right_interp_mat = right_interp_t.mT
         res = sparse.bdsmm(right_interp_mat, base_res)
 
         # Squeeze if necessary
@@ -314,7 +314,7 @@ class InterpolatedLinearOperator(LinearOperator):
 
     def _transpose_nonbatch(self):
         res = self.__class__(
-            self.base_linear_op.transpose(-1, -2),
+            self.base_linear_op.mT,
             self.right_interp_indices,
             self.right_interp_values,
             self.left_interp_indices,

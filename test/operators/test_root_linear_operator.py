@@ -20,7 +20,7 @@ class TestRootLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         root = linear_op.root.tensor
-        res = root.matmul(root.transpose(-1, -2))
+        res = root.matmul(root.mT)
         return res
 
 

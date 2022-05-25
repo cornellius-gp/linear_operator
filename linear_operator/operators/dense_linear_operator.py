@@ -50,7 +50,7 @@ class DenseLinearOperator(LinearOperator):
         return self.__class__(self.tensor.prod(dim))
 
     def _bilinear_derivative(self, left_vecs, right_vecs):
-        res = left_vecs.matmul(right_vecs.transpose(-1, -2))
+        res = left_vecs.matmul(right_vecs.mT)
         return (res,)
 
     def _size(self):
@@ -60,10 +60,10 @@ class DenseLinearOperator(LinearOperator):
         return self.__class__(self.tensor.sum(dim))
 
     def _transpose_nonbatch(self):
-        return DenseLinearOperator(self.tensor.transpose(-1, -2))
+        return DenseLinearOperator(self.tensor.mT)
 
     def _t_matmul(self, rhs):
-        return torch.matmul(self.tensor.transpose(-1, -2), rhs)
+        return torch.matmul(self.tensor.mT, rhs)
 
     def to_dense(self):
         return self.tensor

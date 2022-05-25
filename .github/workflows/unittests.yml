@@ -27,7 +27,7 @@ jobs:
         if [[ ${{ matrix.pytorch-version }} = "latest" ]]; then
           pip install --pre torch -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html;
         else
-          pip install torch==1.9+cpu -f https://download.pytorch.org/whl/torch_stable.html;
+          pip install torch==1.11+cpu -f https://download.pytorch.org/whl/torch_stable.html;
         fi
         pip install -e .
     - name: Run unit tests

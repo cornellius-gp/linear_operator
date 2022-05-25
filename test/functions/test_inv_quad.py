@@ -24,7 +24,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
             random.seed(0)
 
         mat = torch.randn(4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4))
         vecs = torch.randn(5, 4, 6)
         vec = torch.randn(4)
@@ -82,7 +82,7 @@ class TestInvQuadBatch(unittest.TestCase):
             random.seed(1)
 
         mats = torch.randn(5, 4, 4)
-        mats = mats @ mats.transpose(-1, -2)
+        mats = mats @ mats.mT
         mats.div_(5).add_(torch.eye(4).unsqueeze_(0))
         vecs = torch.randn(5, 4, 6)
         self.mats = mats.detach().clone().requires_grad_(True)
@@ -129,7 +129,7 @@ class TestInvQuadMultiBatch(unittest.TestCase):
             random.seed(0)
 
         mats = torch.randn(2, 3, 4, 4)
-        mats = mats @ mats.transpose(-1, -2)
+        mats = mats @ mats.mT
         mats.div_(5).add_(torch.eye(4).view(1, 1, 4, 4))
         vecs = torch.randn(2, 3, 4, 6)
         self.mats = mats.detach().clone().requires_grad_(True)

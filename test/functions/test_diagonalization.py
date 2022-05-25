@@ -13,7 +13,7 @@ class TestDiagonalization(BaseTestCase, unittest.TestCase):
 
     def _create_mat(self):
         mat = torch.randn(4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4))
         return mat
 
@@ -25,7 +25,7 @@ class TestDiagonalization(BaseTestCase, unittest.TestCase):
             # Forward
             evals, evecs = DenseLinearOperator(mat).diagonalization(method=method)
             evecs = evecs.to_dense()
-            res = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.transpose(-1, -2))
+            res = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.mT)
             self.assertAllClose(res, mat)
 
             # Backward
@@ -39,7 +39,7 @@ class TestDiagonalizationBatch(TestDiagonalization):
 
     def _create_mat(self):
         mat = torch.randn(3, 4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4).unsqueeze_(0))
         return mat
 
@@ -49,7 +49,7 @@ class TestDiagonalizationMultiBatch(TestDiagonalization):
 
     def _create_mat(self):
         mat = torch.randn(2, 3, 4, 4)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         mat.div_(5).add_(torch.eye(4).unsqueeze_(0))
         return mat
 

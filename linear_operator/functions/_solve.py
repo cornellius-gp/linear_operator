@@ -45,7 +45,7 @@ class Solve(Function):
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
         if ctx.has_left:
-            rhs = torch.cat([left_tensor.transpose(-1, -2), right_tensor], -1)
+            rhs = torch.cat([left_tensor.mT, right_tensor], -1)
             solves = _solve(linear_op, rhs)
             res = solves[..., left_tensor.size(-2) :]
             res = left_tensor @ res
@@ -114,7 +114,7 @@ class Solve(Function):
                 left_solves = left_solves @ grad_output
 
                 if ctx.needs_input_grad[2]:
-                    left_grad = grad_output @ right_solves.transpose(-1, -2)
+                    left_grad = grad_output @ right_solves.mT
                 if any(ctx.needs_input_grad[4:]):
                     # We do this concatenation to ensure that the gradient of linear_op is symmetric
                     arg_grads = linear_op._bilinear_derivative(

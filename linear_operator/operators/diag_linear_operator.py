@@ -175,7 +175,7 @@ class DiagLinearOperator(TriangularLinearOperator):
             return matrix_inv_root.matmul(rhs)
         else:
             sqrt_inv_matmul = lhs @ matrix_inv_root.matmul(rhs)
-            inv_quad = (matrix_inv_root @ lhs.transpose(-2, -1)).transpose(-2, -1).pow(2).sum(dim=-1)
+            inv_quad = (matrix_inv_root @ lhs.mT).mT.pow(2).sum(dim=-1)
             return sqrt_inv_matmul, inv_quad
 
     def zero_mean_mvn_samples(self, num_samples):

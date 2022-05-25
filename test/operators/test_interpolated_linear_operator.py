@@ -63,7 +63,7 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
         right_interp_values.requires_grad = True
 
         base_tensor = torch.randn(5, 6, 6)
-        base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
+        base_tensor = base_tensor.mT.matmul(base_tensor)
         base_tensor.requires_grad = True
         base_linear_op = DenseLinearOperator(base_tensor)
 
@@ -85,7 +85,7 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
         right_matrix = torch.cat(right_matrix_comps)
 
         base_tensor = linear_op.base_linear_op.tensor
-        actual = left_matrix.matmul(base_tensor).matmul(right_matrix.transpose(-1, -2))
+        actual = left_matrix.matmul(base_tensor).matmul(right_matrix.mT)
         return actual
 
 
@@ -109,7 +109,7 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
         right_interp_values.requires_grad = True
 
         base_tensor = torch.randn(5, 6, 6)
-        base_tensor = base_tensor.transpose(-2, -1).matmul(base_tensor)
+        base_tensor = base_tensor.mT.matmul(base_tensor)
         base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
@@ -133,7 +133,7 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
         right_matrix = right_matrix.view(2, 5, 4, 6)
 
         base_tensor = linear_op.base_linear_op.tensor
-        actual = left_matrix.matmul(base_tensor).matmul(right_matrix.transpose(-1, -2))
+        actual = left_matrix.matmul(base_tensor).matmul(right_matrix.mT)
         return actual
 
 

@@ -20,14 +20,14 @@ class SqrtInvMatmul(Function):
         ctx.linear_op = ctx.representation_tree(*matrix_args)
 
         if lhs is not None:
-            terms = torch.cat([rhs, lhs.transpose(-1, -2)], dim=-1)
+            terms = torch.cat([rhs, lhs.mT], dim=-1)
             solves, weights, no_shift_solves, shifts = utils.contour_integral_quad(
                 ctx.linear_op, terms, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
             )
             rhs_solves, lhs_solves = solves.split([rhs.size(-1), lhs.size(-2)], dim=-1)
             lhs_no_shift_solves = no_shift_solves[..., -lhs.size(-2) :]
             sqrt_inv_matmul_res = lhs @ (rhs_solves * weights).sum(0)
-            inv_quad_res = (lhs_no_shift_solves.transpose(-1, -2) * lhs).sum(dim=-1).mul_(-1)
+            inv_quad_res = (lhs_no_shift_solves.mT * lhs).sum(dim=-1).mul_(-1)
         else:
             rhs_solves, weights, _, shifts = utils.contour_integral_quad(
                 ctx.linear_op, rhs, inverse=True, num_contour_quadrature=settings.num_contour_quadrature.value()
@@ -51,15 +51,15 @@ class SqrtInvMatmul(Function):
 
         if lhs is not None:
             # Intermediate terms for sqrt_inv_matmul/quad
-            weighted_rhs_solves_mul_grad = rhs_solves.mul(weights) @ sqrt_inv_matmul_grad.transpose(-1, -2)
+            weighted_rhs_solves_mul_grad = rhs_solves.mul(weights) @ sqrt_inv_matmul_grad.mT
             neg_inv_quad_solves_mul_grad = lhs_no_shift_solves.mul(inv_quad_grad.unsqueeze(-2)).mul(-1)
 
             # Compute lhs grads
             if ctx.needs_input_grad[2] and lhs is not None:
                 # lhs_grad term from sqrt_inv_matmul
-                lhs_grad = weighted_rhs_solves_mul_grad.transpose(-1, -2).sum(0)
+                lhs_grad = weighted_rhs_solves_mul_grad.mT.sum(0)
                 # lhs_grad term from inv_quad
-                lhs_grad.add_(neg_inv_quad_solves_mul_grad.transpose(-1, -2), alpha=2)
+                lhs_grad.add_(neg_inv_quad_solves_mul_grad.mT, alpha=2)
 
             # Compute rhs grad
             if ctx.needs_input_grad[1]:

@@ -13,7 +13,7 @@ class TestMatmulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         lhs = torch.randn(5, 6, requires_grad=True)
-        rhs = lhs.clone().detach().transpose(-1, -2)
+        rhs = lhs.clone().detach().mT
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 
@@ -26,7 +26,7 @@ class TestMatmulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         lhs = torch.randn(5, 5, 6, requires_grad=True)
-        rhs = lhs.clone().detach().transpose(-1, -2)
+        rhs = lhs.clone().detach().mT
         covar = MatmulLinearOperator(lhs, rhs)
         return covar
 

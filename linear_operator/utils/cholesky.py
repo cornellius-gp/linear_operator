@@ -67,5 +67,5 @@ def psd_safe_cholesky(A, upper=False, out=None, jitter=None, max_tries=None):
         if out is not None:
             out = out.transpose_(-1, -2)
         else:
-            L = L.transpose(-1, -2)
+            L = L.mT
     return L

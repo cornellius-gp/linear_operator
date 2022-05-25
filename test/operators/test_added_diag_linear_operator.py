@@ -19,7 +19,7 @@ class TestAddedDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         tensor = torch.randn(5, 5)
-        tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
+        tensor = tensor.mT.matmul(tensor).detach()
         diag = torch.tensor([1.0, 2.0, 4.0, 2.0, 3.0], requires_grad=True)
         return AddedDiagLinearOperator(DenseLinearOperator(tensor), DiagLinearOperator(diag))
 
@@ -35,7 +35,7 @@ class TestAddedDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
 
     def create_linear_op(self):
         tensor = torch.randn(3, 5, 5)
-        tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
+        tensor = tensor.mT.matmul(tensor).detach()
         diag = torch.tensor(
             [[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]], requires_grad=True
         )
@@ -55,7 +55,7 @@ class TestAddedDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
 
     def create_linear_op(self):
         tensor = torch.randn(4, 3, 5, 5)
-        tensor = tensor.transpose(-1, -2).matmul(tensor).detach()
+        tensor = tensor.mT.matmul(tensor).detach()
         diag = (
             torch.tensor(
                 [[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]], requires_grad=True

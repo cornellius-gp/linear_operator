@@ -49,7 +49,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     def _diagonal(self):
         block_diag = self.base_linear_op._diagonal()
-        return block_diag.transpose(-1, -2).contiguous().view(*block_diag.shape[:-2], -1)
+        return block_diag.mT.contiguous().view(*block_diag.shape[:-2], -1)
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         # Figure out what block the row/column indices belong to

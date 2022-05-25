@@ -14,7 +14,7 @@ class TestSumBatchLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         blocks = torch.randn(12, 4, 4)
-        blocks = blocks.transpose(-1, -2).matmul(blocks)
+        blocks = blocks.mT.matmul(blocks)
         blocks.requires_grad_(True)
         return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
@@ -29,7 +29,7 @@ class TestSumBatchLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase)
 
     def create_linear_op(self):
         blocks = torch.randn(2, 6, 4, 4)
-        blocks = blocks.transpose(-1, -2).matmul(blocks)
+        blocks = blocks.mT.matmul(blocks)
         blocks.requires_grad_(True)
         return SumBatchLinearOperator(DenseLinearOperator(blocks))
 
@@ -46,7 +46,7 @@ class TestSumBatchLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Test
 
     def create_linear_op(self):
         blocks = torch.randn(2, 3, 6, 4, 4)
-        blocks = blocks.transpose(-1, -2).matmul(blocks)
+        blocks = blocks.mT.matmul(blocks)
         blocks.detach_()
         return SumBatchLinearOperator(DenseLinearOperator(blocks), block_dim=1)
 

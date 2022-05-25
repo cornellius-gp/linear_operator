@@ -32,7 +32,7 @@ def kron_diag(*lts):
         return lead_diag
     trail_diag = kron_diag(*lts[1:])
     diag = lead_diag.unsqueeze(-2) * trail_diag.unsqueeze(-1)
-    return diag.transpose(-1, -2).reshape(*diag.shape[:-2], -1)
+    return diag.mT.reshape(*diag.shape[:-2], -1)
 
 
 class TestKroneckerProductLinearOperator(LinearOperatorTestCase, unittest.TestCase):

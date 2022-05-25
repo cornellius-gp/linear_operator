@@ -25,7 +25,7 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         chol = linear_op.root.to_dense()
-        return chol.matmul(chol.transpose(-1, -2))
+        return chol.matmul(chol.mT)
 
 
 class TestCholLinearOperatorBatch(TestCholLinearOperator):

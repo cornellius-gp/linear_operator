@@ -80,11 +80,11 @@ class Diagonalization(Function):
         torch.diagonal(kmat, dim1=-1, dim2=-2).zero_()
 
         # dU = U(\tilde K^T \hadamard (U^T dL/dU)U^T
-        inner_term = kmat.transpose(-1, -2) * q_mat.transpose(-1, -2).matmul(evecs_grad_output)
-        term1 = q_mat.matmul(inner_term).matmul(q_mat.transpose(-1, -2))
+        inner_term = kmat.mT * q_mat.mT.matmul(evecs_grad_output)
+        term1 = q_mat.matmul(inner_term).matmul(q_mat.mT)
 
         # d\Sigma = U dL/d\Sigma U^T
-        term2 = q_mat.matmul(torch.diag_embed(evals_grad_output)).matmul(q_mat.transpose(-1, -2))
+        term2 = q_mat.matmul(torch.diag_embed(evals_grad_output)).matmul(q_mat.mT)
 
         # finally sum the two
         dL_dM = term1 + term2

@@ -131,7 +131,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             evals_plus_diagonal = evals + self.diag_tensor._diagonal().to(symeig_dtype)
             evals_root = evals_plus_diagonal.pow(0.5)
             inv_mat_sqrt = DiagLinearOperator(evals_root.reciprocal())
-            res = q_matrix.transpose(-2, -1).matmul(rhs.to(symeig_dtype))
+            res = q_matrix.mT.matmul(rhs.to(symeig_dtype))
             res2 = inv_mat_sqrt.matmul(res)
             lazy_lhs = q_matrix.matmul(inv_mat_sqrt)
             return lazy_lhs.matmul(res2).type(rhs_dtype)

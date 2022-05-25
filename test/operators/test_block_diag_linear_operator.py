@@ -14,7 +14,7 @@ class TestBlockDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         blocks = torch.randn(8, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
         return BlockDiagLinearOperator(DenseLinearOperator(blocks))
 
@@ -32,7 +32,7 @@ class TestBlockDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
 
     def create_linear_op(self):
         blocks = torch.randn(2, 6, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4))
         return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=2)
 
@@ -53,7 +53,7 @@ class TestBlockDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
 
     def create_linear_op(self):
         blocks = torch.randn(2, 6, 5, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
         return BlockDiagLinearOperator(DenseLinearOperator(blocks), block_dim=1)

@@ -145,7 +145,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
             # triangular, solve is cheap
-            inv_quad_term = inv_quad_rhs.transpose(-1, -2) @ self.solve(inv_quad_rhs)
+            inv_quad_term = inv_quad_rhs.mT @ self.solve(inv_quad_rhs)
         if logdet:
             diag = self._diagonal()
             logdet_term = self._diagonal().abs().log().sum(-1)

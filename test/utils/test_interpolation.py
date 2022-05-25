@@ -206,7 +206,7 @@ class TestInterp(unittest.TestCase):
         vector = torch.randn(9)
 
         res = left_t_interp(self.interp_indices, self.interp_values, vector, 6)
-        actual = torch.matmul(self.interp_matrix.transpose(-1, -2), vector)
+        actual = torch.matmul(self.interp_matrix.mT, vector)
         self.assertTrue(approx_equal(res, actual))
 
     def test_batch_left_interp_on_a_vector(self):
@@ -219,7 +219,7 @@ class TestInterp(unittest.TestCase):
     def test_batch_left_t_interp_on_a_vector(self):
         vector = torch.randn(9)
 
-        actual = torch.matmul(self.batch_interp_matrix.transpose(-1, -2), vector.unsqueeze(-1).unsqueeze(0)).squeeze(-1)
+        actual = torch.matmul(self.batch_interp_matrix.mT, vector.unsqueeze(-1).unsqueeze(0)).squeeze(-1)
         res = left_t_interp(self.batch_interp_indices, self.batch_interp_values, vector, 6)
         self.assertTrue(approx_equal(res, actual))
 
@@ -234,7 +234,7 @@ class TestInterp(unittest.TestCase):
         matrix = torch.randn(9, 3)
 
         res = left_t_interp(self.interp_indices, self.interp_values, matrix, 6)
-        actual = torch.matmul(self.interp_matrix.transpose(-1, -2), matrix)
+        actual = torch.matmul(self.interp_matrix.mT, matrix)
         self.assertTrue(approx_equal(res, actual))
 
     def test_batch_left_interp_on_a_matrix(self):
@@ -248,7 +248,7 @@ class TestInterp(unittest.TestCase):
         batch_matrix = torch.randn(9, 3)
 
         res = left_t_interp(self.batch_interp_indices, self.batch_interp_values, batch_matrix, 6)
-        actual = torch.matmul(self.batch_interp_matrix.transpose(-1, -2), batch_matrix.unsqueeze(0))
+        actual = torch.matmul(self.batch_interp_matrix.mT, batch_matrix.unsqueeze(0))
         self.assertTrue(approx_equal(res, actual))
 
     def test_batch_left_interp_on_a_batch_matrix(self):
@@ -262,7 +262,7 @@ class TestInterp(unittest.TestCase):
         batch_matrix = torch.randn(2, 9, 3)
 
         res = left_t_interp(self.batch_interp_indices, self.batch_interp_values, batch_matrix, 6)
-        actual = torch.matmul(self.batch_interp_matrix.transpose(-1, -2), batch_matrix)
+        actual = torch.matmul(self.batch_interp_matrix.mT, batch_matrix)
         self.assertTrue(approx_equal(res, actual))
 
 

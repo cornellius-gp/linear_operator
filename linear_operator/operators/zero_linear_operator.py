@@ -94,7 +94,7 @@ class ZeroLinearOperator(LinearOperator):
         return torch.zeros(*output_shape, dtype=rhs.dtype, device=rhs.device)
 
     def _transpose_nonbatch(self):
-        return self.transpose(-2, -1)
+        return self.mT
 
     def _unsqueeze_batch(self, dim):
         sizes = self.sizes.copy()

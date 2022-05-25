@@ -28,9 +28,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
 
         lt2_inv_roots = [lt.root_inv_decomposition().root for lt in lt2.linear_ops]
 
-        lt2_inv_root_mm_lt2 = [
-            rm.transpose(-1, -2).matmul(lt).matmul(rm) for rm, lt in zip(lt2_inv_roots, lt1.linear_ops)
-        ]
+        lt2_inv_root_mm_lt2 = [rm.mT.matmul(lt).matmul(rm) for rm, lt in zip(lt2_inv_roots, lt1.linear_ops)]
         inv_root_times_lt1 = KroneckerProductLinearOperator(*lt2_inv_root_mm_lt2).add_jitter(1.0)
         return inv_root_times_lt1
 
@@ -43,7 +41,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
 
         # now we compute L^{-1} M L^{-T} z
         # where M = (C^{-1/2}AC^{-1/2} \kron D^{-1/2} B D^{-1/2} + I_|C| \kron I_|D|)
-        res = lt2_inv_root.transpose(-1, -2).matmul(rhs)
+        res = lt2_inv_root.mT.matmul(rhs)
         res = inner_mat.solve(res)
         res = lt2_inv_root.matmul(res)
 

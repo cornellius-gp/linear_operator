@@ -14,7 +14,7 @@ class TestBlockInterleavedLinearOperator(LinearOperatorTestCase, unittest.TestCa
 
     def create_linear_op(self):
         blocks = torch.randn(8, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
         return BlockInterleavedLinearOperator(DenseLinearOperator(blocks))
 
@@ -34,7 +34,7 @@ class TestBlockInterleavedLinearOperatorBatch(LinearOperatorTestCase, unittest.T
 
     def create_linear_op(self):
         blocks = torch.randn(2, 6, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4))
         return BlockInterleavedLinearOperator(DenseLinearOperator(blocks), block_dim=2)
 
@@ -57,7 +57,7 @@ class TestBlockInterleavedLinearOperatorMultiBatch(LinearOperatorTestCase, unitt
 
     def create_linear_op(self):
         blocks = torch.randn(2, 6, 5, 4, 4)
-        blocks = blocks.matmul(blocks.transpose(-1, -2))
+        blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4))
         blocks.detach_()
         return BlockInterleavedLinearOperator(DenseLinearOperator(blocks), block_dim=1)

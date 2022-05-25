@@ -17,7 +17,7 @@ class TestMinres(BaseTestCase, unittest.TestCase):
         rhs = torch.randn(rhs_shape, dtype=torch.float64)
 
         matrix = torch.randn(*matrix_batch_shape, size, size, dtype=torch.float64)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(size, dtype=torch.float64).mul_(1e-1))
 

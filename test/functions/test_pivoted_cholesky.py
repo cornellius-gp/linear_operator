@@ -14,7 +14,7 @@ def _ensure_symmetric_grad(grad):
     """
     A gradient-hook hack to ensure that symmetric matrix gradients are symmetric
     """
-    res = torch.add(grad, grad.transpose(-1, -2)).mul(0.5)
+    res = torch.add(grad, grad.mT).mul(0.5)
     return res
 
 
@@ -23,7 +23,7 @@ class TestPivotedCholesky(BaseTestCase, unittest.TestCase):
 
     def _create_mat(self):
         mat = torch.randn(8, 8)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         return mat
 
     def test_pivoted_cholesky(self, max_iter=3):
@@ -58,7 +58,7 @@ class TestPivotedCholeskyBatch(TestPivotedCholesky, unittest.TestCase):
 
     def _create_mat(self):
         mat = torch.randn(2, 3, 8, 8)
-        mat = mat @ mat.transpose(-1, -2)
+        mat = mat @ mat.mT
         return mat
 
 

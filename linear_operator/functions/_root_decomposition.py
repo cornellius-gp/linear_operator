@@ -151,7 +151,7 @@ class RootDecomposition(Function):
                 left_factor.add_(root_grad_output)
             if inverse_grad_output is not None:
                 # -root^-T grad_output.T root^-T
-                left_factor.sub_(torch.matmul(inverse, inverse_grad_output.transpose(-1, -2)).matmul(inverse))
+                left_factor.sub_(torch.matmul(inverse, inverse_grad_output.mT).matmul(inverse))
 
             # Right factor
             right_factor = inverse.div(2.0)

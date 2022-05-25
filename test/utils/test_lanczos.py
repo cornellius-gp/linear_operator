@@ -34,7 +34,7 @@ class TestLanczos(unittest.TestCase):
 
         self.assert_valid_sizes(size, t_mat, q_mat)
         self.assert_tridiagonally_positive(t_mat)
-        approx = q_mat.matmul(t_mat).matmul(q_mat.transpose(-1, -2))
+        approx = q_mat.matmul(t_mat).matmul(q_mat.mT)
         self.assertTrue(approx_equal(approx, matrix))
 
     # this type of matrix has eigenvalues of similar scale, so our approximation will likely create a tridiaganal
@@ -42,7 +42,7 @@ class TestLanczos(unittest.TestCase):
     def test_lanczos_tridiag_near_exact(self):
         size = 100
         matrix = torch.randn(size, size)
-        matrix = matrix.matmul(matrix.transpose(-1, -2))
+        matrix = matrix.matmul(matrix.mT)
         matrix.div_(matrix.norm())
         matrix.add_(torch.diag_embed(torch.ones(matrix.size(-1)).mul(1e-6)))
         self.lanczos_tridiag_test(matrix)

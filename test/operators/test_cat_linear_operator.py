@@ -55,7 +55,7 @@ class TestCatLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         root = torch.randn(3, 6, 7)
-        self.psd_mat = root.matmul(root.transpose(-2, -1))
+        self.psd_mat = root.matmul(root.mT)
 
         slice1_mat = self.psd_mat[..., :2, :].requires_grad_()
         slice2_mat = self.psd_mat[..., 2:4, :].requires_grad_()
@@ -78,7 +78,7 @@ class TestCatLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
 
     def create_linear_op(self):
         root = torch.randn(4, 3, 6, 7)
-        self.psd_mat = root.matmul(root.transpose(-2, -1))
+        self.psd_mat = root.matmul(root.mT)
 
         slice1_mat = self.psd_mat[..., :2, :].requires_grad_()
         slice2_mat = self.psd_mat[..., 2:4, :].requires_grad_()
@@ -101,7 +101,7 @@ class TestCatLinearOperatorBatchCat(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         root = torch.randn(5, 3, 6, 7)
-        self.psd_mat = root.matmul(root.transpose(-2, -1))
+        self.psd_mat = root.matmul(root.mT)
 
         slice1_mat = self.psd_mat[:2, ...].requires_grad_()
         slice2_mat = self.psd_mat[2:3, ...].requires_grad_()

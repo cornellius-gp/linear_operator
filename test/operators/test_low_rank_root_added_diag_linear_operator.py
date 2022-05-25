@@ -25,7 +25,7 @@ class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.Te
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag_tensor._diag
         root = linear_op._linear_op.root.tensor
-        return root @ root.transpose(-1, -2) + diag.diag_embed(dim1=-2, dim2=-1)
+        return root @ root.mT + diag.diag_embed(dim1=-2, dim2=-1)
 
     def _test_solve(self, rhs, lhs=None, cholesky=False):
         linear_op = self.create_linear_op().requires_grad_(True)
@@ -117,7 +117,7 @@ class TestLowRankRootAddedDiagLinearOperatorBatch(TestLowRankRootAddedDiagLinear
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag_tensor._diag
         root = linear_op._linear_op.root.tensor
-        return root @ root.transpose(-1, -2) + diag.diag_embed(dim1=-2, dim2=-1)
+        return root @ root.mT + diag.diag_embed(dim1=-2, dim2=-1)
 
 
 class TestLowRankRootAddedDiagLinearOperatorMultiBatch(TestLowRankRootAddedDiagLinearOperator):
@@ -138,7 +138,7 @@ class TestLowRankRootAddedDiagLinearOperatorMultiBatch(TestLowRankRootAddedDiagL
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag_tensor._diag
         root = linear_op._linear_op.root.tensor
-        return root @ root.transpose(-1, -2) + diag.diag_embed(dim1=-2, dim2=-1)
+        return root @ root.mT + diag.diag_embed(dim1=-2, dim2=-1)
 
 
 if __name__ == "__main__":
