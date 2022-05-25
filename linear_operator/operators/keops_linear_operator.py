@@ -15,7 +15,7 @@ class KeOpsLinearOperator(LinearOperator):
         self.params = params
 
     @cached(name="kernel_diag")
-    def diag(self):
+    def _diagonal(self):
         """
         Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
         """

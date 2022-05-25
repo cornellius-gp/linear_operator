@@ -30,6 +30,10 @@ class MulLinearOperator(LinearOperator):
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 
+    def _diagonal(self):
+        res = self.left_linear_op._diagonal() * self.right_linear_op._diagonal()
+        return res
+
     def _get_indices(self, row_index, col_index, *batch_indices):
         left_res = self.left_linear_op._get_indices(row_index, col_index, *batch_indices)
         right_res = self.right_linear_op._get_indices(row_index, col_index, *batch_indices)
@@ -115,10 +119,6 @@ class MulLinearOperator(LinearOperator):
         return self.__class__(
             self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
         )
-
-    def diag(self):
-        res = self.left_linear_op.diag() * self.right_linear_op.diag()
-        return res
 
     @cached
     def to_dense(self):

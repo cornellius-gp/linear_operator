@@ -60,8 +60,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
     def _matmul(self, rhs):
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
-    def add_diag(self, added_diag):
-        return self.__class__(self._linear_op, self._diag_tensor.add_diag(added_diag))
+    def add_diagonal(self, added_diag):
+        return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(added_diag))
 
     def __add__(self, other):
         from .diag_linear_operator import DiagLinearOperator
@@ -122,7 +122,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def _init_cache(self):
         *batch_shape, n, k = self._piv_chol_self.shape
-        self._noise = self._diag_tensor.diag().unsqueeze(-1)
+        self._noise = self._diag_tensor._diagonal().unsqueeze(-1)
 
         # the check for constant diag needs to be done carefully for batches.
         noise_first_element = self._noise[..., :1, :]
@@ -166,14 +166,14 @@ class AddedDiagLinearOperator(SumLinearOperator):
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             U, S_, V = self._linear_op.svd()
-            S = S_ + self._diag_tensor.diag()
+            S = S_ + self._diag_tensor._diagonal()
             return U, S, V
         return super()._svd()
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op.symeig(eigenvectors=eigenvectors)
-            evals = evals_ + self._diag_tensor.diag()
+            evals = evals_ + self._diag_tensor._diagonal()
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)
 
@@ -182,8 +182,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
         Overriding this is currently necessary to allow for subclasses of AddedDiagLT to be created. For example,
         consider the following:
 
-            >>> covar1 = covar_module(x).add_diag(torch.tensor(1.)).evaluate_kernel()
-            >>> covar2 = covar_module(x).evaluate_kernel().add_diag(torch.tensor(1.))
+            >>> covar1 = covar_module(x).add_diagonal(torch.tensor(1.)).evaluate_kernel()
+            >>> covar2 = covar_module(x).evaluate_kernel().add_diagonal(torch.tensor(1.))
 
         Unless we override this method (or find a better solution), covar1 and covar2 might not be the same type.
         In particular, covar1 would *always* be a standard AddedDiagLinearOperator, but covar2 might be a subtype.

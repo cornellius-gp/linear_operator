@@ -89,7 +89,7 @@ def contour_integral_quad(
             if approx_eigs.min() <= 0:
                 raise RuntimeError
         except RuntimeError:
-            approx_eigs = linear_op.diag()
+            approx_eigs = linear_op._diagonal()
 
         max_eig = approx_eigs.max(dim=-1)[0]
         min_eig = approx_eigs.min(dim=-1)[0]

@@ -23,7 +23,7 @@ def _constant_kpadlt_constructor(lt, dlt):
         sub_evals.append(DiagLinearOperator(evals_ / dlt_.diag_values))
         sub_evecs.append(evecs_)
     evals = KroneckerProductDiagLinearOperator(*sub_evals)
-    evals_p_i = DiagLinearOperator(evals.diag() + 1.0)
+    evals_p_i = DiagLinearOperator(evals._diagonal() + 1.0)
     evecs = KroneckerProductLinearOperator(*sub_evecs)
     return evals_p_i, evecs
 
@@ -73,7 +73,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         if self._diag_is_constant:
             # symeig requires computing the eigenvectors for it to be differentiable
             evals, _ = self.linear_op.symeig(eigenvectors=True)
-            evals_plus_diag = evals + self.diag_tensor.diag()
+            evals_plus_diag = evals + self.diag_tensor._diagonal()
             return torch.log(evals_plus_diag).sum(dim=-1)
         if self.shape[-1] >= settings.max_cholesky_size.value() and isinstance(
             self.diag_tensor, KroneckerProductDiagLinearOperator
@@ -85,13 +85,13 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             ):
                 # here the log determinant identity is |D + K| = | D| |I + D^{-1} K|
                 # as D is assumed to have constant components, we can look solely at the diag_values
-                diag_term = self.diag_tensor.diag().clamp(min=1e-7).log().sum(dim=-1)
+                diag_term = self.diag_tensor._diagonal().clamp(min=1e-7).log().sum(dim=-1)
                 # symeig requires computing the eigenvectors for it to be differentiable
                 evals, _ = self.linear_op.symeig(eigenvectors=True)
                 const_times_evals = KroneckerProductLinearOperator(
                     *[ee * d.diag_values for ee, d in zip(evals.linear_ops, self.diag_tensor.linear_ops)]
                 )
-                first_term = (const_times_evals.diag() + 1).log().sum(dim=-1)
+                first_term = (const_times_evals._diagonal() + 1).log().sum(dim=-1)
                 return diag_term + first_term
 
             else:
@@ -128,7 +128,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         # and performing a spectral shift of its eigenvalues
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.to(symeig_dtype).diagonalization()
-            evals_plus_diagonal = evals + self.diag_tensor.diag().to(symeig_dtype)
+            evals_plus_diagonal = evals + self.diag_tensor._diagonal().to(symeig_dtype)
             evals_root = evals_plus_diagonal.pow(0.5)
             inv_mat_sqrt = DiagLinearOperator(evals_root.reciprocal())
             res = q_matrix.transpose(-2, -1).matmul(rhs.to(symeig_dtype))
@@ -201,7 +201,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _root_decomposition(self):
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
-            updated_evals = DiagLinearOperator((evals + self.diag_tensor.diag()).pow(0.5))
+            updated_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(0.5))
             return MatmulLinearOperator(q_matrix, updated_evals)
 
         dlt = self.diag_tensor
@@ -209,7 +209,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         if isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator):
             if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
-                evals_p_i_root = DiagLinearOperator(evals_p_i.diag().sqrt())
+                evals_p_i_root = DiagLinearOperator(evals_p_i._diagonal().sqrt())
                 # here we need to scale the eigenvectors by the constants as
                 # A = D^{1/2} Q (\kron a_i^{-1} \Lambda_i + I) Q^\top D^{1/2}
                 # so that we compute
@@ -224,7 +224,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             # again, we compute the root decomposition by pulling across the diagonals
             dlt_root = dlt.sqrt()
             _, evals_p_i, evecs = _symmetrize_kpadlt_constructor(lt, dlt)
-            evals_p_i_root = DiagLinearOperator(evals_p_i.diag().sqrt())
+            evals_p_i_root = DiagLinearOperator(evals_p_i._diagonal().sqrt())
             return MatmulLinearOperator(dlt_root, MatmulLinearOperator(evecs, evals_p_i_root))
 
         return super()._root_decomposition()
@@ -232,7 +232,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _root_inv_decomposition(self, initial_vectors=None):
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
-            inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor.diag()).pow(-0.5))
+            inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(-0.5))
             return MatmulLinearOperator(q_matrix, inv_sqrt_evals)
 
         dlt = self.diag_tensor
@@ -240,7 +240,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         if isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator):
             if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
-                evals_p_i_inv_root = DiagLinearOperator(evals_p_i.diag().reciprocal().sqrt())
+                evals_p_i_inv_root = DiagLinearOperator(evals_p_i._diagonal().reciprocal().sqrt())
                 # here we need to scale the eigenvectors by the constants as
                 # A = D^{1/2} Q (\kron a_i^{-1} \Lambda_i + I) Q^\top D^{1/2}
                 # so that we compute
@@ -255,7 +255,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             # again, we compute the root decomposition by pulling across the diagonals
             dlt_sqrt, evals_p_i, evecs = _symmetrize_kpadlt_constructor(lt, dlt)
             dlt_inv_root = dlt_sqrt.inverse()
-            evals_p_i_root = DiagLinearOperator(evals_p_i.diag().reciprocal().sqrt())
+            evals_p_i_root = DiagLinearOperator(evals_p_i._diagonal().reciprocal().sqrt())
             return MatmulLinearOperator(dlt_inv_root, MatmulLinearOperator(evecs, evals_p_i_root))
 
         return super()._root_inv_decomposition(initial_vectors=initial_vectors)

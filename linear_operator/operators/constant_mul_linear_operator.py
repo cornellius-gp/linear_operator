@@ -65,8 +65,12 @@ class ConstantMulLinearOperator(LinearOperator):
         self.base_linear_op = base_linear_op
         self._constant = constant
 
-    def _approx_diag(self):
-        res = self.base_linear_op._approx_diag()
+    def _approx_diagonal(self):
+        res = self.base_linear_op._approx_diagonal()
+        return res * self._constant.unsqueeze(-1)
+
+    def _diagonal(self):
+        res = self.base_linear_op._diagonal()
         return res * self._constant.unsqueeze(-1)
 
     def _expand_batch(self, batch_shape):
@@ -146,10 +150,6 @@ class ConstantMulLinearOperator(LinearOperator):
             )
 
         return constant
-
-    def diag(self):
-        res = self.base_linear_op.diag()
-        return res * self._constant.unsqueeze(-1)
 
     @cached
     def to_dense(self):

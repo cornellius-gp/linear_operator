@@ -44,7 +44,7 @@ class TestLanczos(unittest.TestCase):
         matrix = torch.randn(size, size)
         matrix = matrix.matmul(matrix.transpose(-1, -2))
         matrix.div_(matrix.norm())
-        matrix.add_(torch.ones(matrix.size(-1)).mul(1e-6).diag())
+        matrix.add_(torch.diag_embed(torch.ones(matrix.size(-1)).mul(1e-6)))
         self.lanczos_tridiag_test(matrix)
 
     # this kind of matrix has eigenvalues on very different scales, so our approximation will likely create a

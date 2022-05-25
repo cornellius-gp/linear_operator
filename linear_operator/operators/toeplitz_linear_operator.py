@@ -19,6 +19,12 @@ class ToeplitzLinearOperator(LinearOperator):
         super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
 
+    def _diagonal(self):
+        diag_term = self.column[..., 0]
+        if self.column.ndimension() > 1:
+            diag_term = diag_term.unsqueeze(-1)
+        return diag_term.expand(*self.column.size())
+
     def _expand_batch(self, batch_shape):
         return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
 
@@ -56,12 +62,3 @@ class ToeplitzLinearOperator(LinearOperator):
         jitter = torch.zeros_like(self.column)
         jitter.narrow(-1, 0, 1).fill_(jitter_val)
         return ToeplitzLinearOperator(self.column.add(jitter))
-
-    def diag(self):
-        """
-        Gets the diagonal of the Toeplitz matrix wrapped by this object.
-        """
-        diag_term = self.column[..., 0]
-        if self.column.ndimension() > 1:
-            diag_term = diag_term.unsqueeze(-1)
-        return diag_term.expand(*self.column.size())

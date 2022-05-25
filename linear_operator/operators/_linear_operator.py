@@ -386,7 +386,7 @@ class LinearOperator(ABC):
     def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator"], ...]) -> None:
         self._args_memo = args
 
-    def _approx_diag(self) -> torch.Tensor:
+    def _approx_diagonal(self) -> torch.Tensor:
         """
         (Optional) returns an (approximate) diagonal of the matrix
 
@@ -398,7 +398,7 @@ class LinearOperator(ABC):
 
         :return: the (batch of) diagonals (... x N)
         """
-        return self.diag()
+        return self._diagonal()
 
     @cached(name="cholesky")
     def _cholesky(self, upper: bool = False) -> "TriangularLinearOperator":  # noqa F811
@@ -457,6 +457,19 @@ class LinearOperator(ABC):
         ):
             return "cholesky"
         return "lanczos"
+
+    def _diagonal(self) -> torch.Tensor:
+        r"""
+        As :func:`torch._diagonal`, returns the diagonal of the matrix
+        :math:`\mathbf A` this LinearOperator represents as a vector.
+
+        .. note::
+            This method is used as an internal helper. Calling this method directly is discouraged.
+
+        :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
+        """
+        row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
+        return self[..., row_col_iter, row_col_iter]
 
     def _inv_matmul_preconditioner(self) -> Callable:
         r"""
@@ -799,7 +812,7 @@ class LinearOperator(ABC):
         else:
             return self + alpha * other
 
-    def add_diag(self, diag: torch.Tensor) -> LinearOperator:
+    def add_diagonal(self, diag: torch.Tensor) -> LinearOperator:
         r"""
         Adds an element to the diagonal of the matrix.
 
@@ -811,7 +824,7 @@ class LinearOperator(ABC):
         from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 
         if not self.is_square:
-            raise RuntimeError("add_diag only defined for square matrices")
+            raise RuntimeError("add_diagonal only defined for square matrices")
 
         diag_shape = diag.shape
         if len(diag_shape) == 0:
@@ -825,7 +838,7 @@ class LinearOperator(ABC):
                 expanded_diag = diag.expand(self.shape[:-1])
             except RuntimeError:
                 raise RuntimeError(
-                    "add_diag for LinearOperator of size {} received invalid diagonal of size {}.".format(
+                    "add_diagonal for LinearOperator of size {} received invalid diagonal of size {}.".format(
                         self.shape, diag_shape
                     )
                 )
@@ -837,7 +850,7 @@ class LinearOperator(ABC):
         r"""
         Adds jitter (i.e., a small diagonal component) to the matrix this
         LinearOperator represents.
-        This is equivalent to calling :meth:`~linear_operator.operators.LinearOperator.add_diag`
+        This is equivalent to calling :meth:`~linear_operator.operators.LinearOperator.add_diagonal`
         with a scalar tensor.
 
         :param jitter_val: The diagonal component to add
@@ -845,7 +858,7 @@ class LinearOperator(ABC):
             and :math:`\alpha` is :attr:`jitter_val`.
         """
         diag = torch.tensor(jitter_val, dtype=self.dtype, device=self.device)
-        return self.add_diag(diag)
+        return self.add_diagonal(diag)
 
     def add_low_rank(
         self,
@@ -1210,20 +1223,26 @@ class LinearOperator(ABC):
                 val.detach_()
         return self
 
-    # TODO: rename to diagonal
-    def diag(self) -> torch.Tensor:
+    def diagonal(self, offset: int = 0, dim1: int = -2, dim2: int = -1) -> torch.Tensor:
         r"""
-        As :func:`torch.diag`, returns the diagonal of the matrix
+        As :func:`torch.diagonal`, returns the diagonal of the matrix
         :math:`\mathbf A` this LinearOperator represents as a vector.
+
+        .. note::
+            This method is only implemented for when :attr:`dim1` and :attr:`dim2` are equal
+            to -2 and -1, respectfully, and :attr:`offset = 0`.
 
         :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
         """
-        if settings.debug.on():
-            if not self.is_square:
-                raise RuntimeError("Diag works on square matrices (or batches)")
-
-        row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
-        return self[..., row_col_iter, row_col_iter]
+        if not offset == 0 and ((dim1 == -2 and dim2 == -1) or (dim1 == -1 and dim2 == -2)):
+            raise NotImplementedError(
+                "LinearOperator#diagonal is only implemented for when :attr:`dim1` and :attr:`dim2` are equal "
+                "to -2 and -1, respectfully, and :attr:`offset = 0`. "
+                f"Got: offset={offset}, dim1={dim1}, dim2={dim2}."
+            )
+        elif not self.is_square:
+            raise RuntimeError("LinearOperator#diagonal is only implemented for square operators.")
+        return self._diagonal()
 
     @cached(name="diagonalization")
     def diagonalization(self, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:

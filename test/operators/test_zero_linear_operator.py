@@ -85,40 +85,40 @@ class TestZeroLinearOperator(unittest.TestCase):
         index = (Ellipsis, torch.tensor([0, 1, 1, 0]))
         self.assertTrue(approx_equal(linear_op[index].to_dense(), evaluated[index]))
 
-    def test_add_diag(self):
+    def test_add_diagonal(self):
         diag = torch.tensor(1.5)
-        res = ZeroLinearOperator(5, 5).add_diag(diag).to_dense()
+        res = ZeroLinearOperator(5, 5).add_diagonal(diag).to_dense()
         actual = torch.eye(5).mul(1.5)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor([1.5])
-        res = ZeroLinearOperator(5, 5).add_diag(diag).to_dense()
+        res = ZeroLinearOperator(5, 5).add_diagonal(diag).to_dense()
         actual = torch.eye(5).mul(1.5)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor([1.5, 1.3, 1.2, 1.1, 2.0])
-        res = ZeroLinearOperator(5, 5).add_diag(diag).to_dense()
-        actual = diag.diag()
+        res = ZeroLinearOperator(5, 5).add_diagonal(diag).to_dense()
+        actual = torch.diag_embed(diag)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor(1.5)
-        res = ZeroLinearOperator(2, 5, 5).add_diag(diag).to_dense()
-        actual = torch.eye(5).unsqueeze(0).repeat(2, 1, 1).mul(1.5)
+        res = ZeroLinearOperator(2, 5, 5).add_diagonal(diag).to_dense()
+        actual = torch.eye(5).repeat(2, 1, 1).mul(1.5)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor([1.5])
-        res = ZeroLinearOperator(2, 5, 5).add_diag(diag).to_dense()
-        actual = torch.eye(5).unsqueeze(0).repeat(2, 1, 1).mul(1.5)
+        res = ZeroLinearOperator(2, 5, 5).add_diagonal(diag).to_dense()
+        actual = torch.eye(5).repeat(2, 1, 1).mul(1.5)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor([1.5, 1.3, 1.2, 1.1, 2.0])
-        res = ZeroLinearOperator(2, 5, 5).add_diag(diag).to_dense()
-        actual = diag.diag().unsqueeze(0).repeat(2, 1, 1)
+        res = ZeroLinearOperator(2, 5, 5).add_diagonal(diag).to_dense()
+        actual = torch.diag_embed(diag).repeat(2, 1, 1)
         self.assertTrue(approx_equal(res, actual))
 
         diag = torch.tensor([[1.5, 1.3, 1.2, 1.1, 2.0], [0, 1, 2, 1, 1]])
-        res = ZeroLinearOperator(2, 5, 5).add_diag(diag).to_dense()
-        actual = torch.cat([diag[0].diag().unsqueeze(0), diag[1].diag().unsqueeze(0)])
+        res = ZeroLinearOperator(2, 5, 5).add_diagonal(diag).to_dense()
+        actual = torch.diag_embed(diag)
         self.assertTrue(approx_equal(res, actual))
 
     def test_matmul(self):

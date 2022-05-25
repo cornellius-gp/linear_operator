@@ -27,7 +27,7 @@ def kron(a, b):
 
 def kron_diag(*lts):
     """Compute diagonal of a KroneckerProductLinearOperator from the diagonals of the constituiting tensors"""
-    lead_diag = lts[0].diag()
+    lead_diag = lts[0].diagonal(dim1=-1, dim2=-2)
     if len(lts) == 1:  # base case:
         return lead_diag
     trail_diag = kron_diag(*lts[1:])

@@ -45,7 +45,7 @@ class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOpera
     def evaluate_linear_op(self, linear_op):
         tensor = linear_op._linear_op.to_dense()
         diag = linear_op._diag_tensor._diag
-        return tensor + diag.diag()
+        return tensor + torch.diag_embed(diag)
 
 
 class TestKroneckerProductAddedKroneckerDiagLinearOperator(TestKroneckerProductAddedDiagLinearOperator):

@@ -12,13 +12,7 @@ class LowRankRootLinearOperator(RootLinearOperator):
     write custom _getitem, _get_indices, etc, leading to much better code reuse.
     """
 
-    def add_diag(self, diag):
-        """
-        Adds an element to the diagonal of the matrix.
-
-        Args:
-            - diag (Scalar Tensor)
-        """
+    def add_diagonal(self, diag):
         from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
         from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 

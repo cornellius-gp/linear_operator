@@ -28,6 +28,10 @@ class ZeroLinearOperator(LinearOperator):
     def device(self):
         return self._device
 
+    def _diagonal(self):
+        shape = self.shape
+        return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
+
     def _expand_batch(self, batch_shape):
         return self.__class__(*batch_shape, *self.sizes[-2:], dtype=self._dtype, device=self._device)
 
@@ -98,7 +102,7 @@ class ZeroLinearOperator(LinearOperator):
         sizes.insert(dim, 1)
         return self.__class__(*sizes, dtype=self._dtype, device=self._device)
 
-    def add_diag(self, diag):
+    def add_diagonal(self, diag):
         from .diag_linear_operator import DiagLinearOperator
 
         if self.size(-1) != self.size(-2):
@@ -134,12 +138,6 @@ class ZeroLinearOperator(LinearOperator):
                 "Diag size corresponds to a {} Tensor - expected {}".format(res.size(), self.size())
             )
         return res
-
-    def diag(self):
-        shape = self.shape
-        if shape[-1] != shape[-2]:
-            raise RuntimeError("diag works on square matrices (or batches)")
-        return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 
     @cached
     def to_dense(self):

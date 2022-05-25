@@ -16,6 +16,12 @@ class RootLinearOperator(LinearOperator):
         super().__init__(root)
         self.root = root
 
+    def _diagonal(self):
+        if isinstance(self.root, DenseLinearOperator):
+            return (self.root.tensor**2).sum(-1)
+        else:
+            return super()._diagonal()
+
     def _expand_batch(self, batch_shape):
         if len(batch_shape) == 0:
             return self
@@ -83,12 +89,6 @@ class RootLinearOperator(LinearOperator):
 
     def _transpose_nonbatch(self):
         return self
-
-    def diag(self):
-        if isinstance(self.root, DenseLinearOperator):
-            return (self.root.tensor**2).sum(-1)
-        else:
-            return super().diag()
 
     @cached
     def to_dense(self):

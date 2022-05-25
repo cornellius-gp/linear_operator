@@ -63,7 +63,7 @@ class RootDecomposition(Function):
             t_mat = t_mat.unsqueeze(0)
         n_probes = t_mat.size(0)
 
-        mins = to_linear_operator(t_mat).diag().min(dim=-1, keepdim=True)[0].unsqueeze(-1)
+        mins = to_linear_operator(t_mat)._diagonal().min(dim=-1, keepdim=True)[0].unsqueeze(-1)
         jitter_mat = (settings.tridiagonal_jitter.value() * mins) * torch.eye(
             t_mat.size(-1), device=t_mat.device, dtype=t_mat.dtype
         ).expand_as(t_mat)

@@ -78,6 +78,9 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 res = self._transpose_nonbatch().inv_matmul(w)
         return res
 
+    def _diagonal(self) -> Tensor:
+        return self._tensor._diagonal()
+
     def _get_indices(self, row_index, col_index, *batch_indices):
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
 
@@ -114,15 +117,12 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def abs(self) -> "TriangularLinearOperator":
         return TriangularLinearOperator(self._tensor.abs(), upper=self.upper)
 
-    def add_diag(self, added_diag: Tensor) -> "TriangularLinearOperator":
+    def add_diagonal(self, added_diag: Tensor) -> "TriangularLinearOperator":
         from .added_diag_linear_operator import AddedDiagLinearOperator
 
         shape = _mul_broadcast_shape(self._diag.shape, added_diag.shape)
         added_diag_lt = AddedDiagLinearOperator(self._tensor.expand(shape), added_diag.expand(shape))
         return TriangularLinearOperator(added_diag_lt, upper=self.upper)
-
-    def diag(self) -> Tensor:
-        return self._tensor.diag()
 
     @cached
     def to_dense(self) -> Tensor:
@@ -157,8 +157,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             # triangular, inv_matmul is cheap
             inv_quad_term = inv_quad_rhs.transpose(-1, -2) @ self.inv_matmul(inv_quad_rhs)
         if logdet:
-            diag = self.diag()
-            logdet_term = self.diag().abs().log().sum(-1)
+            diag = self._diagonal()
+            logdet_term = self._diagonal().abs().log().sum(-1)
             if torch.sign(diag).prod(-1) < 0:
                 logdet_term = torch.full_like(logdet_term, float("nan"))
         else:

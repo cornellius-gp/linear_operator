@@ -50,6 +50,10 @@ class BlockDiagLinearOperator(BlockLinearOperator):
         res = self._remove_batch_dim(res)
         return res
 
+    def _diagonal(self):
+        res = self.base_linear_op._diagonal().contiguous()
+        return res.view(*self.batch_shape, self.size(-1))
+
     def _get_indices(self, row_index, col_index, *batch_indices):
         # Figure out what block the row/column indices belong to
         row_index_block = torch.div(row_index, self.base_linear_op.size(-2), rounding_mode="floor")
@@ -93,10 +97,6 @@ class BlockDiagLinearOperator(BlockLinearOperator):
             res = self.base_linear_op._solve(rhs, preconditioner, num_tridiag=None)
             res = self._remove_batch_dim(res)
             return res
-
-    def diag(self):
-        res = self.base_linear_op.diag().contiguous()
-        return res.view(*self.batch_shape, self.size(-1))
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:

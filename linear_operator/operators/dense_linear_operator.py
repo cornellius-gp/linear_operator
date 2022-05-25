@@ -27,6 +27,9 @@ class DenseLinearOperator(LinearOperator):
     def _cholesky_solve(self, rhs, upper=False):
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
+    def _diagonal(self):
+        return self.tensor.diagonal(dim1=-1, dim2=-2)
+
     def _expand_batch(self, batch_shape):
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
 
@@ -61,13 +64,6 @@ class DenseLinearOperator(LinearOperator):
 
     def _t_matmul(self, rhs):
         return torch.matmul(self.tensor.transpose(-1, -2), rhs)
-
-    def diag(self):
-        if self.tensor.ndimension() < 3:
-            return self.tensor.diag()
-        else:
-            row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
-            return self.tensor[..., row_col_iter, row_col_iter].view(*self.batch_shape, -1)
 
     def to_dense(self):
         return self.tensor

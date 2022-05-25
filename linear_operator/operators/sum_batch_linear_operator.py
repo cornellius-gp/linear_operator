@@ -30,6 +30,10 @@ class SumBatchLinearOperator(BlockLinearOperator):
         other = other.reshape(*shape).expand(*expand_shape)
         return other
 
+    def _diagonal(self):
+        diag = self.base_linear_op._diagonal().sum(-2)
+        return diag
+
     def _get_indices(self, row_index, col_index, *batch_indices):
         # Create an extra index for the summed dimension
         sum_index = torch.arange(0, self.base_linear_op.size(-3), device=self.device)
@@ -52,10 +56,6 @@ class SumBatchLinearOperator(BlockLinearOperator):
         shape = list(self.base_linear_op.shape)
         del shape[-3]
         return torch.Size(shape)
-
-    def diag(self):
-        diag = self.base_linear_op.diag().sum(-2)
-        return diag
 
     def to_dense(self):
         return self.base_linear_op.to_dense().sum(dim=-3)  # BlockLinearOperators always use dim3 for the block_dim

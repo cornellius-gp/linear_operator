@@ -20,7 +20,7 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag
-        return diag.diag()
+        return torch.diag_embed(diag)
 
 
 class TestDiagLinearOperatorBatch(TestDiagLinearOperator):
@@ -34,7 +34,7 @@ class TestDiagLinearOperatorBatch(TestDiagLinearOperator):
 
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag
-        return torch.cat([diag[i].diag().unsqueeze(0) for i in range(3)])
+        return torch.diag_embed(diag)
 
 
 class TestDiagLinearOperatorMultiBatch(TestDiagLinearOperator):
@@ -50,9 +50,7 @@ class TestDiagLinearOperatorMultiBatch(TestDiagLinearOperator):
 
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag
-        flattened_diag = diag.view(-1, diag.size(-1))
-        res = torch.cat([flattened_diag[i].diag().unsqueeze(0) for i in range(18)])
-        return res.view(6, 3, 5, 5)
+        return torch.diag_embed(diag)
 
 
 if __name__ == "__main__":

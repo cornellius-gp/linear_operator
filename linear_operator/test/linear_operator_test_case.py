@@ -452,33 +452,33 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             else:
                 self.assertFalse(linear_cg_mock.called)
 
-    def test_add_diag(self):
+    def test_add_diagonal(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
 
         other_diag = torch.tensor(1.5)
-        res = linear_op.add_diag(other_diag).to_dense()
+        res = linear_op.add_diagonal(other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.tensor([1.5])
-        res = linear_op.add_diag(other_diag).to_dense()
+        res = linear_op.add_diagonal(other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.randn(linear_op.size(-1)).pow(2)
-        res = linear_op.add_diag(other_diag).to_dense()
-        actual = evaluated + other_diag.diag().repeat(*linear_op.batch_shape, 1, 1)
+        res = linear_op.add_diagonal(other_diag).to_dense()
+        actual = evaluated + torch.diag_embed(other_diag)
         self.assertAllClose(res, actual)
 
         for sizes in product([1, None], repeat=(linear_op.dim() - 2)):
             batch_shape = [linear_op.batch_shape[i] if size is None else size for i, size in enumerate(sizes)]
             other_diag = torch.randn(*batch_shape, linear_op.size(-1)).pow(2)
-            res = linear_op.add_diag(other_diag).to_dense()
+            res = linear_op.add_diagonal(other_diag).to_dense()
             actual = evaluated.clone().detach()
             for i in range(other_diag.size(-1)):
                 actual[..., i, i] = actual[..., i, i] + other_diag[..., i]
@@ -564,11 +564,11 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         actual = evaluated.double()
         self.assertEqual(res.dtype, actual.dtype)
 
-    def test_diag(self):
+    def test_diagonal(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
 
-        res = linear_op.diag()
+        res = linear_op.diagonal(dim1=-1, dim2=-2)
         actual = evaluated.diagonal(dim1=-2, dim2=-1)
         actual = actual.view(*linear_op.batch_shape, -1)
         self.assertAllClose(res, actual, **self.tolerances["diag"])

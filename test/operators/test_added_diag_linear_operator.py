@@ -26,7 +26,7 @@ class TestAddedDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag_tensor._diag
         tensor = linear_op._linear_op.tensor
-        return tensor + diag.diag()
+        return tensor + torch.diag_embed(diag)
 
 
 class TestAddedDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
@@ -87,12 +87,12 @@ class TestAddedDiagLinearOperatorPrecondOverride(unittest.TestCase):
             top_100_evecs = evecs[:, :100]
             top_100_evals = evals[:100] + 0.2 * torch.randn(100)
 
-            precond_lt = RootLinearOperator(top_100_evecs @ torch.diag(top_100_evals**0.5))
+            precond_lt = RootLinearOperator(top_100_evecs @ torch.diag_embed(top_100_evals**0.5))
             logdet = top_100_evals.log().sum()
 
             def precond_closure(rhs):
                 rhs2 = top_100_evecs.t() @ rhs
-                return top_100_evecs @ torch.diag(1.0 / top_100_evals) @ rhs2
+                return top_100_evecs @ torch.diag_embed(1.0 / top_100_evals) @ rhs2
 
             return precond_closure, precond_lt, logdet
 

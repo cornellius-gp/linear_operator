@@ -62,6 +62,18 @@ class MatmulLinearOperator(LinearOperator):
         res = (left_tensor * right_tensor).sum(-1)
         return res
 
+    def _diagonal(self):
+        if isinstance(self.left_linear_op, DenseLinearOperator) and isinstance(
+            self.right_linear_op, DenseLinearOperator
+        ):
+            return (self.left_linear_op.tensor * self.right_linear_op.tensor.transpose(-1, -2)).sum(-1)
+        elif isinstance(self.left_linear_op, DiagLinearOperator) or isinstance(
+            self.right_linear_op, DiagLinearOperator
+        ):
+            return self.left_linear_op._diagonal() * self.right_linear_op._diagonal()
+        else:
+            return super()._diagonal()
+
     def _getitem(self, row_index, col_index, *batch_indices):
         # Make sure we're not generating more memory with our "efficient" method
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
@@ -102,18 +114,6 @@ class MatmulLinearOperator(LinearOperator):
 
     def _transpose_nonbatch(self, *args):
         return self.__class__(self.right_linear_op._transpose_nonbatch(), self.left_linear_op._transpose_nonbatch())
-
-    def diag(self):
-        if isinstance(self.left_linear_op, DenseLinearOperator) and isinstance(
-            self.right_linear_op, DenseLinearOperator
-        ):
-            return (self.left_linear_op.tensor * self.right_linear_op.tensor.transpose(-1, -2)).sum(-1)
-        elif isinstance(self.left_linear_op, DiagLinearOperator) or isinstance(
-            self.right_linear_op, DiagLinearOperator
-        ):
-            return self.left_linear_op.diag() * self.right_linear_op.diag()
-        else:
-            return super().diag()
 
     @cached
     def to_dense(self):

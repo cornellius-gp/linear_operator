@@ -28,7 +28,7 @@ class DiagLinearOperator(TriangularLinearOperator):
 
     def __add__(self, other):
         if isinstance(other, DiagLinearOperator):
-            return self.add_diag(other._diag)
+            return self.add_diagonal(other._diag)
         from .added_diag_linear_operator import AddedDiagLinearOperator
 
         return AddedDiagLinearOperator(other, self)
@@ -42,6 +42,9 @@ class DiagLinearOperator(TriangularLinearOperator):
 
     def _expand_batch(self, batch_shape):
         return self.__class__(self._diag.expand(*batch_shape, self._diag.size(-1)))
+
+    def _diagonal(self):
+        return self._diag
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         res = self._diag[(*batch_indices, row_index)]
@@ -64,7 +67,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag * constant.unsqueeze(-1))
 
     def _mul_matrix(self, other):
-        return DiagLinearOperator(self.diag() * other.diag())
+        return DiagLinearOperator(self._diag * other._diagonal())
 
     def _prod_batch(self, dim):
         return self.__class__(self._diag.prod(dim))
@@ -101,12 +104,9 @@ class DiagLinearOperator(TriangularLinearOperator):
     def abs(self):
         return self.__class__(self._diag.abs())
 
-    def add_diag(self, added_diag):
+    def add_diagonal(self, added_diag):
         shape = _mul_broadcast_shape(self._diag.shape, added_diag.shape)
         return DiagLinearOperator(self._diag.expand(shape) + added_diag.expand(shape))
-
-    def diag(self):
-        return self._diag
 
     @cached
     def to_dense(self):

@@ -29,7 +29,7 @@ class CholLinearOperator(RootLinearOperator):
 
     @property
     def _chol_diag(self):
-        return self.root.diag()
+        return self.root._diagonal()
 
     @cached(name="cholesky")
     def _cholesky(self, upper=False):
@@ -38,15 +38,15 @@ class CholLinearOperator(RootLinearOperator):
         else:
             return self.root._transpose_nonbatch()
 
+    @cached
+    def _diagonal(self):
+        # TODO: Can we be smarter here?
+        return (self.root.to_dense() ** 2).sum(-1)
+
     def _solve(self, rhs, preconditioner, num_tridiag=0):
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         return self.root._cholesky_solve(rhs, upper=self.upper)
-
-    @cached
-    def diag(self):
-        # TODO: Can we be smarter here?
-        return (self.root.to_dense() ** 2).sum(-1)
 
     @cached
     def to_dense(self):

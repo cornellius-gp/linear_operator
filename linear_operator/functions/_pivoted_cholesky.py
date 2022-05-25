@@ -20,8 +20,13 @@ class PivotedCholesky(Function):
             error_tol = settings.preconditioner_tolerance.value()
 
         # Need to get diagonals. This is easy if it's a LinearOperator, since
-        # LinearOperator.diag() operates in batch mode.
-        matrix_diag = matrix._approx_diag()
+        # LinearOperator.diagonal() operates in batch mode.
+        matrix_diag = matrix._approx_diagonal()
+        # NOTE: we will be performing inpace operations on matrix_diag
+        # Calling _approx_diag() may return a tensor that shares the same storage as the LinearOperator
+        # To ensure that we are not mutating any of the LinearOperator's entries, we need to clone
+        #   the diagonal.
+        matrix_diag = matrix_diag.clone()
 
         # Make sure max_iter isn't bigger than the matrix
         max_iter = min(max_iter, matrix_shape[-1])

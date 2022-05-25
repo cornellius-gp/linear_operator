@@ -85,12 +85,26 @@ class InterpolatedLinearOperator(LinearOperator):
         self.right_interp_indices = right_interp_indices
         self.right_interp_values = right_interp_values
 
-    def _approx_diag(self):
-        base_diag_root = self.base_linear_op.diag().sqrt()
+    def _approx_diagonal(self):
+        base_diag_root = self.base_linear_op._diagonal().sqrt()
         left_res = left_interp(self.left_interp_indices, self.left_interp_values, base_diag_root.unsqueeze(-1))
         right_res = left_interp(self.right_interp_indices, self.right_interp_values, base_diag_root.unsqueeze(-1))
         res = left_res * right_res
         return res.squeeze(-1)
+
+    def _diagonal(self):
+        if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
+            self.base_linear_op.root, DenseLinearOperator
+        ):
+            left_interp_vals = left_interp(
+                self.left_interp_indices, self.left_interp_values, self.base_linear_op.root.to_dense()
+            )
+            right_interp_vals = left_interp(
+                self.right_interp_indices, self.right_interp_values, self.base_linear_op.root.to_dense()
+            )
+            return (left_interp_vals * right_interp_vals).sum(-1)
+        else:
+            return super(InterpolatedLinearOperator, self)._diagonal()
 
     def _expand_batch(self, batch_shape):
         return self.__class__(
@@ -373,20 +387,6 @@ class InterpolatedLinearOperator(LinearOperator):
         return InterpolatedLinearOperator(
             block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
-
-    def diag(self):
-        if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
-            self.base_linear_op.root, DenseLinearOperator
-        ):
-            left_interp_vals = left_interp(
-                self.left_interp_indices, self.left_interp_values, self.base_linear_op.root.to_dense()
-            )
-            right_interp_vals = left_interp(
-                self.right_interp_indices, self.right_interp_values, self.base_linear_op.root.to_dense()
-            )
-            return (left_interp_vals * right_interp_vals).sum(-1)
-        else:
-            return super(InterpolatedLinearOperator, self).diag()
 
     def double(self, device_id=None):
         # We need to ensure that the indices remain integers.

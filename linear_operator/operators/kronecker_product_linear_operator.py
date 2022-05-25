@@ -18,7 +18,7 @@ from .triangular_linear_operator import TriangularLinearOperator, _TriangularLin
 
 def _kron_diag(*lts) -> Tensor:
     """Compute diagonal of a KroneckerProductLinearOperator from the diagonals of the constituiting tensors"""
-    lead_diag = lts[0].diag()
+    lead_diag = lts[0]._diagonal()
     if len(lts) == 1:  # base case:
         return lead_diag
     trail_diag = _kron_diag(*lts[1:])
@@ -91,10 +91,10 @@ class KroneckerProductLinearOperator(LinearOperator):
 
             return SumKroneckerLinearOperator(self, other)
         if isinstance(other, DiagLinearOperator):
-            return self.add_diag(other.diag())
+            return self.add_diagonal(other._diagonal())
         return super().__add__(other)
 
-    def add_diag(self, diag):
+    def add_diagonal(self, diag):
         r"""
         Adds a diagonal to a KroneckerProductLinearOperator
         """
@@ -124,20 +124,6 @@ class KroneckerProductLinearOperator(LinearOperator):
 
         return KroneckerProductAddedDiagLinearOperator(self, diag_tensor)
 
-    def diag(self):
-        r"""
-        As :func:`torch.diag`, returns the diagonal of the matrix :math:`K` this LinearOperator represents as a vector.
-
-        :rtype: torch.tensor
-        :return: The diagonal of :math:`K`. If :math:`K` is :math:`n \times n`, this will be a length
-            n vector. If this LinearOperator represents a batch (e.g., is :math:`b \times n \times n`), this will be a
-            :math:`b \times n` matrix of diagonals, one for each matrix in the batch.
-        """
-        if settings.debug.on():
-            if not self.is_square:
-                raise RuntimeError("Diag works on square matrices (or batches)")
-        return _kron_diag(*self.linear_ops)
-
     def diagonalization(self, method: Optional[str] = None):
         if method is None:
             method = "symeig"
@@ -164,6 +150,9 @@ class KroneckerProductLinearOperator(LinearOperator):
     def _cholesky(self, upper=False):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.linear_ops]
         return KroneckerProductTriangularLinearOperator(*chol_factors, upper=upper)
+
+    def _diagonal(self):
+        return _kron_diag(*self.linear_ops)
 
     def _expand_batch(self, batch_shape):
         return self.__class__(*[linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops])
@@ -278,7 +267,7 @@ class KroneckerProductLinearOperator(LinearOperator):
             U.append(U_)
             S.append(S_)
             V.append(V_)
-        S = KroneckerProductLinearOperator(*[DiagLinearOperator(S_) for S_ in S]).diag()
+        S = KroneckerProductLinearOperator(*[DiagLinearOperator(S_) for S_ in S])._diagonal()
         U = KroneckerProductLinearOperator(*U)
         V = KroneckerProductLinearOperator(*V)
         return U, S, V
@@ -297,7 +286,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])
 
         if not return_evals_as_lazy:
-            evals = evals.diag()
+            evals = evals._diagonal()
 
         if eigenvectors:
             evecs = KroneckerProductLinearOperator(*evecs)
@@ -400,7 +389,7 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
         evals = KroneckerProductDiagLinearOperator(*[DiagLinearOperator(evals_) for evals_ in evals])
 
         if not return_evals_as_lazy:
-            evals = evals.diag()
+            evals = evals._diagonal()
 
         if eigenvectors:
             evecs = KroneckerProductDiagLinearOperator(*evecs)

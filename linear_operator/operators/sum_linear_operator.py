@@ -22,6 +22,9 @@ class SumLinearOperator(LinearOperator):
 
         self.linear_ops = linear_ops
 
+    def _diagonal(self):
+        return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
+
     def _expand_batch(self, batch_shape):
         expanded_tensors = [linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops]
         return self.__class__(*expanded_tensors)
@@ -88,6 +91,3 @@ class SumLinearOperator(LinearOperator):
             return SumLinearOperator(*(list(new_self.linear_ops) + [broadcasted_other]))
         else:
             raise AttributeError("other must be a LinearOperator")
-
-    def diag(self):
-        return sum(linear_op.diag().contiguous() for linear_op in self.linear_ops)
