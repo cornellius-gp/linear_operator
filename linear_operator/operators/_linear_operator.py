@@ -1307,10 +1307,14 @@ class LinearOperator(ABC):
 
         .. note::
             This method is only implemented for when :attr:`dim1` and :attr:`dim2` are equal
-            to -2 and -1, respectfully, and :attr:`offset = 0`.
+            to -2 and -1, respectively, and :attr:`offset = 0`.
 
+        :param offset: **Unused.** Use default value.
+        :param dim1: **Unused.** Use default value.
+        :param dim2: **Unused.** Use default value.
         :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
         """
+
         if not offset == 0 and ((dim1 == -2 and dim2 == -1) or (dim1 == -1 and dim2 == -2)):
             raise NotImplementedError(
                 "LinearOperator#diagonal is only implemented for when :attr:`dim1` and :attr:`dim2` are equal "
@@ -1391,6 +1395,7 @@ class LinearOperator(ABC):
         """
         This method operates identically to :func:`torch.Tensor.double`.
 
+        :param device_id: Device ID of GPU to use.
         """
         return self.type(torch.double)
 
@@ -1492,12 +1497,16 @@ class LinearOperator(ABC):
     def float(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.Tensor.float`.
+
+        :param device_id: Device ID of GPU to use.
         """
         return self.type(torch.float)
 
     def half(self, device_id: Optional[str] = None) -> LinearOperator:
         """
         This method operates identically to :func:`torch.Tensor.half`.
+
+        :param device_id: Device ID of GPU to use.
         """
         return self.type(torch.half)
 
