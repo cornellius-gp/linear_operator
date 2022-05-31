@@ -8,7 +8,7 @@ import torch
 
 import linear_operator
 from linear_operator.operators import LowRankRootAddedDiagLinearOperator, LowRankRootLinearOperator
-from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, _ensure_symmetric_grad
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
 class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
@@ -31,7 +31,7 @@ class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.Te
         linear_op = self.create_linear_op().requires_grad_(True)
         linear_op_copy = linear_op.clone().detach_().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
-        evaluated.register_hook(_ensure_symmetric_grad)
+        evaluated.register_hook(self._ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
         rhs.requires_grad_(True)

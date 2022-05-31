@@ -15,14 +15,6 @@ from linear_operator.utils.memoize import get_from_cache
 from .base_test_case import BaseTestCase
 
 
-def _ensure_symmetric_grad(grad):
-    """
-    A gradient-hook hack to ensure that symmetric matrix gradients are symmetric
-    """
-    res = torch.add(grad, grad.mT).mul(0.5)
-    return res
-
-
 class RectangularLinearOperatorTestCase(BaseTestCase):
 
     tolerances = {
@@ -429,6 +421,13 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         "svd": {"rtol": 1e-4, "atol": 1e-3},
     }
 
+    def _ensure_symmetric_grad(self, grad):
+        """
+        A gradient-hook hack to ensure that symmetric matrix gradients are symmetric
+        """
+        res = torch.add(grad, grad.mT).mul(0.5)
+        return res
+
     def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
         if not self.__class__.skip_slq_tests:
             # Forward
@@ -471,7 +470,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
-        evaluated.register_hook(_ensure_symmetric_grad)
+        evaluated.register_hook(self._ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
         rhs.requires_grad_(True)
@@ -759,6 +758,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op.requires_grad_(True)
         linear_op_copy.requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
+        evaluated.register_hook(self._ensure_symmetric_grad)
 
         # Add a diagonal
         linear_op_added_diag = linear_op.add_jitter(0.5)
@@ -949,7 +949,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
-        evaluated.register_hook(_ensure_symmetric_grad)
+        evaluated.register_hook(self._ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
         rhs = torch.randn(*linear_op.shape[:-1], 3).requires_grad_(True)
@@ -989,7 +989,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
-        evaluated.register_hook(_ensure_symmetric_grad)
+        evaluated.register_hook(self._ensure_symmetric_grad)
 
         # Create a test right hand side and left hand side
         rhs = torch.randn(*linear_op.shape[:-1], 3).requires_grad_(True)

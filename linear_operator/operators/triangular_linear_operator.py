@@ -21,17 +21,16 @@ class _TriangularLinearOperatorBase:
 
 
 class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
-    def __init__(self, tensor: Allsor, upper: bool = False) -> None:
-        """
-        Triangular lazy tensor. Supports arbitrary batch sizes.
+    r"""
+    A wrapper for LinearOperators when we have additional knowledge that it
+    represents a lower- or upper-triangular matrix (or batch of matrices).
 
-        Args:
-            :attr:`tensor` (Tensor or LinearOperator):
-                A `b1 x ... x bk x n x n` Tensor, representing a `b1 x ... x bk`-sized batch
-                of `n x n` triangular matrices.
-            :attr:`upper` (bool):
-                If True, the tensor is considered to be upper-triangular, otherwise lower-triangular.
-        """
+    :param tensor: A `... x N x N` Tensor, representing a (batch of)
+        `N x N` triangular matrix.
+    :param upper: If True, the tensor is considered to be upper-triangular, otherwise lower-triangular.
+    """
+
+    def __init__(self, tensor: Allsor, upper: bool = False) -> None:
         if isinstance(tensor, TriangularLinearOperator):
             # this is a null-op, we can just use underlying tensor directly.
             tensor = tensor._tensor
@@ -44,7 +43,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 )
         if torch.is_tensor(tensor):
             tensor = DenseLinearOperator(tensor)
-        super().__init__(tensor)
+        super().__init__(tensor, upper=upper)
         self.upper = upper
         self._tensor = tensor
 
@@ -80,19 +79,21 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _diagonal(self) -> Tensor:
         return self._tensor._diagonal()
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(self, batch_shape: torch.Size) -> "TriangularLinearOperator":
         if len(batch_shape) == 0:
             return self
         return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+    ) -> Tensor:
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
 
     def _matmul(self, rhs: Tensor) -> Tensor:
         return self._tensor.matmul(rhs)
 
     def _mul_constant(self, constant: Tensor) -> "TriangularLinearOperator":
-        return TriangularLinearOperator(self._tensor * constant.unsqueeze(-1), upper=self.upper)
+        return self.__class__(self._tensor * constant.unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(self) -> Allsor:
         raise NotPSDError("TriangularLinearOperator does not allow a root decomposition")
@@ -113,27 +114,30 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.solve(rhs)
 
     def _sum_batch(self, dim: int) -> "TriangularLinearOperator":
-        return TriangularLinearOperator(self._tensor._sum_batch(dim), upper=self.upper)
+        return self.__class__(self._tensor._sum_batch(dim), upper=self.upper)
 
     def _transpose_nonbatch(self) -> "TriangularLinearOperator":
-        return TriangularLinearOperator(self._tensor._transpose_nonbatch(), upper=not self.upper)
+        return self.__class__(self._tensor._transpose_nonbatch(), upper=not self.upper)
 
     def abs(self) -> "TriangularLinearOperator":
-        return TriangularLinearOperator(self._tensor.abs(), upper=self.upper)
+        """
+        Returns a TriangleLinearOperator with the absolute value of all diagonal entries.
+        """
+        return self.__class__(self._tensor.abs(), upper=self.upper)
 
     def add_diagonal(self, added_diag: Tensor) -> "TriangularLinearOperator":
-        from .added_diag_linear_operator import AddedDiagLinearOperator
-
-        shape = torch.broadcast_shapes(self._diag.shape, added_diag.shape)
-        added_diag_lt = AddedDiagLinearOperator(self._tensor.expand(shape), added_diag.expand(shape))
-        return TriangularLinearOperator(added_diag_lt, upper=self.upper)
+        added_diag_lt = self._tensor.add_diagonal(added_diag)
+        return self.__class__(added_diag_lt, upper=self.upper)
 
     @cached
     def to_dense(self) -> Tensor:
         return self._tensor.to_dense()
 
     def exp(self) -> "TriangularLinearOperator":
-        return TriangularLinearOperator(self._tensor.exp(), upper=self.upper)
+        """
+        Returns a TriangleLinearOperator with all diagonal entries exponentiated.
+        """
+        return self.__class__(self._tensor.exp(), upper=self.upper)
 
     def inv_quad_logdet(
         self,
@@ -145,7 +149,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
             # triangular, solve is cheap
-            inv_quad_term = inv_quad_rhs.mT @ self.solve(inv_quad_rhs)
+            inv_quad_term = (inv_quad_rhs * self.solve(inv_quad_rhs)).sum(dim=-2)
         if logdet:
             diag = self._diagonal()
             logdet_term = self._diagonal().abs().log().sum(-1)
@@ -159,11 +163,19 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
 
     @cached
     def inverse(self) -> "TriangularLinearOperator":
+        """
+        Returns the inverse of the DiagLinearOperator.
+        """
         eye = torch.eye(self._tensor.size(-1), device=self._tensor.device, dtype=self._tensor.dtype)
         inv = self.solve(eye)
-        return TriangularLinearOperator(inv, upper=self.upper)
+        return self.__class__(inv, upper=self.upper)
 
     def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
+        squeeze = False
+        if right_tensor.dim() == 1:
+            right_tensor = right_tensor.unsqueeze(-1)
+            squeeze = True
+
         if isinstance(self._tensor, DenseLinearOperator):
             res = torch.linalg.solve_triangular(self.to_dense(), right_tensor, upper=self.upper)
         elif isinstance(self._tensor, BatchRepeatLinearOperator):
@@ -173,6 +185,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         else:
             # TODO: Can we be smarter here?
             res = self._tensor.solve(right_tensor=right_tensor, left_tensor=left_tensor)
+
+        if squeeze:
+            res = res.squeeze(-1)
+
         if left_tensor is not None:
             res = left_tensor @ res
         return res
