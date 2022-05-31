@@ -36,7 +36,7 @@ class TestMulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2,)))
         res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
-        return res.add_diagonal(torch.tensor(2.0).expand(2, 6))
+        return res.add_diagonal(torch.tensor(2.0))
 
     def evaluate_linear_op(self, linear_op):
         diag_tensor = linear_op._diag_tensor.to_dense()
@@ -53,7 +53,7 @@ class TestMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
         mat1 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
         mat2 = make_random_mat(6, rank=6, batch_shape=torch.Size((2, 3)))
         res = RootLinearOperator(mat1) * RootLinearOperator(mat2)
-        return res.add_diagonal(torch.tensor(0.5).expand(2, 3, 6))
+        return res.add_diagonal(torch.tensor(0.5))
 
     def evaluate_linear_op(self, linear_op):
         diag_tensor = linear_op._diag_tensor.to_dense()

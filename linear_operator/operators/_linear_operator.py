@@ -888,13 +888,11 @@ class LinearOperator(ABC):
             raise RuntimeError("add_diagonal only defined for square matrices")
 
         diag_shape = diag.shape
-        if len(diag_shape) == 0:
-            # interpret scalar tensor as constant diag
-            diag_tensor = ConstantDiagLinearOperator(diag.unsqueeze(-1), diag_shape=self.shape[-1])
-        elif diag_shape[-1] == 1:
-            # interpret single-trailing element as constant diag
-            diag_tensor = ConstantDiagLinearOperator(diag, diag_shape=self.shape[-1])
-        else:
+
+        # Standard case: we have a different entry for each diagonal element
+        if len(diag_shape) and diag_shape[-1] != 1:
+            # We need to get the target batch shape, and expand the diag_tensor to the appropriate size
+            # If we do not, there will be issues with backpropagating gradients
             try:
                 expanded_diag = diag.expand(self.shape[:-1])
             except RuntimeError:
@@ -904,6 +902,21 @@ class LinearOperator(ABC):
                     )
                 )
             diag_tensor = DiagLinearOperator(expanded_diag)
+
+        # Other case: we are using broadcasting to define a constant entry for each diagonal element
+        # In this case, we want to exploit the structure
+        else:
+            # We need to get the target batch shape, and expand the diag_tensor to the appropriate size
+            # If we do not, there will be issues with backpropagating gradients
+            try:
+                expanded_diag = diag.expand(*self.batch_shape, 1)
+            except RuntimeError:
+                raise RuntimeError(
+                    "add_diagonal for LinearOperator of size {} received invalid diagonal of size {}.".format(
+                        self.shape, diag_shape
+                    )
+                )
+            diag_tensor = ConstantDiagLinearOperator(expanded_diag, diag_shape=self.shape[-1])
 
         return AddedDiagLinearOperator(self, diag_tensor)
 
