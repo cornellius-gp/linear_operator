@@ -22,6 +22,54 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         diag = linear_op._diag
         return torch.diag_embed(diag)
 
+    def test_abs(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+        self.assertAllClose(torch.abs(linear_op).to_dense(), torch.abs(evaluated))
+
+    def test_exp(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+        self.assertAllClose(
+            torch.exp(linear_op).diagonal(dim1=-1, dim2=-2), torch.exp(evaluated.diagonal(dim1=-1, dim2=-2))
+        )
+
+    def test_inverse(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        linear_op.requires_grad_(True)
+        linear_op_copy.requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+
+        inverse = torch.inverse(linear_op).to_dense()
+        inverse_actual = evaluated.inverse()
+        self.assertAllClose(inverse, inverse_actual)
+
+        # Backwards
+        inverse.sum().backward()
+        inverse_actual.sum().backward()
+
+        # Check grads
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                self.assertAllClose(arg.grad, arg_copy.grad)
+
+    def test_log(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+        self.assertAllClose(
+            torch.log(linear_op).diagonal(dim1=-1, dim2=-2), torch.log(evaluated.diagonal(dim1=-1, dim2=-2))
+        )
+
+    def test_sqrt(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+        self.assertAllClose(torch.sqrt(linear_op).to_dense(), torch.sqrt(evaluated))
+
 
 class TestDiagLinearOperatorBatch(TestDiagLinearOperator):
     seed = 0

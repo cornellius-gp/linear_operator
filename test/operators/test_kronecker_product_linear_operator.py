@@ -77,6 +77,12 @@ class TestKroneckerProductDiagLinearOperator(TestDiagLinearOperator):
         res_diag = kron_diag(*linear_op.linear_ops)
         return torch.diag_embed(res_diag)
 
+    def test_exp(self):
+        pass
+
+    def test_log(self):
+        pass
+
 
 class TestKroneckerProductLinearOperatorBatch(TestKroneckerProductLinearOperator):
     seed = 0

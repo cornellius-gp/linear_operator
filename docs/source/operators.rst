@@ -20,6 +20,12 @@ Data-Sparse LinearOperators
 .. autoclass:: CholLinearOperator
    :members:
 
+:hidden:`ConstantDiagLinearOperator`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: ConstantDiagLinearOperator
+   :members:
+
 :hidden:`DiagLinearOperator`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -76,6 +82,12 @@ Composition/Decoration LinearOperators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: KroneckerProductLinearOperator
+   :members:
+
+:hidden:`KroneckerProductDiagLinearOperator`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: KroneckerProductDiagLinearOperator
    :members:
 
 :hidden:`MatmulLinearOperator`

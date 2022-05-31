@@ -348,32 +348,37 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
 
 
 class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTriangularLinearOperator):
-    def __init__(self, *linear_ops):
+    r"""
+    Represents the kronecker product of multiple DiagonalLinearOperators
+    (i.e. :math:`\mathbf D_1 \otimes \mathbf D_2 \otimes \ldots \mathbf D_\ell`)
+    Supports arbitrary batch sizes.
+
+    :param linear_ops: Diagonal linear operators (:math:`\mathbf D_1, \mathbf D_2, \ldots \mathbf D_\ell`).
+    """
+
+    def __init__(self, *linear_ops: Tuple[DiagLinearOperator, ...]):
         if not all(isinstance(lt, DiagLinearOperator) for lt in linear_ops):
             raise RuntimeError("Components of KroneckerProductDiagLinearOperator must be DiagLinearOperator.")
         super(KroneckerProductTriangularLinearOperator, self).__init__(*linear_ops)
         self.upper = False
 
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor, ...]:
+        return KroneckerProductTriangularLinearOperator._bilinear_derivative(self, left_vecs, right_vecs)
+
     @cached(name="cholesky")
-    def _cholesky(self, upper=False):
+    def _cholesky(self, upper: bool = False) -> "KroneckerProductDiagLinearOperator":
         chol_factors = [lt.cholesky(upper=upper) for lt in self.linear_ops]
         return KroneckerProductDiagLinearOperator(*chol_factors)
 
     @property
-    def _diag(self):
+    def _diag(self) -> Tensor:
         return _kron_diag(*self.linear_ops)
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(self, batch_shape: torch.Size) -> "KroneckerProductTriangularLinearOperator":
         return KroneckerProductTriangularLinearOperator._expand_batch(self, batch_shape)
 
-    def _mul_constant(self, constant):
+    def _mul_constant(self, constant: Tensor) -> "KroneckerProductTriangularLinearOperator":
         return DiagLinearOperator(self._diag * constant.unsqueeze(-1))
-
-    def _bilinear_derivative(self, left_vecs, right_vecs):
-        return KroneckerProductTriangularLinearOperator._bilinear_derivative(self, left_vecs, right_vecs)
-
-    def sqrt(self):
-        return self.__class__(*[lt.sqrt() for lt in self.linear_ops])
 
     def _symeig(
         self, eigenvectors: bool = False, return_evals_as_lazy: bool = False
@@ -397,8 +402,29 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
             evecs = None
         return evals, evecs
 
+    def abs(self) -> "KroneckerProductDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the absolute value of all diagonal entries.
+        """
+        return self.__class__(*[lt.abs() for lt in self.linear_ops])
+
+    def exp(self) -> "KroneckerProductDiagLinearOperator":
+        raise NotImplementedError(f"torch.exp({self.__class__.__name__}) is not implemented.")
+
     @cached
-    def inverse(self):
+    def inverse(self) -> "KroneckerProductDiagLinearOperator":
+        """
+        Returns the inverse of the DiagLinearOperator.
+        """
         # here we use that (A \kron B)^-1 = A^-1 \kron B^-1
         inverses = [lt.inverse() for lt in self.linear_ops]
         return self.__class__(*inverses)
+
+    def log(self) -> "KroneckerProductDiagLinearOperator":
+        raise NotImplementedError(f"torch.log({self.__class__.__name__}) is not implemented.")
+
+    def sqrt(self) -> "KroneckerProductDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the square root of all diagonal entries.
+        """
+        return self.__class__(*[lt.sqrt() for lt in self.linear_ops])

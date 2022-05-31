@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -13,65 +13,26 @@ from .triangular_linear_operator import TriangularLinearOperator
 
 
 class DiagLinearOperator(TriangularLinearOperator):
-    def __init__(self, diag):
-        """
-        Diagonal lazy tensor. Supports arbitrary batch sizes.
+    """
+    Diagonal linear operator. Supports arbitrary batch sizes.
 
-        Args:
-            :attr:`diag` (Tensor):
-                A `b1 x ... x bk x n` Tensor, representing a `b1 x ... x bk`-sized batch
-                of `n x n` diagonal matrices
-        """
+    :param diag: A `... x N` tensor, representing a (batch of) `N x N` diagonal matrices.
+    """
+
+    def __init__(self, diag: Tensor):
         super(TriangularLinearOperator, self).__init__(diag)
         self._diag = diag
 
-    def __add__(self, other):
+    def __add__(
+        self, other: Union[Tensor, LinearOperator]
+    ) -> Union["DiagLinearOperator", "AddedDiagLinearOperator"]:  # noqa F811
         if isinstance(other, DiagLinearOperator):
             return self.add_diagonal(other._diag)
         from .added_diag_linear_operator import AddedDiagLinearOperator
 
         return AddedDiagLinearOperator(other, self)
 
-    @cached(name="cholesky", ignore_args=True)
-    def _cholesky(self, upper=False):
-        return self.sqrt()
-
-    def _cholesky_solve(self, rhs):
-        return rhs / self._diag.unsqueeze(-1).pow(2)
-
-    def _expand_batch(self, batch_shape):
-        return self.__class__(self._diag.expand(*batch_shape, self._diag.size(-1)))
-
-    def _diagonal(self):
-        return self._diag
-
-    def _get_indices(self, row_index, col_index, *batch_indices):
-        res = self._diag[(*batch_indices, row_index)]
-        # If row and col index don't agree, then we have off diagonal elements
-        # Those should be zero'd out
-        res = res * torch.eq(row_index, col_index).to(device=res.device, dtype=res.dtype)
-        return res
-
-    def _matmul(self, rhs):
-        # to perform matrix multiplication with diagonal matrices we can just
-        # multiply element-wise with the diagonal (using proper broadcasting)
-        if rhs.ndimension() == 1:
-            return self._diag * rhs
-        # special case if we have a DenseLinearOperator
-        if isinstance(rhs, DenseLinearOperator):
-            return DenseLinearOperator(self._diag.unsqueeze(-1) * rhs.tensor)
-        return self._diag.unsqueeze(-1) * rhs
-
-    def _mul_constant(self, constant):
-        return self.__class__(self._diag * constant.unsqueeze(-1))
-
-    def _mul_matrix(self, other):
-        return DiagLinearOperator(self._diag * other._diagonal())
-
-    def _prod_batch(self, dim):
-        return self.__class__(self._diag.prod(dim))
-
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor]:
         # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
         if not self._diag.requires_grad:
             return (None,)
@@ -81,45 +42,97 @@ class DiagLinearOperator(TriangularLinearOperator):
             res = res.sum(-1)
         return (res,)
 
-    def _root_decomposition(self):
+    @cached(name="cholesky", ignore_args=True)
+    def _cholesky(self, upper: bool = False) -> "DiagLinearOperator":
         return self.sqrt()
 
-    def _root_inv_decomposition(self, initial_vectors=None):
+    def _cholesky_solve(self, rhs: Tensor) -> Tensor:
+        return rhs / self._diag.unsqueeze(-1).pow(2)
+
+    def _expand_batch(self, batch_shape: torch.Size) -> "DiagLinearOperator":
+        return self.__class__(self._diag.expand(*batch_shape, self._diag.size(-1)))
+
+    def _diagonal(self) -> Tensor:
+        return self._diag
+
+    def _get_indices(
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+    ) -> Tensor:
+        res = self._diag[(*batch_indices, row_index)]
+        # If row and col index don't agree, then we have off diagonal elements
+        # Those should be zero'd out
+        res = res * torch.eq(row_index, col_index).to(device=res.device, dtype=res.dtype)
+        return res
+
+    def _matmul(self, rhs: Tensor) -> Tensor:
+        # to perform matrix multiplication with diagonal matrices we can just
+        # multiply element-wise with the diagonal (using proper broadcasting)
+        if rhs.ndimension() == 1:
+            return self._diag * rhs
+        # special case if we have a DenseLinearOperator
+        if isinstance(rhs, DenseLinearOperator):
+            return DenseLinearOperator(self._diag.unsqueeze(-1) * rhs.tensor)
+        return self._diag.unsqueeze(-1) * rhs
+
+    def _mul_constant(self, constant: Tensor) -> "DiagLinearOperator":
+        return self.__class__(self._diag * constant.unsqueeze(-1))
+
+    def _mul_matrix(self, other: Tensor) -> "DiagLinearOperator":
+        return DiagLinearOperator(self._diag * other._diagonal())
+
+    def _prod_batch(self, dim: int) -> "DiagLinearOperator":
+        return self.__class__(self._diag.prod(dim))
+
+    def _root_decomposition(self) -> "DiagLinearOperator":
+        return self.sqrt()
+
+    def _root_inv_decomposition(self, initial_vectors: Optional[Tensor] = None) -> "DiagLinearOperator":
         return self.inverse().sqrt()
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return self._diag.shape + self._diag.shape[-1:]
 
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> "DiagLinearOperator":
         return self.__class__(self._diag.sum(dim))
 
-    def _t_matmul(self, rhs):
+    def _t_matmul(self, rhs: Tensor) -> Tensor:
         # Diagonal matrices always commute
         return self._matmul(rhs)
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self) -> "DiagLinearOperator":
         return self
 
-    def abs(self):
+    def abs(self) -> "DiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the absolute value of all diagonal entries.
+        """
         return self.__class__(self._diag.abs())
 
-    def add_diagonal(self, added_diag):
+    def add_diagonal(self, added_diag: Tensor) -> "DiagLinearOperator":
         shape = torch.broadcast_shapes(self._diag.shape, added_diag.shape)
         return DiagLinearOperator(self._diag.expand(shape) + added_diag.expand(shape))
 
     @cached
-    def to_dense(self):
+    def to_dense(self) -> Tensor:
         if self._diag.dim() == 0:
             return self._diag
         return torch.diag_embed(self._diag)
 
-    def exp(self):
+    def exp(self) -> "DiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with all diagonal entries exponentiated.
+        """
         return self.__class__(self._diag.exp())
 
-    def inverse(self):
+    def inverse(self) -> "DiagLinearOperator":
+        """
+        Returns the inverse of the DiagLinearOperator.
+        """
         return self.__class__(self._diag.reciprocal())
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+    ) -> Tuple[Tensor, Tensor]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
             rhs_batch_shape = torch.Size()
@@ -143,10 +156,13 @@ class DiagLinearOperator(TriangularLinearOperator):
 
         return inv_quad_term, logdet_term
 
-    def log(self):
+    def log(self) -> "DiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the log of all diagonal entries.
+        """
         return self.__class__(self._diag.log())
 
-    def matmul(self, other):
+    def matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
         from .triangular_linear_operator import TriangularLinearOperator
 
         # this is trivial if we multiply two DiagLinearOperators
@@ -166,10 +182,13 @@ class DiagLinearOperator(TriangularLinearOperator):
             res = left_tensor @ res
         return res
 
-    def sqrt(self):
+    def sqrt(self) -> "DiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the square root of all diagonal entries.
+        """
         return self.__class__(self._diag.sqrt())
 
-    def sqrt_inv_matmul(self, rhs, lhs=None):
+    def sqrt_inv_matmul(self, rhs: Tensor, lhs: Optional[Tensor] = None) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         matrix_inv_root = self._root_inv_decomposition()
         if lhs is None:
             return matrix_inv_root.matmul(rhs)
@@ -178,7 +197,7 @@ class DiagLinearOperator(TriangularLinearOperator):
             inv_quad = (matrix_inv_root @ lhs.mT).mT.pow(2).sum(dim=-1)
             return sqrt_inv_matmul, inv_quad
 
-    def zero_mean_mvn_samples(self, num_samples):
+    def zero_mean_mvn_samples(self, num_samples: int) -> Tensor:
         base_samples = torch.randn(num_samples, *self._diag.shape, dtype=self.dtype, device=self.device)
         return base_samples * self._diag.sqrt()
 
@@ -201,18 +220,16 @@ class DiagLinearOperator(TriangularLinearOperator):
 
 
 class ConstantDiagLinearOperator(DiagLinearOperator):
-    def __init__(self, diag_values, diag_shape):
-        """
-        Diagonal lazy tensor with constant entries. Supports arbitrary batch sizes.
-        Used e.g. for adding jitter to matrices.
+    """
+    Diagonal lazy tensor with constant entries. Supports arbitrary batch sizes.
+    Used e.g. for adding jitter to matrices.
 
-        Args:
-            :attr:`diag_values` (Tensor):
-                A `b1 x ... x bk x 1` Tensor, representing a `b1 x ... x bk`-sized batch
-                of `diag_shape x diag_shape` diagonal matrices
-            :attr:`diag_shape` (int):
-                The (non-batch) dimension of the (square) matrix
-        """
+    :param diag_values: A `... 1` Tensor, representing a
+        of (batch of) `diag_shape x diag_shape` diagonal matrix.
+    :param diag_shape: The (non-batch) dimension of the (square) matrix
+    """
+
+    def __init__(self, diag_values: torch.Tensor, diag_shape: int):
         if settings.debug.on():
             if not (diag_values.dim() and diag_values.size(-1) == 1):
                 raise ValueError(
@@ -223,7 +240,9 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         self.diag_values = diag_values
         self.diag_shape = diag_shape
 
-    def __add__(self, other):
+    def __add__(
+        self, other: Union[Tensor, LinearOperator]
+    ) -> Union["DiagLinearOperator", "AddedDiagLinearOperator"]:  # noqa F811
         if isinstance(other, ConstantDiagLinearOperator):
             if other.shape[-1] == self.shape[-1]:
                 return ConstantDiagLinearOperator(self.diag_values + other.diag_values, self.diag_shape)
@@ -233,17 +252,26 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
             )
         return super().__add__(other)
 
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor]:
+        # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
+        if not self.diag_values.requires_grad:
+            return (None,)
+
+        res = (left_vecs * right_vecs).sum(dim=[-1, -2])
+        res = res.unsqueeze(-1)
+        return (res,)
+
     @property
-    def _diag(self):
+    def _diag(self) -> Tensor:
         return self.diag_values.expand(*self.diag_values.shape[:-1], self.diag_shape)
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(self, batch_shape: torch.Size) -> "ConstantDiagLinearOperator":
         return self.__class__(self.diag_values.expand(*batch_shape, 1), diag_shape=self.diag_shape)
 
-    def _mul_constant(self, constant):
+    def _mul_constant(self, constant: Tensor) -> "ConstantDiagLinearOperator":
         return self.__class__(self.diag_values * constant, diag_shape=self.diag_shape)
 
-    def _mul_matrix(self, other):
+    def _mul_matrix(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
         if isinstance(other, ConstantDiagLinearOperator):
             if not self.diag_shape == other.diag_shape:
                 raise ValueError(
@@ -253,37 +281,43 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
             return self.__class__(self.diag_values * other.diag_values, diag_shape=self.diag_shape)
         return super()._mul_matrix(other)
 
-    def _prod_batch(self, dim):
+    def _prod_batch(self, dim: int) -> "ConstantDiagLinearOperator":
         return self.__class__(self.diag_values.prod(dim), diag_shape=self.diag_shape)
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
-        # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
-        if not self.diag_values.requires_grad:
-            return (None,)
-
-        res = (left_vecs * right_vecs).sum(dim=[-1, -2])
-        res = res.unsqueeze(-1)
-        return (res,)
-
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> "ConstantDiagLinearOperator":
         return ConstantDiagLinearOperator(self.diag_values.sum(dim), diag_shape=self.diag_shape)
 
-    def abs(self):
+    def abs(self) -> "ConstantDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the absolute value of all diagonal entries.
+        """
         return ConstantDiagLinearOperator(self.diag_values.abs(), diag_shape=self.diag_shape)
 
-    def exp(self):
+    def exp(self) -> "ConstantDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with all diagonal entries exponentiated.
+        """
         return ConstantDiagLinearOperator(self.diag_values.exp(), diag_shape=self.diag_shape)
 
-    def inverse(self):
+    def inverse(self) -> "ConstantDiagLinearOperator":
+        """
+        Returns the inverse of the DiagLinearOperator.
+        """
         return ConstantDiagLinearOperator(self.diag_values.reciprocal(), diag_shape=self.diag_shape)
 
-    def log(self):
+    def log(self) -> "ConstantDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the log of all diagonal entries.
+        """
         return ConstantDiagLinearOperator(self.diag_values.log(), diag_shape=self.diag_shape)
 
-    def matmul(self, other):
+    def matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
         if isinstance(other, ConstantDiagLinearOperator):
             return self._mul_matrix(other)
         return super().matmul(other)
 
-    def sqrt(self):
+    def sqrt(self) -> "ConstantDiagLinearOperator":
+        """
+        Returns a DiagLinearOperator with the square root of all diagonal entries.
+        """
         return ConstantDiagLinearOperator(self.diag_values.sqrt(), diag_shape=self.diag_shape)
