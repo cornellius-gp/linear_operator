@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import warnings
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -18,11 +18,23 @@ from .sum_linear_operator import SumLinearOperator
 
 class AddedDiagLinearOperator(SumLinearOperator):
     """
-    A SumLinearOperator, but of only two lazy tensors, the second of which must be
+    A SumLinearOperator, but of only two linear operators, the second of which must be
     a DiagLinearOperator.
+
+    :param linear_ops: The LinearOperator, and the DiagLinearOperator to add to it.
+    :param preconditioner_override: A preconditioning method to be used with conjugate gradients.
+        If not provided, the default preconditioner (based on the partial pivoted Cholesky factorization) will be used
+        (see `Gardner et al., NeurIPS 2018`_ for details).
+
+    .. _Gardner et al., NeurIPS 2018:
+        https://arxiv.org/abs/1809.11165
     """
 
-    def __init__(self, *linear_ops, preconditioner_override=None):
+    def __init__(
+        self,
+        *linear_ops: Union[Tuple[LinearOperator, DiagLinearOperator], Tuple[DiagLinearOperator, LinearOperator]],
+        preconditioner_override: Optional[Callable] = None,
+    ):
         linear_ops = list(linear_ops)
         super(AddedDiagLinearOperator, self).__init__(*linear_ops, preconditioner_override=preconditioner_override)
         if len(linear_ops) > 2:
@@ -54,13 +66,13 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._q_cache = None
         self._r_cache = None
 
-    def _matmul(self, rhs):
+    def _matmul(self, rhs: Tensor) -> Tensor:
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
-    def add_diagonal(self, added_diag):
+    def add_diagonal(self, added_diag: Tensor) -> "AddedDiagLinearOperator":
         return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(added_diag))
 
-    def __add__(self, other):
+    def __add__(self, other: Union[Tensor, LinearOperator]) -> LinearOperator:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -68,7 +80,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         else:
             return self.__class__(self._linear_op + other, self._diag_tensor)
 
-    def _preconditioner(self):
+    def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 
@@ -79,10 +91,10 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
         (L L^T + D)^{-1} = D^{-1} - D^{-1} L (I + L D^{-1} L^T)^{-1} L^T D^{-1}
 
-        This function returns:
-        - A function `precondition_closure` that computes the solve (L L^T + D)^{-1} x
-        - A LinearOperator `precondition_lt` that represents (L L^T + D)
-        - The log determinant of (L L^T + D)
+        :return:
+            - A function `precondition_closure` that computes the solve (L L^T + D)^{-1} x
+            - A LinearOperator `precondition_lt` that represents (L L^T + D)
+            - The log determinant of (L L^T + D)
         """
 
         if self.preconditioner_override is not None:
@@ -134,7 +146,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
         self._precond_lt = PsdSumLinearOperator(RootLinearOperator(self._piv_chol_self), self._diag_tensor)
 
-    def _init_cache_for_constant_diag(self, eye, batch_shape, n, k):
+    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: torch.Size, n: int, k: int):
         # We can factor out the noise for for both QR and solves.
         self._noise = self._noise.narrow(-2, 0, 1)
         self._q_cache, self._r_cache = torch.linalg.qr(
@@ -147,7 +159,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         logdet = logdet + (n - k) * self._noise.squeeze(-2).squeeze(-1).log()
         self._precond_logdet_cache = logdet.view(*batch_shape) if len(batch_shape) else logdet.squeeze()
 
-    def _init_cache_for_non_constant_diag(self, eye, batch_shape, n):
+    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: torch.Size, n: int):
         # With non-constant diagonals, we cant factor out the noise as easily
         self._q_cache, self._r_cache = torch.linalg.qr(
             torch.cat((self._piv_chol_self / self._noise.sqrt(), eye), dim=-2)
@@ -174,16 +186,6 @@ class AddedDiagLinearOperator(SumLinearOperator):
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)
 
-    def evaluate_kernel(self):
-        """
-        Overriding this is currently necessary to allow for subclasses of AddedDiagLT to be created. For example,
-        consider the following:
-
-            >>> covar1 = covar_module(x).add_diagonal(torch.tensor(1.)).evaluate_kernel()
-            >>> covar2 = covar_module(x).evaluate_kernel().add_diagonal(torch.tensor(1.))
-
-        Unless we override this method (or find a better solution), covar1 and covar2 might not be the same type.
-        In particular, covar1 would *always* be a standard AddedDiagLinearOperator, but covar2 might be a subtype.
-        """
+    def evaluate_kernel(self) -> LinearOperator:
         added_diag_linear_op = self.representation_tree()(*self.representation())
         return added_diag_linear_op._linear_op + added_diag_linear_op._diag_tensor

@@ -146,6 +146,10 @@ def _process(annotation, config):
         args = list(annotation.__args__)
         res = "(" + ", ".join(_process(arg, config) for arg in args) + ")"
 
+    # Callable typing annotation
+    elif "typing." in str(annotation):
+        return str(annotation)
+
     # Special cases for forward references.
     # This is brittle, as it only contains case for a select few forward refs
     # All others that aren't caught by this are handled by the final case
