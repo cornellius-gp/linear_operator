@@ -27,6 +27,26 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         chol = linear_op.root.to_dense()
         return chol.matmul(chol.mT)
 
+    def test_inverse(self):
+        linear_op = self.create_linear_op()
+        linear_op_copy = linear_op.detach().clone()
+        linear_op.requires_grad_(True)
+        linear_op_copy.requires_grad_(True)
+        evaluated = self.evaluate_linear_op(linear_op_copy)
+
+        inverse = torch.inverse(linear_op).to_dense()
+        inverse_actual = evaluated.inverse()
+        self.assertAllClose(inverse, inverse_actual)
+
+        # Backwards
+        inverse.sum().backward()
+        inverse_actual.sum().backward()
+
+        # Check grads
+        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                self.assertAllClose(arg.grad.tril(), arg_copy.grad.tril())
+
 
 class TestCholLinearOperatorBatch(TestCholLinearOperator):
     seed = 0
