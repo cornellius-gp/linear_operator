@@ -6,6 +6,55 @@ import warnings
 import torch
 
 
+class _dtype_value_context:
+    _global_float_value = None
+    _global_double_value = None
+    _global_half_value = None
+
+    @classmethod
+    def value(cls, dtype):
+        if torch.is_tensor(dtype):
+            dtype = dtype.dtype
+        if dtype == torch.float:
+            return cls._global_float_value
+        elif dtype == torch.double:
+            return cls._global_double_value
+        elif dtype == torch.half:
+            return cls._global_half_value
+        else:
+            raise RuntimeError(f"Unsupported dtype for {cls.__name__}.")
+
+    @classmethod
+    def _set_value(cls, float_value, double_value, half_value):
+        if float_value is not None:
+            cls._global_float_value = float_value
+        if double_value is not None:
+            cls._global_double_value = double_value
+        if half_value is not None:
+            cls._global_half_value = half_value
+
+    def __init__(self, float=None, double=None, half=None):
+        self._orig_float_value = self.__class__.value()
+        self._instance_float_value = float
+        self._orig_double_value = self.__class__.value()
+        self._instance_double_value = double
+        self._orig_half_value = self.__class__.value()
+        self._instance_half_value = half
+
+    def __enter__(
+        self,
+    ):
+        self.__class__._set_value(
+            self._instance_float_value,
+            self._instance_double_value,
+            self._instance_half_value,
+        )
+
+    def __exit__(self, *args):
+        self.__class__._set_value(self._orig_float_value, self._orig_double_value, self._orig_half_value)
+        return False
+
+
 class _feature_flag:
     r"""Base class for feature flag settings with global scope.
     The default is set via the `_default` class attribute.
@@ -66,55 +115,6 @@ class _value_context:
 
     def __exit__(self, *args):
         self.__class__._set_value(self._orig_value)
-        return False
-
-
-class _dtype_value_context:
-    _global_float_value = None
-    _global_double_value = None
-    _global_half_value = None
-
-    @classmethod
-    def value(cls, dtype):
-        if torch.is_tensor(dtype):
-            dtype = dtype.dtype
-        if dtype == torch.float:
-            return cls._global_float_value
-        elif dtype == torch.double:
-            return cls._global_double_value
-        elif dtype == torch.half:
-            return cls._global_half_value
-        else:
-            raise RuntimeError(f"Unsupported dtype for {cls.__name__}.")
-
-    @classmethod
-    def _set_value(cls, float_value, double_value, half_value):
-        if float_value is not None:
-            cls._global_float_value = float_value
-        if double_value is not None:
-            cls._global_double_value = double_value
-        if half_value is not None:
-            cls._global_half_value = half_value
-
-    def __init__(self, float=None, double=None, half=None):
-        self._orig_float_value = self.__class__.value()
-        self._instance_float_value = float
-        self._orig_double_value = self.__class__.value()
-        self._instance_double_value = double
-        self._orig_half_value = self.__class__.value()
-        self._instance_half_value = half
-
-    def __enter__(
-        self,
-    ):
-        self.__class__._set_value(
-            self._instance_float_value,
-            self._instance_double_value,
-            self._instance_half_value,
-        )
-
-    def __exit__(self, *args):
-        self.__class__._set_value(self._orig_float_value, self._orig_double_value, self._orig_half_value)
         return False
 
 
@@ -181,6 +181,80 @@ class _fast_solves(_feature_flag):
     """
 
     _default = True
+
+
+class _linalg_dtype_symeig(_value_context):
+    _global_value = torch.double
+
+
+class _linalg_dtype_cholesky(_value_context):
+    _global_value = torch.double
+
+
+class _use_eval_tolerance(_feature_flag):
+    _default = False
+
+
+class cholesky_jitter(_dtype_value_context):
+    """
+    The jitter value used by `psd_safe_cholesky` when using cholesky solves.
+
+    - Default for `float`: 1e-6
+    - Default for `double`: 1e-8
+    """
+
+    _global_float_value = 1e-6
+    _global_double_value = 1e-8
+
+    @classmethod
+    def value(cls, dtype=None):
+        if dtype is None:
+            # Deprecated in 1.4: remove in 1.5
+            warnings.warn(
+                "cholesky_jitter is now a _dtype_value_context and should be called with a dtype argument",
+                DeprecationWarning,
+            )
+            return cls._global_float_value
+        return super().value(dtype=dtype)
+
+
+class cholesky_max_tries(_value_context):
+    """
+    The max_tries value used by `psd_safe_cholesky` when using cholesky solves.
+
+    (Default: 3)
+    """
+
+    _global_value = 3
+
+
+class cg_tolerance(_value_context):
+    """
+    Relative residual tolerance to use for terminating CG.
+
+    (Default: 1)
+    """
+
+    _global_value = 1
+
+
+class ciq_samples(_feature_flag):
+    """
+    Whether to draw samples using Contour Integral Quadrature or not.
+    This may be slower than standard sampling methods for `N < 5000`.
+    However, it should be faster with larger matrices.
+
+    As described in the paper:
+
+    `Fast Matrix Square Roots with Applications to Gaussian Processes and Bayesian Optimization`_.
+
+    (Default: False)
+
+    .. _`Fast Matrix Square Roots with Applications to Gaussian Processes and Bayesian Optimization`:
+        https://arxiv.org/abs/2006.11267
+    """
+
+    _default = False
 
 
 class deterministic_probes(_feature_flag):
@@ -294,6 +368,32 @@ class fast_computations:
         return False
 
 
+class linalg_dtypes:
+    """
+    Whether to perform less stable linalg calls in double precision or in a lower precision.
+    Currently, the default is to apply all symeig calls and cholesky calls within variational
+    methods in double precision.
+
+    (Default: torch.double)
+    """
+
+    def __init__(self, default=torch.double, symeig=None, cholesky=None):
+        symeig = default if symeig is None else symeig
+        cholesky = default if cholesky is None else cholesky
+
+        self.symeig = _linalg_dtype_symeig(symeig)
+        self.cholesky = _linalg_dtype_cholesky(cholesky)
+
+    def __enter__(self):
+        self.symeig.__enter__()
+        self.cholesky.__enter__()
+
+    def __exit__(self, *args):
+        self.symeig.__exit__()
+        self.cholesky.__exit__()
+        return False
+
+
 class max_cg_iterations(_value_context):
     """
     The maximum number of conjugate gradient iterations to perform (when computing
@@ -303,82 +403,6 @@ class max_cg_iterations(_value_context):
     """
 
     _global_value = 1000
-
-
-class cholesky_jitter(_dtype_value_context):
-    """
-    The jitter value used by `psd_safe_cholesky` when using cholesky solves.
-
-    - Default for `float`: 1e-6
-    - Default for `double`: 1e-8
-    """
-
-    _global_float_value = 1e-6
-    _global_double_value = 1e-8
-
-    @classmethod
-    def value(cls, dtype=None):
-        if dtype is None:
-            # Deprecated in 1.4: remove in 1.5
-            warnings.warn(
-                "cholesky_jitter is now a _dtype_value_context and should be called with a dtype argument",
-                DeprecationWarning,
-            )
-            return cls._global_float_value
-        return super().value(dtype=dtype)
-
-
-class cholesky_max_tries(_value_context):
-    """
-    The max_tries value used by `psd_safe_cholesky` when using cholesky solves.
-
-    (Default: 3)
-    """
-
-    _global_value = 3
-
-
-class cg_tolerance(_value_context):
-    """
-    Relative residual tolerance to use for terminating CG.
-
-    (Default: 1)
-    """
-
-    _global_value = 1
-
-
-class ciq_samples(_feature_flag):
-    """
-    Whether to draw samples using Contour Integral Quadrature or not.
-    This may be slower than standard sampling methods for `N < 5000`.
-    However, it should be faster with larger matrices.
-
-    As described in the paper:
-
-    `Fast Matrix Square Roots with Applications to Gaussian Processes and Bayesian Optimization`_.
-
-    (Default: False)
-
-    .. _`Fast Matrix Square Roots with Applications to Gaussian Processes and Bayesian Optimization`:
-        https://arxiv.org/abs/2006.11267
-    """
-
-    _default = False
-
-
-class preconditioner_tolerance(_value_context):
-    """
-    Diagonal trace tolerance to use for checking preconditioner convergence.
-
-    (Default: 1e-3)
-    """
-
-    _global_value = 1e-3
-
-
-class _use_eval_tolerance(_feature_flag):
-    _default = False
 
 
 class max_cholesky_size(_value_context):
@@ -392,17 +416,16 @@ class max_cholesky_size(_value_context):
     _global_value = 800
 
 
-class max_root_decomposition_size(_value_context):
-    """
-    The maximum number of Lanczos iterations to perform
-    This is used when 1) computing variance estiamtes 2) when drawing from MVNs,
-    or 3) for kernel multiplication
-    More values results in higher accuracy
+class max_lanczos_quadrature_iterations(_value_context):
+    r"""
+    The maximum number of Lanczos iterations to perform when doing stochastic
+    Lanczos quadrature. This is ONLY used for log determinant calculations and
+    computing Tr(K^{-1}dK/d\theta)
 
-    (Default: 100)
+    (Default: 20)
     """
 
-    _global_value = 100
+    _global_value = 20
 
 
 class max_preconditioner_size(_value_context):
@@ -416,16 +439,17 @@ class max_preconditioner_size(_value_context):
     _global_value = 15
 
 
-class max_lanczos_quadrature_iterations(_value_context):
-    r"""
-    The maximum number of Lanczos iterations to perform when doing stochastic
-    Lanczos quadrature. This is ONLY used for log determinant calculations and
-    computing Tr(K^{-1}dK/d\theta)
+class max_root_decomposition_size(_value_context):
+    """
+    The maximum number of Lanczos iterations to perform
+    This is used when 1) computing variance estiamtes 2) when drawing from MVNs,
+    or 3) for kernel multiplication
+    More values results in higher accuracy
 
-    (Default: 20)
+    (Default: 100)
     """
 
-    _global_value = 20
+    _global_value = 100
 
 
 class memory_efficient(_feature_flag):
@@ -483,6 +507,16 @@ class num_trace_samples(_value_context):
     _global_value = 10
 
 
+class preconditioner_tolerance(_value_context):
+    """
+    Diagonal trace tolerance to use for checking preconditioner convergence.
+
+    (Default: 1e-3)
+    """
+
+    _global_value = 1e-3
+
+
 class skip_logdet_forward(_feature_flag):
     """
     .. warning:
@@ -509,40 +543,6 @@ class skip_logdet_forward(_feature_flag):
     """
 
     _default = False
-
-
-class _linalg_dtype_symeig(_value_context):
-    _global_value = torch.double
-
-
-class _linalg_dtype_cholesky(_value_context):
-    _global_value = torch.double
-
-
-class linalg_dtypes:
-    """
-    Whether to perform less stable linalg calls in double precision or in a lower precision.
-    Currently, the default is to apply all symeig calls and cholesky calls within variational
-    methods in double precision.
-
-    (Default: torch.double)
-    """
-
-    def __init__(self, default=torch.double, symeig=None, cholesky=None):
-        symeig = default if symeig is None else symeig
-        cholesky = default if cholesky is None else cholesky
-
-        self.symeig = _linalg_dtype_symeig(symeig)
-        self.cholesky = _linalg_dtype_cholesky(cholesky)
-
-    def __enter__(self):
-        self.symeig.__enter__()
-        self.cholesky.__enter__()
-
-    def __exit__(self, *args):
-        self.symeig.__exit__()
-        self.cholesky.__exit__()
-        return False
 
 
 class terminate_cg_by_size(_feature_flag):
