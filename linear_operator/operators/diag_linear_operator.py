@@ -206,8 +206,8 @@ class DiagLinearOperator(TriangularLinearOperator):
         evals, evecs = self._symeig(eigenvectors=True)
         S = torch.abs(evals)
         U = evecs
-        Vt = evecs * torch.sign(evals).unsqueeze(-1)
-        return U, S, Vt
+        V = evecs * torch.sign(evals).unsqueeze(-1)
+        return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals = self._diag

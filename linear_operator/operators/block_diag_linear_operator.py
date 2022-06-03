@@ -117,13 +117,13 @@ class BlockDiagLinearOperator(BlockLinearOperator):
 
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
-        U, S, Vt = self.base_linear_op.svd()
+        U, S, V = self.base_linear_op.svd()
         # Doesn't make much sense to sort here, o/w we lose the structure
         S = S.reshape(*S.shape[:-2], S.shape[-2:].numel())
         # can assume that block_dim is -3 here
         U = self.__class__(U)
-        Vt = self.__class__(Vt)
-        return U, S, Vt
+        V = self.__class__(V)
+        return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)

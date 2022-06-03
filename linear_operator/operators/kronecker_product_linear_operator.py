@@ -261,16 +261,16 @@ class KroneckerProductLinearOperator(LinearOperator):
 
     @cached(name="svd")
     def _svd(self) -> Tuple[LinearOperator, Tensor, LinearOperator]:
-        U, S, Vt = [], [], []
+        U, S, V = [], [], []
         for lt in self.linear_ops:
-            U_, S_, Vt_ = lt.svd()
+            U_, S_, V_ = lt.svd()
             U.append(U_)
             S.append(S_)
-            Vt.append(Vt_)
+            V.append(V_)
         S = KroneckerProductLinearOperator(*[DiagLinearOperator(S_) for S_ in S])._diagonal()
         U = KroneckerProductLinearOperator(*U)
-        Vt = KroneckerProductLinearOperator(*Vt)
-        return U, S, Vt
+        V = KroneckerProductLinearOperator(*V)
+        return U, S, V
 
     def _symeig(
         self, eigenvectors: bool = False, return_evals_as_lazy: bool = False

@@ -806,8 +806,8 @@ class LinearOperator(ABC):
         signs = torch.sign(evals)
         U = evecs * signs.unsqueeze(-2)
         S = torch.abs(evals)
-        Vt = evecs.mT
-        return U, S, Vt
+        V = evecs
+        return U, S, V
 
     def _symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
         r"""
@@ -2315,7 +2315,6 @@ class LinearOperator(ABC):
         else:
             raise ValueError("Invalid dim ({}) for LinearOperator of size {}".format(orig_dim, self.shape))
 
-    @_implements(torch.linalg.svd)
     def svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
         r"""
         Compute the SVD of the linear operator :math:`\mathbf A \in \mathbb R^{M \times N}`
@@ -2329,9 +2328,22 @@ class LinearOperator(ABC):
         :returns:
             - The left singular vectors :math:`\mathbf U` (... x M, M),
             - The singlar values :math:`\mathbf S` (... x min(M, N)),
-            - The right singluar vectors :math:`\mathbf V` (... x min(N, N)),
+            - The right singluar vectors :math:`\mathbf V` (... x N x N)),
         """
         return self._svd()
+
+    @_implements(torch.linalg.svd)
+    def _torch_linalg_svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
+        r"""
+        A version of self.svd() that matches the torch.linalg.svd API.
+
+        :returns:
+            - The left singular vectors :math:`\mathbf U` (... x M, M),
+            - The singlar values :math:`\mathbf S` (... x min(M, N)),
+            - The right singluar vectors :math:`\mathbf V^\top` (... x N X N),
+        """
+        U, S, V = self._svd()
+        return U, S, V.mT
 
     @property
     def T(self) -> LinearOperator:

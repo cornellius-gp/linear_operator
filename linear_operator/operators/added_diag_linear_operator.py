@@ -174,9 +174,9 @@ class AddedDiagLinearOperator(SumLinearOperator):
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
-            U, S_, Vt = self._linear_op.svd()
+            U, S_, V = self._linear_op.svd()
             S = S_ + self._diag_tensor._diagonal()
-            return U, S, Vt
+            return U, S, V
         return super()._svd()
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
