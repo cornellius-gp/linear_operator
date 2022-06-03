@@ -191,10 +191,6 @@ class _linalg_dtype_cholesky(_value_context):
     _global_value = torch.double
 
 
-class _use_eval_tolerance(_feature_flag):
-    _default = False
-
-
 class cholesky_jitter(_dtype_value_context):
     """
     The jitter value used by `psd_safe_cholesky` when using cholesky solves.
