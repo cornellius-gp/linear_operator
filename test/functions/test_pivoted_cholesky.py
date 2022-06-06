@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.functions import pivoted_cholesky
+import linear_operator
 from linear_operator.test.base_test_case import BaseTestCase
 from linear_operator.utils.cholesky import psd_safe_cholesky
 from linear_operator.utils.permutation import apply_permutation, inverse_permutation
@@ -33,7 +33,7 @@ class TestPivotedCholesky(BaseTestCase, unittest.TestCase):
         mat_copy.register_hook(_ensure_symmetric_grad)
 
         # Forward (with function)
-        res, pivots = pivoted_cholesky(mat, rank=max_iter, return_pivots=True)
+        res, pivots = linear_operator.pivoted_cholesky(mat, rank=max_iter, return_pivots=True)
 
         # Forward (manual pivoting, actual Cholesky)
         inverse_pivots = inverse_permutation(pivots)

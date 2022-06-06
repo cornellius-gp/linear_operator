@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import DenseLinearOperator
+import linear_operator
 from linear_operator.test.base_test_case import BaseTestCase
 
 
@@ -23,7 +23,7 @@ class TestDiagonalization(BaseTestCase, unittest.TestCase):
 
         for method in ["symeig", "lanczos"]:
             # Forward
-            evals, evecs = DenseLinearOperator(mat).diagonalization(method=method)
+            evals, evecs = linear_operator.diagonalization(mat, method=method)
             evecs = evecs.to_dense()
             res = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.mT)
             self.assertAllClose(res, mat)

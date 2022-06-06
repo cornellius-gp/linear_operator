@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 from . import beta_features, operators, settings, utils
-from .functions import (  # Deprecated
+from .functions import (
+    add_diagonal,
+    add_jitter,
+    diagonalization,
     dsmm,
     inv_quad,
     inv_quad_logdet,
-    logdet,
-    matmul,
     pivoted_cholesky,
     root_decomposition,
     root_inv_decomposition,
-    solve,
 )
-from .operators import LinearOperator, cat, to_dense, to_linear_operator
+from .operators import LinearOperator, to_dense, to_linear_operator
 
 __version__ = "0.0.1"
 
@@ -22,16 +22,15 @@ __all__ = [
     "operators",
     "utils",
     # Functions
-    "cat",
+    "add_diagonal",
+    "add_jitter",
     "dsmm",
+    "diagonalization",
     "inv_quad",
     "inv_quad_logdet",
-    "logdet",
-    "matmul",
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",
-    "solve",
     "to_dense",
     "to_linear_operator",
     # Context managers

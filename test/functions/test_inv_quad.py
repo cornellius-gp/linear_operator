@@ -41,7 +41,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vec_clone).mul(self.vec_clone).sum()
         with linear_operator.settings.num_trace_samples(1000):
             dense_linear_op = DenseLinearOperator(self.mat)
-            res_inv_quad = dense_linear_op.inv_quad(self.vec)
+            res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vec)
 
         self.assertAlmostEqual(res_inv_quad.item(), actual_inv_quad.item(), places=1)
 
@@ -57,7 +57,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vecs_clone).mul(self.vecs_clone).sum()
         with linear_operator.settings.num_trace_samples(1000):
             dense_linear_op = DenseLinearOperator(self.mat)
-            res_inv_quad = dense_linear_op.inv_quad(self.vecs)
+            res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vecs)
         self.assertAlmostEqual(res_inv_quad.item(), actual_inv_quad.item(), places=1)
 
         # Backward
@@ -101,7 +101,7 @@ class TestInvQuadBatch(unittest.TestCase):
         )
         with linear_operator.settings.num_trace_samples(2000):
             dense_linear_op = DenseLinearOperator(self.mats)
-            res_inv_quad = dense_linear_op.inv_quad(self.vecs)
+            res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vecs)
 
         self.assertEqual(res_inv_quad.shape, actual_inv_quad.shape)
         self.assertLess(torch.max((res_inv_quad - actual_inv_quad).abs()).item(), 1e-1)

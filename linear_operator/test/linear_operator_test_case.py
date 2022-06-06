@@ -515,21 +515,21 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated = self.evaluate_linear_op(linear_op)
 
         other_diag = torch.tensor(1.5)
-        res = linear_op.add_diagonal(other_diag).to_dense()
+        res = linear_operator.add_diagonal(linear_op, other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.tensor([1.5])
-        res = linear_op.add_diagonal(other_diag).to_dense()
+        res = linear_operator.add_diagonal(linear_op, other_diag).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
         self.assertAllClose(res, actual)
 
         other_diag = torch.randn(linear_op.size(-1)).pow(2)
-        res = linear_op.add_diagonal(other_diag).to_dense()
+        res = linear_operator.add_diagonal(linear_op, other_diag).to_dense()
         actual = evaluated + torch.diag_embed(other_diag)
         self.assertAllClose(res, actual)
 
@@ -541,6 +541,14 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             for i in range(other_diag.size(-1)):
                 actual[..., i, i] = actual[..., i, i] + other_diag[..., i]
             self.assertAllClose(res, actual, **self.tolerances["diag"])
+
+    def test_add_jitter(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        res = linear_operator.add_jitter(linear_op, 0.4).to_dense()
+        actual = evaluated + torch.eye(evaluated.size(-1)).mul_(0.4)
+        self.assertAllClose(res, actual)
 
     def test_add_low_rank(self):
         linear_op = self.create_linear_op()
@@ -557,12 +565,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         # check that the root approximation is close
         rhs = torch.randn(linear_op.size(-1))
         summed_rhs = summed_lt.matmul(rhs)
-        root_rhs = new_lt.root_decomposition().matmul(rhs)
+        root_rhs = linear_operator.root_decomposition(new_lt).matmul(rhs)
         self.assertAllClose(root_rhs, summed_rhs, **self.tolerances["root_decomposition"])
 
         # check that the inverse root decomposition is close
         summed_solve = torch.linalg.solve(summed_lt, rhs.unsqueeze(-1)).squeeze(-1)
-        root_inv_solve = new_lt.root_inv_decomposition().matmul(rhs)
+        root_inv_solve = linear_operator.root_inv_decomposition(new_lt).matmul(rhs)
         self.assertAllClose(root_inv_solve, summed_solve, **self.tolerances["root_inv_decomposition"])
 
     def test_bilinear_derivative(self):
@@ -600,7 +608,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             # check that the root approximation is close
             rhs = torch.randn(linear_op.size(-1) + 1)
             concat_rhs = concatenated_lt.matmul(rhs)
-            root_rhs = new_lt.root_decomposition().matmul(rhs)
+            root_rhs = linear_operator.root_decomposition(new_lt).matmul(rhs)
             self.assertAllClose(root_rhs, concat_rhs, **self.tolerances["root_decomposition"])
 
             # check that root inv is cached
@@ -812,7 +820,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op = self.create_linear_op()
             test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
             with linear_operator.settings.max_cholesky_size(math.inf if cholesky else 0):
-                root_approx = linear_op.root_decomposition()
+                root_approx = linear_operator.root_decomposition(linear_op)
                 res = root_approx.matmul(test_mat)
                 actual = linear_op.matmul(test_mat)
                 self.assertAllClose(res, actual, **self.tolerances["root_decomposition"])
@@ -849,10 +857,10 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         # now we need to test that a second cholesky isn't being called in the inv_quad_logdet
         with linear_operator.settings.max_cholesky_size(math.inf):
             linear_op = self.create_linear_op()
-            rootdecomp = linear_op.root_decomposition()
+            rootdecomp = linear_operator.root_decomposition(linear_op)
 
             if isinstance(rootdecomp, linear_operator.lazy.CholLinearOperator):
-                chol = linear_op.root_decomposition().root.clone()
+                chol = linear_operator.root_decomposition(linear_op).root.clone()
                 linear_operator.utils.memoize.clear_cache_hook(linear_op)
                 linear_operator.utils.memoize.add_to_cache(
                     linear_op,
@@ -874,7 +882,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_root_inv_decomposition(self):
         linear_op = self.create_linear_op()
-        root_approx = linear_op.root_inv_decomposition()
+        root_approx = linear_operator.root_inv_decomposition(linear_op)
 
         test_mat = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
 

@@ -12,7 +12,7 @@ LinearOperator Documentation
    :maxdepth: 1
    :caption: Basic Concepts
 
-   linear_operator
+   intro
    converting
    structure
    custom_linear_operators
@@ -20,17 +20,25 @@ LinearOperator Documentation
 
 .. toctree::
    :maxdepth: 1
+   :caption: Core API
+
+   namespace
+   settings
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: Linear Operator Objects
 
-   operators
+   linear_operator
+   data_sparse_operators
+   composition_decoration_operators
 
 
 .. toctree::
    :maxdepth: 1
    :caption: Advanced Package Reference
 
-   settings
-   functions
    utils
 
 

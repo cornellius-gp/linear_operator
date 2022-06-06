@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from typing import Union
+
 import torch
 
 from ._linear_operator import LinearOperator
@@ -83,12 +85,11 @@ class DenseLinearOperator(LinearOperator):
             return super(DenseLinearOperator, self).mul(other)
 
 
-def to_linear_operator(obj):
+def to_linear_operator(obj: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
     """
     A function which ensures that `obj` is a LinearOperator.
-
-    If `obj` is a LinearOperator, this function does nothing.
-    If `obj` is a (normal) Tensor, this function wraps it with a `DenseLinearOperator`.
+    - If `obj` is a LinearOperator, this function does nothing.
+    - If `obj` is a (normal) Tensor, this function wraps it with a `DenseLinearOperator`.
     """
 
     if torch.is_tensor(obj):

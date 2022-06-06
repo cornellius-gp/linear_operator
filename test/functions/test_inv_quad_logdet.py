@@ -59,7 +59,9 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
             if add_diag:
                 linear_op = linear_op.add_jitter(1.0)
 
-            res_inv_quad, res_logdet = linear_op.inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet)
+            res_inv_quad, res_logdet = linear_operator.inv_quad_logdet(
+                linear_op, inv_quad_rhs=inv_quad_rhs, logdet=logdet
+            )
 
         # Compare forward pass
         if inv_quad_rhs is not None:

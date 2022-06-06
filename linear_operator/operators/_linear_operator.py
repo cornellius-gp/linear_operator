@@ -1510,15 +1510,28 @@ class LinearOperator(ABC):
         """
         return self.type(torch.half)
 
-    def inv_quad(self, tensor, reduce_inv_quad=True) -> torch.Tensor:
+    def inv_quad(self, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = True) -> torch.Tensor:
         r"""
-        Equivalent to calling :meth:`inv_quad_logdet` with :attr:`logdet=False`.
+        Computes an inverse quadratic form (w.r.t self) with several right hand sides, i.e:
 
-        :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term
+        .. math::
+           \text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right),
+
+        where :math:`\mathbf A` is the (positive definite) LinearOperator and :math:`\mathbf R`
+        represents the right hand sides (:attr:`inv_quad_rhs`).
+
+        If :attr:`reduce_inv_quad` is set to false (and :attr:`inv_quad_rhs` is supplied),
+        the function instead computes
+
+        .. math::
+           \text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right).
+
+        :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term (... x N x M)
         :param reduce_inv_quad: Whether to compute
-           :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
-           or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
-        :returns: The inverse quadratic term
+            :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
+            or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
+        :returns: The inverse quadratic term.
+            If `reduce_inv_quad=True`, the inverse quadratic term is of shape (...). Otherwise, it is (... x M).
         """
         if not self.is_square:
             raise RuntimeError(
@@ -1527,15 +1540,15 @@ class LinearOperator(ABC):
             )
 
         try:
-            result_shape = _matmul_broadcast_shape(self.shape, tensor.shape)
+            result_shape = _matmul_broadcast_shape(self.shape, inv_quad_rhs.shape)
         except RuntimeError:
             raise RuntimeError(
                 "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                    self.shape, tensor.shape
+                    self.shape, inv_quad_rhs.shape
                 )
             )
 
-        args = (tensor.expand(*result_shape[:-2], *tensor.shape[-2:]),) + self.representation()
+        args = (inv_quad_rhs.expand(*result_shape[:-2], *inv_quad_rhs.shape[-2:]),) + self.representation()
         func = InvQuad.apply
         inv_quad_term = func(self.representation_tree(), *args)
 
@@ -1547,28 +1560,19 @@ class LinearOperator(ABC):
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
-        Computes the log determinant :math:`\log \vert \mathbf A \vert`
-        and/or an inverse quadratic form (w.r.t self) with several right hand sides, i.e:
-
-        .. math::
-           \text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right),
-
-        where :math:`\mathbf A` is the LinearOperator and :math:`\mathbf R`
-        represents the right hand sides (:attr:`inv_quad_rhs`).
-
-        If :attr:`reduce_inv_quad` is set to false (and :attr:`inv_quad_rhs` is supplied),
-        the function instead computes
-
-        .. math::
-           \text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right).
+        Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive
+        definite matrix (or batch) :math:`\mathbf A`.  However, calling this
+        method is far more efficient and stable than calling each method
+        independently.
 
         :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term
         :param logdet: Whether or not to compute the
-           logdet term :math:`\log \vert \mathbf A \vert`.
+            logdet term :math:`\log \vert \mathbf A \vert`.
         :param reduce_inv_quad: Whether to compute
-           :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
-           or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
+            :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`
+            or :math:`\text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`.
         :returns: The inverse quadratic term (or None), and the logdet term (or None).
+            If `reduce_inv_quad=True`, the inverse quadratic term is of shape (...). Otherwise, it is (... x M).
         """
         # Special case: use Cholesky to compute these terms
         if settings.fast_computations.log_prob.off() or (self.size(-1) <= settings.max_cholesky_size.value()):
@@ -2719,13 +2723,11 @@ def _import_dotted_name(name: str):
 
 
 def to_dense(obj: Union[LinearOperator, torch.Tensor]) -> torch.Tensor:
-    """
+    r"""
     A function which ensures that `obj` is a (normal) Tensor.
-
-    If `obj` is a Tensor, this function does nothing.
-    If `obj` is a LinearOperator, this function evaluates it.
+    - If `obj` is a Tensor, this function does nothing.
+    - If `obj` is a LinearOperator, this function evaluates it.
     """
-
     if torch.is_tensor(obj):
         return obj
     elif isinstance(obj, LinearOperator):
