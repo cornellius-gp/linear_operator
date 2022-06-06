@@ -651,14 +651,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
             evaluated = self.evaluate_linear_op(linear_op_copy)
 
-            # Create a random diagonal to prevent repeated eigenvalues
-            rand_diag = torch.randn(linear_op.size(-1)).abs()
-            add_diag_linear_op = linear_op.add_diagonal(rand_diag)
-            evaluated = evaluated + torch.diag_embed(rand_diag)
-
             # Perform forward pass
             with linalg_dtypes(dtype):
-                evals_unsorted, evecs_unsorted = torch.linalg.eigh(add_diag_linear_op)
+                evals_unsorted, evecs_unsorted = torch.linalg.eigh(linear_op)
                 evecs_unsorted = evecs_unsorted.to_dense()
 
             # since LinearOperator.eigh does not sort evals, we do this here for the check
@@ -678,15 +673,26 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             lt_from_eigendecomp = evecs @ torch.diag_embed(evals) @ evecs.mT
             self.assertAllClose(lt_from_eigendecomp, evaluated, **tolerances)
 
+            # if there are repeated evals, we'll skip checking the eigenvectors for those
+            any_evals_repeated = False
+            evecs_abs, evecs_actual_abs = evecs.abs(), evecs_actual.abs()
+            for idx in product(*[range(b) for b in evals_actual.shape[:-1]]):
+                eval_i = evals_actual[idx]
+                if torch.unique(eval_i.detach()).shape[-1] == eval_i.shape[-1]:  # detach to avoid pytorch/pytorch#41389
+                    self.assertAllClose(evecs_abs[idx], evecs_actual_abs[idx], **tolerances)
+                else:
+                    any_evals_repeated = True
+
             # Perform backward pass
             symeig_grad = torch.randn_like(evals)
             ((evals * symeig_grad).sum()).backward()
             ((evals_actual * symeig_grad).sum()).backward()
 
             # Check grads if there were no repeated evals
-            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                    self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+            if not any_evals_repeated:
+                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                        self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
 
     def test_eigvalsh(self):
         dtypes = {"double": torch.double, "float": torch.float}
@@ -697,14 +703,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
             evaluated = self.evaluate_linear_op(linear_op_copy)
 
-            # Create a random diagonal to prevent repeated eigenvalues
-            rand_diag = torch.randn(linear_op.size(-1)).abs()
-            add_diag_linear_op = linear_op.add_diagonal(rand_diag)
-            evaluated = evaluated + torch.diag_embed(rand_diag)
-
             # Perform forward pass
             with linalg_dtypes(dtype):
-                evals, _ = torch.linalg.eigvalsh(add_diag_linear_op).sort(dim=-1, descending=False)
+                evals, _ = torch.linalg.eigvalsh(linear_op).sort(dim=-1, descending=False)
 
             # since LinearOperator.eigh does not sort evals, we do this here for the check
             evals_actual = torch.linalg.eigvalsh(evaluated.type(dtype))
@@ -713,14 +714,24 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             # Check forward pass
             self.assertAllClose(evals, evals_actual, **tolerances)
 
+            # if there are repeated evals, we'll skip checking the eigenvectors for those
+            any_evals_repeated = False
+            for idx in product(*[range(b) for b in evals_actual.shape[:-1]]):
+                eval_i = evals_actual[idx]
+                if (
+                    not torch.unique(eval_i.detach()).shape[-1] == eval_i.shape[-1]
+                ):  # detach to avoid pytorch/pytorch#41389
+                    any_evals_repeated = True
+
             # Perform backward pass
             symeig_grad = torch.randn_like(evals)
             ((evals * symeig_grad).sum()).backward()
             ((evals_actual * symeig_grad).sum()).backward()
 
-            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                    self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+            if not any_evals_repeated:
+                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                        self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
 
     def test_float(self):
         linear_op = self.create_linear_op().double()
@@ -1021,13 +1032,8 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
-        # Create a random diagonal to prevent repeated eigenvalues
-        rand_diag = torch.randn(linear_op.size(-1)).abs()
-        add_diag_linear_op = linear_op.add_diagonal(rand_diag)
-        evaluated = evaluated + torch.diag_embed(rand_diag)
-
         # Perform forward pass
-        U_unsorted, S_unsorted, Vt_unsorted = torch.linalg.svd(add_diag_linear_op)
+        U_unsorted, S_unsorted, Vt_unsorted = torch.linalg.svd(linear_op)
         U_unsorted, V_unsorted = U_unsorted.to_dense(), Vt_unsorted.to_dense()
 
         # since LinearOperator.svd does not sort the singular values, we do this here for the check
@@ -1047,12 +1053,25 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         lt_from_svd = U @ torch.diag_embed(S) @ Vt
         self.assertAllClose(lt_from_svd, evaluated, **self.tolerances["svd"])
 
+        # if there are repeated singular values, we'll skip checking the singular vectors
+        U_abs, U_actual_abs = U.abs(), U_actual.abs()
+        Vt_abs, Vt_actual_abs = Vt.abs(), Vt_actual.abs()
+        any_svals_repeated = False
+        for idx in product(*[range(b) for b in S_actual.shape[:-1]]):
+            Si = S_actual[idx]
+            if torch.unique(Si.detach()).shape[-1] == Si.shape[-1]:  # detach to avoid pytorch/pytorch#41389
+                self.assertAllClose(U_abs[idx], U_actual_abs[idx], **self.tolerances["svd"])
+                self.assertAllClose(Vt_abs[idx], Vt_actual_abs[idx], **self.tolerances["svd"])
+            else:
+                any_svals_repeated = True
+
         # Perform backward pass
         svd_grad = torch.randn_like(S)
         ((S * svd_grad).sum()).backward()
         ((S_actual * svd_grad).sum()).backward()
 
         # Check grads if there were no repeated singular values
-        for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
+        if not any_svals_repeated:
+            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                    self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
