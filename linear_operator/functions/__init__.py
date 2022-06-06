@@ -201,6 +201,71 @@ def root_inv_decomposition(
     )
 
 
+def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+    r"""
+    Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`,
+    computes a linear solve with right hand side :math:`\mathbf R`:
+
+    .. math::
+       \begin{equation}
+           \mathbf A^{-1} \mathbf R,
+       \end{equation}
+
+    where :math:`\mathbf R` is :attr:`right_tensor` and :math:`\mathbf A` is the LinearOperator.
+
+    .. note::
+        Unlike :func:`torch.linalg.solve`, this function can take an optional :attr:`left_tensor` attribute.
+        If this is supplied :func:`linear_operator.solve` computes
+
+        .. math::
+           \begin{equation}
+               \mathbf L \mathbf A^{-1} \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf L` is :attr:`left_tensor`.
+        Supplying this can reduce the number of solver calls required in the backward pass.
+
+    :param input: The matrix (or batch of matrices) :math:`\mathbf A` (... x N x N).
+    :param rhs: :math:`\mathbf R` - the right hand side
+    :param lhs: :math:`\mathbf L` - the left hand side
+    :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
+    """
+    from ..operators import to_linear_operator
+
+    return to_linear_operator(input).solve(right_tensor=rhs, left_tensor=lhs)
+
+
+def sqrt_inv_matmul(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+    r"""
+    Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`
+    and a right hand size :math:`\mathbf R`,
+    computes
+
+    .. math::
+       \begin{equation}
+           \mathbf A^{-1/2} \mathbf R,
+       \end{equation}
+
+    If :attr:`lhs` is supplied, computes
+
+    .. math::
+       \begin{equation}
+           \mathbf L \mathbf A^{-1/2} \mathbf R,
+       \end{equation}
+
+    where :math:`\mathbf L` is :attr:`lhs`.
+    (Supplying :attr:`lhs` can reduce the number of solver calls required in the backward pass.)
+
+    :param input: The matrix (or batch of matrices) :math:`\mathbf A` (... x N x N).
+    :param rhs: :math:`\mathbf R` - the right hand side
+    :param lhs: :math:`\mathbf L` - the left hand side
+    :return: :math:`\mathbf A^{-1/2} \mathbf R` or :math:`\mathbf L \mathbf A^{-1/2} \mathbf R`.
+    """
+    from ..operators import to_linear_operator
+
+    return to_linear_operator(input).sqrt_inv_matmul(rhs=rhs, lhs=lhs)
+
+
 __all__ = [
     "add_diagonal",
     "add_jitter",
@@ -210,4 +275,6 @@ __all__ = [
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",
+    "solve",
+    "sqrt_inv_matmul",
 ]

@@ -45,3 +45,7 @@ linear_operator
 .. autofunction:: root_decomposition
 
 .. autofunction:: root_inv_decomposition
+
+.. autofunction:: solve
+
+.. autofunction:: sqrt_inv_matmul

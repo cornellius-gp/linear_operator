@@ -486,7 +486,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             ), linear_operator.settings.cg_tolerance(1e-4):
                 # Perform the solve
                 if lhs is not None:
-                    res = linear_op.solve(rhs, lhs)
+                    res = linear_operator.solve(linear_op, rhs, lhs)
                     actual = lhs_copy @ evaluated.inverse() @ rhs_copy
                 else:
                     res = torch.linalg.solve(linear_op, rhs)
@@ -978,7 +978,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Perform forward pass
         with linear_operator.settings.max_cg_iterations(200):
-            sqrt_inv_matmul_res, inv_quad_res = linear_op.sqrt_inv_matmul(rhs, lhs)
+            sqrt_inv_matmul_res, inv_quad_res = linear_operator.sqrt_inv_matmul(linear_op, rhs, lhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = lhs_copy @ matrix_inv_root @ rhs_copy
@@ -1016,7 +1016,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         # Perform forward pass
         with linear_operator.settings.max_cg_iterations(200):
-            sqrt_inv_matmul_res = linear_op.sqrt_inv_matmul(rhs)
+            sqrt_inv_matmul_res = linear_operator.sqrt_inv_matmul(linear_op, rhs)
         evals, evecs = torch.linalg.eigh(evaluated)
         matrix_inv_root = evecs @ (evals.sqrt().reciprocal().unsqueeze(-1) * evecs.mT)
         sqrt_inv_matmul_actual = matrix_inv_root @ rhs_copy

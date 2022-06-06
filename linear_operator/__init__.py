@@ -10,6 +10,8 @@ from .functions import (
     pivoted_cholesky,
     root_decomposition,
     root_inv_decomposition,
+    solve,
+    sqrt_inv_matmul,
 )
 from .operators import LinearOperator, to_dense, to_linear_operator
 
@@ -31,6 +33,8 @@ __all__ = [
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",
+    "solve",
+    "sqrt_inv_matmul",
     "to_dense",
     "to_linear_operator",
     # Context managers
