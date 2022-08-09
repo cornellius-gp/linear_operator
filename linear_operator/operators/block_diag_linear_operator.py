@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import ABCMeta
 from typing import Optional, Tuple
 
 import torch
@@ -9,8 +10,26 @@ from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .block_linear_operator import BlockLinearOperator
 
+# metaclass of BlockDiagLinearOperator, overwrites behavior of constructor call
+# _MetaBlockDiagLinearOperator(base_linear_op, block_dim=-3) to return a DiagLazyTensor
+# if base_linear_op is a DiagLinearOperator itself
+class _MetaBlockDiagLinearOperator(ABCMeta):
+    def __call__(cls, base_linear_op, block_dim=-3):
+        from .diag_linear_operator import DiagLinearOperator
+        if cls is BlockDiagLinearOperator and isinstance(base_linear_op, DiagLinearOperator):
+            if not block_dim == -3:
+                raise NotImplementedError(
+                    "Passing a base_linear_op of type DiagLinearOperator to the constructor of "
+                    f"BlockDiagLinearOperator with block_dim = {block_dim} != -3 is not supported."
+                    )
+            else:
+                diag = base_linear_op._diag.flatten(-2, -1) # flatten last two dimensions of diag
+                return DiagLinearOperator(diag)
+        else:
+            return type.__call__(cls, base_linear_op, block_dim)
 
-class BlockDiagLinearOperator(BlockLinearOperator):
+
+class BlockDiagLinearOperator(BlockLinearOperator, metaclass = _MetaBlockDiagLinearOperator):
     """
     Represents a lazy tensor that is the block diagonal of square matrices.
     The :attr:`block_dim` attribute specifies which dimension of the base LinearOperator
