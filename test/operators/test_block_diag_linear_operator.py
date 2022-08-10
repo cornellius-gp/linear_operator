@@ -4,11 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import (
-    BlockDiagLinearOperator,
-    DiagLinearOperator,
-    DenseLinearOperator,
-)
+from linear_operator.operators import BlockDiagLinearOperator, DenseLinearOperator, DiagLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -68,9 +64,7 @@ class TestBlockDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
         for i in range(2):
             for j in range(6):
                 for k in range(5):
-                    actual[i, k, j * 4 : (j + 1) * 4, j * 4 : (j + 1) * 4] = blocks[
-                        i, k, j
-                    ]
+                    actual[i, k, j * 4 : (j + 1) * 4, j * 4 : (j + 1) * 4] = blocks[i, k, j]
         return actual
 
 
@@ -91,26 +85,16 @@ class TestBlockDiagLinearOperatorMetaClass(unittest.TestCase):
                 self.assertEqual(type(linear_op), DiagLinearOperator)
 
                 # matrix-vector-multiplication test
-                diag_values = base_op.flatten(
-                    start_dim=-2
-                )  # operator of non-block diagonal values
+                diag_values = base_op.flatten(start_dim=-2)  # operator of non-block diagonal values
                 x = torch.randn_like(diag_values)
-                self.assertTrue(
-                    torch.equal(
-                        diag_values * x, (linear_op @ x.unsqueeze(-1)).squeeze(-1)
-                    )
-                )
+                self.assertTrue(torch.equal(diag_values * x, (linear_op @ x.unsqueeze(-1)).squeeze(-1)))
 
                 # checks that the representation is numerically accurate
                 dense_operator = linear_op.to_dense()
-                truth_operator = torch.diag_embed(
-                    diag_values
-                )  # creates batch of diagonal operators
+                truth_operator = torch.diag_embed(diag_values)  # creates batch of diagonal operators
                 self.assertTrue(torch.equal(dense_operator, truth_operator))
 
-                with self.assertRaisesRegex(
-                    NotImplementedError, "with block_dim = -2 != -3 is not supported"
-                ):
+                with self.assertRaisesRegex(NotImplementedError, "with block_dim = -2 != -3 is not supported"):
                     # beside the dimensions not working out here, this should never
                     # be allowed as long as there is no special case for it, because
                     # matmuls with the resulting object will fail

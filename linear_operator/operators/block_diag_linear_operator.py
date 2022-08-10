@@ -18,26 +18,20 @@ class _MetaBlockDiagLinearOperator(ABCMeta):
     def __call__(cls, base_linear_op: LinearOperator, block_dim=-3):
         from .diag_linear_operator import DiagLinearOperator
 
-        if cls is BlockDiagLinearOperator and isinstance(
-            base_linear_op, DiagLinearOperator
-        ):
+        if cls is BlockDiagLinearOperator and isinstance(base_linear_op, DiagLinearOperator):
             if block_dim != -3:
                 raise NotImplementedError(
                     "Passing a base_linear_op of type DiagLinearOperator to the constructor of "
                     f"BlockDiagLinearOperator with block_dim = {block_dim} != -3 is not supported."
                 )
             else:
-                diag = base_linear_op._diag.flatten(
-                    -2, -1
-                )  # flatten last two dimensions of diag
+                diag = base_linear_op._diag.flatten(-2, -1)  # flatten last two dimensions of diag
                 return DiagLinearOperator(diag)
         else:
             return type.__call__(cls, base_linear_op, block_dim)
 
 
-class BlockDiagLinearOperator(
-    BlockLinearOperator, metaclass=_MetaBlockDiagLinearOperator
-):
+class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinearOperator):
     """
     Represents a lazy tensor that is the block diagonal of square matrices.
     The :attr:`block_dim` attribute specifies which dimension of the base LinearOperator
@@ -83,12 +77,8 @@ class BlockDiagLinearOperator(
 
     def _get_indices(self, row_index, col_index, *batch_indices):
         # Figure out what block the row/column indices belong to
-        row_index_block = torch.div(
-            row_index, self.base_linear_op.size(-2), rounding_mode="floor"
-        )
-        col_index_block = torch.div(
-            col_index, self.base_linear_op.size(-1), rounding_mode="floor"
-        )
+        row_index_block = torch.div(row_index, self.base_linear_op.size(-2), rounding_mode="floor")
+        col_index_block = torch.div(col_index, self.base_linear_op.size(-1), rounding_mode="floor")
 
         # Find the row/col index within each block
         row_index = row_index.fmod(self.base_linear_op.size(-2))
@@ -96,9 +86,7 @@ class BlockDiagLinearOperator(
 
         # If the row/column blocks do not agree, then we have off diagonal elements
         # These elements should be zeroed out
-        res = self.base_linear_op._get_indices(
-            row_index, col_index, *batch_indices, row_index_block
-        )
+        res = self.base_linear_op._get_indices(row_index, col_index, *batch_indices, row_index_block)
         res = res * torch.eq(row_index_block, col_index_block).type_as(res)
         return res
 
@@ -113,9 +101,7 @@ class BlockDiagLinearOperator(
         return self.__class__(self.base_linear_op._root_decomposition())
 
     def _root_inv_decomposition(self, initial_vectors=None):
-        return self.__class__(
-            self.base_linear_op._root_inv_decomposition(initial_vectors)
-        )
+        return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
     def _size(self):
         shape = list(self.base_linear_op.shape)
@@ -144,9 +130,7 @@ class BlockDiagLinearOperator(
                 inv_quad_res = inv_quad_res.view(*self.base_linear_op.batch_shape)
                 inv_quad_res = inv_quad_res.sum(-1)
             else:
-                inv_quad_res = inv_quad_res.view(
-                    *self.base_linear_op.batch_shape, inv_quad_res.size(-1)
-                )
+                inv_quad_res = inv_quad_res.view(*self.base_linear_op.batch_shape, inv_quad_res.size(-1))
                 inv_quad_res = inv_quad_res.sum(-2)
         if logdet_res is not None and logdet_res.numel():
             logdet_res = logdet_res.view(*logdet_res.shape).sum(-1)
@@ -162,9 +146,7 @@ class BlockDiagLinearOperator(
         V = self.__class__(V)
         return U, S, V
 
-    def _symeig(
-        self, eigenvectors: bool = False
-    ) -> Tuple[Tensor, Optional[LinearOperator]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)
         # Doesn't make much sense to sort here, o/w we lose the structure
         evals = evals.reshape(*evals.shape[:-2], evals.shape[-2:].numel())
