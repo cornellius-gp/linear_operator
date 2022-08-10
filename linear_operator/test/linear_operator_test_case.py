@@ -741,6 +741,21 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                     if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                         self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
 
+    def test_expand(self):
+        linear_op = self.create_linear_op()
+        # basic expansion of batch shape
+        expanded_shape = torch.Size([3]) + linear_op.shape
+        expanded_op = linear_op.expand(expanded_shape)
+        self.assertEqual(expanded_op.shape, expanded_shape)
+        # dealing with -1 shapes
+        expanded_op = linear_op.expand(*linear_op.shape[:-2], -1, -1)
+        self.assertEqual(expanded_op.shape, linear_op.shape)
+        # check that error is raised if incompatible expand shape
+        expand_args = (*linear_op.shape[:-2], 4, 5)
+        expected_msg = r"Invalid expand arguments \({}\)".format(", ".join(str(a) for a in expand_args))
+        with self.assertRaisesRegex(RuntimeError, expected_msg):
+            linear_op.expand(*expand_args)
+
     def test_float(self):
         linear_op = self.create_linear_op().double()
         evaluated = self.evaluate_linear_op(linear_op)
