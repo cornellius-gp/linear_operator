@@ -4,15 +4,13 @@ import sys
 
 from setuptools import find_packages, setup
 
-
 REQUIRED_MAJOR = 3
 REQUIRED_MINOR = 8
 
 # Check for python version
 if sys.version_info < (REQUIRED_MAJOR, REQUIRED_MINOR):
     error = (
-        "Your version of python ({major}.{minor}) is too old. You need "
-        "python >= {required_major}.{required_minor}."
+        "Your version of python ({major}.{minor}) is too old. You need python >= {required_major}.{required_minor}."
     ).format(
         major=sys.version_info.major,
         minor=sys.version_info.minor,
