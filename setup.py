@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 
-import io
-import os
-import re
+import sys
 
 from setuptools import find_packages, setup
 
 
-# Get version
-def read(*names, **kwargs):
-    with io.open(os.path.join(os.path.dirname(__file__), *names), encoding=kwargs.get("encoding", "utf8")) as fp:
-        return fp.read()
+REQUIRED_MAJOR = 3
+REQUIRED_MINOR = 8
 
-
-def find_version(*file_paths):
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError("Unable to find version string.")
-
+# Check for python version
+if sys.version_info < (REQUIRED_MAJOR, REQUIRED_MINOR):
+    error = (
+        "Your version of python ({major}.{minor}) is too old. You need "
+        "python >= {required_major}.{required_minor}."
+    ).format(
+        major=sys.version_info.major,
+        minor=sys.version_info.minor,
+        required_minor=REQUIRED_MINOR,
+        required_major=REQUIRED_MAJOR,
+    )
+    sys.exit(error)
 
 readme = open("README.md").read()
-version = find_version("linear_operator", "__init__.py")
-
 
 torch_min = "1.11"
 install_requires = [">=".join(["torch", torch_min])]
@@ -38,19 +36,15 @@ except ImportError:
     pass
 
 # Other requirements
-install_requires += [
-    "numpy",
-    "scipy",
-]
+install_requires += ["scipy"]
 
 
 # Run the setup
 setup(
     name="linear_operator",
-    version=version,
     description=(
         "A linear operator implementation, primarily designed for finite-dimensional "
-        "positive definite operators (i.e. kernel matrices)"
+        "positive definite operators (i.e. kernel matrices)."
     ),
     long_description=readme,
     long_description_content_type="text/markdown",
@@ -63,7 +57,7 @@ setup(
     license="MIT",
     classifiers=["Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3"],
     packages=find_packages(exclude=["test", "test.*"]),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
         "dev": ["black", "twine", "pre-commit"],

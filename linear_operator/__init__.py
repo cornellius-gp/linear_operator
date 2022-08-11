@@ -15,7 +15,11 @@ from .functions import (
 )
 from .operators import LinearOperator, to_dense, to_linear_operator
 
-__version__ = "0.0.1"
+# Read version number as written by setuptools_scm
+try:
+    from linear_operator.version import version as __version__
+except Exception:  # pragma: no cover
+    __version__ = "Unknown"  # pragma: no cover
 
 __all__ = [
     # Base class
