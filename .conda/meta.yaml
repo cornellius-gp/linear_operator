@@ -1,0 +1,35 @@
+{% set data = load_setup_py_data(setup_file="../setup.py", from_recipe_dir=True) %}
+
+package:
+  name: {{ data.get("name")|lower }}
+  version: {{ data.get("version") }}
+
+source:
+  path: ../
+
+build:
+  noarch: python
+  script: "$PYTHON ./setup.py install --single-version-externally-managed --record=record.txt"
+
+requirements:
+  host:
+    - python>=3.8
+
+  run:
+    - pytorch>=1.11
+    - scipy
+
+test:
+  imports:
+    - linear_operator
+    - linear_operator.functions
+    - linear_operator.operators
+    - linear_operator.utils
+
+about:
+  home: https://gpytorch.ai
+  license: MIT
+  license_file: LICENSE
+  summary: A linear operator implementation, primarily designed for finite-dimensional positive definite operators (i.e. kernel matrices).
+  doc_url: https://linear_operator.readthedocs.io/en/stable/
+  dev_url: https://github.com/cornellius-gp/linear_operator
