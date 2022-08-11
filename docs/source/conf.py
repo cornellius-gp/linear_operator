@@ -15,27 +15,10 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 import os
-import io
-import re
 import sys
 import warnings
 import sphinx_rtd_theme  # noqa
 from typing import ForwardRef
-
-
-def read(*names, **kwargs):
-    with io.open(
-        os.path.join(os.path.dirname(__file__), "..", "..", *names), encoding=kwargs.get("encoding", "utf8")
-    ) as fp:
-        return fp.read()
-
-
-def find_version(*file_paths):
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError("Unable to find version string.")
 
 
 sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))
@@ -43,11 +26,15 @@ sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))
 # -- Project information -----------------------------------------------------
 
 project = "linear_operator"
-copyright = "2020, Cornellius GP"
+copyright = "2022, Cornellius GP"
 author = "Cornellius GP"
 
 # The full version, including alpha/beta/rc tags
-version = find_version("linear_operator", "__init__.py")
+try:
+    from linear_operator.version import version
+except Exception:  # pragma: no cover
+    version = "Unknown"  # pragma: no cover
+
 release = version
 
 
