@@ -1481,7 +1481,7 @@ class LinearOperator(ABC):
         """
         if len(sizes) == 1 and hasattr(sizes, "__iter__"):
             sizes = sizes[0]
-        if len(sizes) < 2 or tuple(sizes[-2:]) != self.matrix_shape:
+        if len(sizes) < 2 or tuple(sizes[-2:]) not in {tuple(self.matrix_shape), (-1, -1)}:
             raise RuntimeError(
                 "Invalid expand arguments {}. Currently, repeat only works to create repeated "
                 "batches of a 2D LinearOperator.".format(tuple(sizes))
