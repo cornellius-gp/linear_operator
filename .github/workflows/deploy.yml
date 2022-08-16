@@ -48,10 +48,10 @@ jobs:
         pip install setuptools_scm
     - name: Build and publish
       run: |
-        python -m setuptools_scm
         conda config --set anaconda_upload yes
         conda config --append channels pytorch
         /usr/share/miniconda/bin/anaconda login --username ${{ secrets.CONDA_USERNAME }} --password ${{ secrets.CONDA_PASSWORD }}
+        python -m setuptools_scm
         cd .conda
         conda build .
         /usr/share/miniconda/bin/anaconda logout
