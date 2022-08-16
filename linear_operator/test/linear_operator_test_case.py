@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
+from linear_operator.operators import DiagLinearOperator, to_dense
 from linear_operator.settings import linalg_dtypes
 from linear_operator.utils.errors import CachingError
 from linear_operator.utils.memoize import get_from_cache
@@ -34,14 +35,16 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
+        rhs_evaluated = to_dense(rhs)
 
         # Test operator
         res = linear_op @ rhs
-        actual = evaluated.matmul(rhs)
-        self.assertAllClose(res, actual)
+        actual = evaluated.matmul(rhs_evaluated)
+        res_evaluated = to_dense(res)
+        self.assertAllClose(res_evaluated, actual)
 
-        grad = torch.randn_like(res)
-        res.backward(gradient=grad)
+        grad = torch.randn_like(res_evaluated)
+        res_evaluated.backward(gradient=grad)
         actual.backward(gradient=grad)
         for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
@@ -50,7 +53,7 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         # Test __torch_function__
         res = torch.matmul(linear_op, rhs)
         actual = evaluated.matmul(rhs)
-        self.assertAllClose(res, actual)
+        self.assertAllClose(to_dense(res), actual)
 
     def _test_rmatmul(self, lhs):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
@@ -304,6 +307,12 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         linear_op = self.create_linear_op()
         lhs = torch.randn(*linear_op.batch_shape, 4, linear_op.size(-2))
         return self._test_rmatmul(lhs)
+
+    def test_matmul_diag_matrix(self):
+        linear_op = self.create_linear_op()
+        diag = torch.rand(*linear_op.batch_shape, linear_op.size(-1))
+        rhs = DiagLinearOperator(diag)
+        return self._test_matmul(rhs)
 
     def test_matmul_matrix_broadcast(self):
         linear_op = self.create_linear_op()

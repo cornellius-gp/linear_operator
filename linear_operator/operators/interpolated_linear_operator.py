@@ -12,6 +12,7 @@ from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
 from ._linear_operator import LinearOperator
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator
+from .diag_linear_operator import DiagLinearOperator
 from .root_linear_operator import RootLinearOperator
 
 
@@ -408,6 +409,17 @@ class InterpolatedLinearOperator(LinearOperator):
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.
         # The _matmul_closure is optimized for repeated calls, such as for _solve
+
+        if isinstance(tensor, DiagLinearOperator):
+            # if we know the rhs is diagonal this is easy
+            new_right_interp_values = self.right_interp_values * tensor._diag.unsqueeze(-1)
+            return InterpolatedLinearOperator(
+                base_linear_op=self.base_linear_op,
+                left_interp_indices=self.left_interp_indices,
+                left_interp_values=self.left_interp_values,
+                right_interp_indices=self.right_interp_indices,
+                right_interp_values=new_right_interp_values,
+            )
 
         if tensor.ndimension() == 1:
             is_vector = True

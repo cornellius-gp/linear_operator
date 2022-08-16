@@ -209,7 +209,10 @@ class CatLinearOperator(LinearOperator):
         if len(res_list) == 1:
             return res_list[0].view(target_shape).to(self.device)
         else:
-            return torch.cat(res_list).view(target_shape).to(self.device)
+            # Explicitly move tensors to one device as torch.cat no longer moves tensors:
+            # https://github.com/pytorch/pytorch/issues/35045
+            res_list = [linear_op.to(self.device) for linear_op in res_list]
+            return torch.cat(res_list).view(target_shape)
 
     def _getitem(
         self,

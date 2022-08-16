@@ -8,6 +8,7 @@ from torch import Tensor
 from .. import settings
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
+from .block_diag_linear_operator import BlockDiagLinearOperator
 from .dense_linear_operator import DenseLinearOperator
 from .triangular_linear_operator import TriangularLinearOperator
 
@@ -163,15 +164,17 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag.log())
 
     def matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
-        from .triangular_linear_operator import TriangularLinearOperator
-
         # this is trivial if we multiply two DiagLinearOperators
         if isinstance(other, DiagLinearOperator):
             return DiagLinearOperator(self._diag * other._diag)
         # special case if we have a DenseLinearOperator
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self._diag.unsqueeze(-1) * other.tensor)
-        # and if we have a triangular one
+        # special case if we have a BlockDiagLinearOperator
+        if isinstance(other, BlockDiagLinearOperator):
+            diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1], 1)
+            return BlockDiagLinearOperator(diag_reshape * other.base_linear_op)
+        # special case if we have a TriangularLinearOperator
         if isinstance(other, TriangularLinearOperator):
             return TriangularLinearOperator(self._diag.unsqueeze(-1) * other._tensor, upper=other.upper)
         return super().matmul(other)

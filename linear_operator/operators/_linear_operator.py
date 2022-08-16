@@ -723,7 +723,8 @@ class LinearOperator(ABC):
                     arg.requires_grad_(val)
         for arg in self._kwargs.values():
             if hasattr(arg, "requires_grad"):
-                arg.requires_grad_(val)
+                if arg.dtype in (torch.float, torch.double, torch.half):
+                    arg.requires_grad_(val)
 
     def _solve(self, rhs: torch.Tensor, preconditioner: Callable, num_tridiag: int = 0) -> torch.Tensor:
         r"""
@@ -1759,6 +1760,10 @@ class LinearOperator(ABC):
 
         return self._mul_matrix(to_linear_operator(other))
 
+    @property
+    def ndim(self) -> int:
+        return self.ndimension()
+
     def ndimension(self) -> int:
         """
         Returns the number of dimensions.
@@ -2687,7 +2692,7 @@ class LinearOperator(ABC):
         if kwargs is None:
             kwargs = {}
 
-        if not isinstance(args[0], LinearOperator):
+        if not isinstance(args[0], cls):
             if func not in _HANDLED_SECOND_ARG_FUNCTIONS or not all(
                 issubclass(t, (torch.Tensor, LinearOperator)) for t in types
             ):

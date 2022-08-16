@@ -12,7 +12,7 @@ from .block_linear_operator import BlockLinearOperator
 
 
 # metaclass of BlockDiagLinearOperator, overwrites behavior of constructor call
-# _MetaBlockDiagLinearOperator(base_linear_op, block_dim=-3) to return a DiagLazyTensor
+# _MetaBlockDiagLinearOperator(base_linear_op, block_dim=-3) to return a DiagLinearOperator
 # if base_linear_op is a DiagLinearOperator itself
 class _MetaBlockDiagLinearOperator(ABCMeta):
     def __call__(cls, base_linear_op: LinearOperator, block_dim=-3):
@@ -135,6 +135,18 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         if logdet_res is not None and logdet_res.numel():
             logdet_res = logdet_res.view(*logdet_res.shape).sum(-1)
         return inv_quad_res, logdet_res
+
+    def matmul(self, other):
+        from .diag_linear_operator import DiagLinearOperator
+
+        # this is trivial if we multiply two BlockDiagLinearOperator
+        if isinstance(other, BlockDiagLinearOperator):
+            return BlockDiagLinearOperator(self.base_linear_op @ other.base_linear_op)
+        # special case if we have a DiagLinearOperator
+        if isinstance(other, DiagLinearOperator):
+            diag_reshape = other._diag.view(*self.base_linear_op.shape[:-2], 1, -1)
+            return BlockDiagLinearOperator(self.base_linear_op * diag_reshape)
+        return super().matmul(other)
 
     @cached(name="svd")
     def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:

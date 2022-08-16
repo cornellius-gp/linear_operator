@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import IdentityLinearOperator
+from linear_operator.operators import IdentityLinearOperator, to_dense
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -13,10 +13,12 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = linear_op.clone().detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
+        rhs_evaluated = to_dense(rhs)
 
         res = linear_op.matmul(rhs)
-        actual = evaluated.matmul(rhs)
-        self.assertAllClose(res, actual)
+        actual = evaluated.matmul(rhs_evaluated)
+        res_evaluated = to_dense(res)
+        self.assertAllClose(res_evaluated, actual)
 
     def _test_rmatmul(self, lhs):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
