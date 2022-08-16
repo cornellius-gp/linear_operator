@@ -37,9 +37,17 @@ except ImportError:
 install_requires += ["scipy"]
 
 
+# Get version
+try:
+    from linear_operator.version import version
+except Exception:
+    version = None
+
+
 # Run the setup
 setup(
     name="linear_operator",
+    version=version,
     description=(
         "A linear operator implementation, primarily designed for finite-dimensional "
         "positive definite operators (i.e. kernel matrices)."
