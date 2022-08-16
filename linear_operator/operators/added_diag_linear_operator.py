@@ -18,8 +18,9 @@ from .sum_linear_operator import SumLinearOperator
 
 class AddedDiagLinearOperator(SumLinearOperator):
     """
-    A SumLinearOperator, but of only two linear operators, the second of which must be
-    a DiagLinearOperator.
+    A :class:`~linear_operator.operators.SumLinearOperator`, but of only two
+    linear operators, the second of which must be a
+    :class:`~linear_operator.operators.DiagLinearOperator`.
 
     :param linear_ops: The LinearOperator, and the DiagLinearOperator to add to it.
     :param preconditioner_override: A preconditioning method to be used with conjugate gradients.
