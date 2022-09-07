@@ -33,7 +33,7 @@ def cat(inputs, dim=0, output_device=None):
 
 class CatLinearOperator(LinearOperator):
     r"""
-    A `LinearOperator` that represents the concatenation of other lazy tensors.
+    A `LinearOperator` that represents the concatenation of other linear operators.
     Each LinearOperator must have the same shape except in the concatenating
     dimension.
 

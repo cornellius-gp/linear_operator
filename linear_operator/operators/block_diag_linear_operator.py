@@ -139,8 +139,8 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
     def matmul(self, other):
         from .diag_linear_operator import DiagLinearOperator
 
-        # this is trivial if we multiply two BlockDiagLinearOperator
-        if isinstance(other, BlockDiagLinearOperator):
+        # this is trivial if we multiply two BlockDiagLinearOperator with matching block sizes
+        if isinstance(other, BlockDiagLinearOperator) and self.base_linear_op.shape == other.base_linear_op.shape:
             return BlockDiagLinearOperator(self.base_linear_op @ other.base_linear_op)
         # special case if we have a DiagLinearOperator
         if isinstance(other, DiagLinearOperator):

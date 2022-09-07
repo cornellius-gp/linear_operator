@@ -883,13 +883,13 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op = self.create_linear_op()
             rootdecomp = linear_operator.root_decomposition(linear_op)
 
-            if isinstance(rootdecomp, linear_operator.lazy.CholLinearOperator):
+            if isinstance(rootdecomp, linear_operator.operators.CholLinearOperator):
                 chol = linear_operator.root_decomposition(linear_op).root.clone()
                 linear_operator.utils.memoize.clear_cache_hook(linear_op)
                 linear_operator.utils.memoize.add_to_cache(
                     linear_op,
                     "root_decomposition",
-                    linear_operator.lazy.RootLinearOperator(chol),
+                    linear_operator.operators.RootLinearOperator(chol),
                 )
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)
