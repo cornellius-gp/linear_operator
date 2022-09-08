@@ -67,10 +67,12 @@ class TestLowRankRootAddedDiagLinearOperator(LinearOperatorTestCase, unittest.Te
 
             self.assertFalse(linear_cg_mock.called)
 
-    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False):
+    # NOTE: this is currently not executed
+    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
         if not self.__class__.skip_slq_tests:
             # Forward
-            linear_op = self.create_linear_op()
+            if linear_op is None:
+                linear_op = self.create_linear_op()
             evaluated = self.evaluate_linear_op(linear_op)
             flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
 
