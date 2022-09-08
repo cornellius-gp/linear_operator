@@ -2557,7 +2557,7 @@ class LinearOperator(ABC):
         from .zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
-            return deepcopy(self)
+            return self
         elif isinstance(other, DiagLinearOperator):
             return AddedDiagLinearOperator(self, other)
         elif isinstance(other, RootLinearOperator):
