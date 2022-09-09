@@ -2570,7 +2570,7 @@ class LinearOperator(ABC):
             new_self = self if self.shape[:-2] == shape[:-2] else self._expand_batch(shape[:-2])
             new_other = other if other.shape[:-2] == shape[:-2] else other._expand_batch(shape[:-2])
             return SumLinearOperator(new_self, new_other)
-        elif isinstance(other,numbers.Number) and other==0:
+        elif isinstance(other, numbers.Number) and other == 0:
             return self
         else:
             return SumLinearOperator(self, other)
