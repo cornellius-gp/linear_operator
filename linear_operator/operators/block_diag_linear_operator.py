@@ -46,6 +46,15 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             The dimension that specifies the blocks.
     """
 
+    def __init__(self, base_linear_op, block_dim=-3):
+        super().__init__(base_linear_op, block_dim)
+        # block diagonal is restricted to have square diagonal blocks
+        if self.base_linear_op.shape[-1] != self.base_linear_op.shape[-2]:
+            raise RuntimeError(
+                "base_linear_op must be a batch of square matrices, but non-batch dimensions are "
+                f"{base_linear_op.shape[-2:]}"
+            )
+
     @property
     def num_blocks(self):
         return self.base_linear_op.size(-3)
@@ -139,8 +148,8 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
     def matmul(self, other):
         from .diag_linear_operator import DiagLinearOperator
 
-        # this is trivial if we multiply two BlockDiagLinearOperator
-        if isinstance(other, BlockDiagLinearOperator):
+        # this is trivial if we multiply two BlockDiagLinearOperator with matching block sizes
+        if isinstance(other, BlockDiagLinearOperator) and self.base_linear_op.shape == other.base_linear_op.shape:
             return BlockDiagLinearOperator(self.base_linear_op @ other.base_linear_op)
         # special case if we have a DiagLinearOperator
         if isinstance(other, DiagLinearOperator):

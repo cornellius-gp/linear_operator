@@ -877,19 +877,19 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_diagonalization_symeig(self):
         return self.test_diagonalization(symeig=True)
 
+    # NOTE: this is currently not executed, and fails if the underscore is removed
     def _test_triangular_linear_op_inv_quad_logdet(self):
         # now we need to test that a second cholesky isn't being called in the inv_quad_logdet
         with linear_operator.settings.max_cholesky_size(math.inf):
             linear_op = self.create_linear_op()
             rootdecomp = linear_operator.root_decomposition(linear_op)
-
-            if isinstance(rootdecomp, linear_operator.lazy.CholLinearOperator):
+            if isinstance(rootdecomp, linear_operator.operators.CholLinearOperator):
                 chol = linear_operator.root_decomposition(linear_op).root.clone()
                 linear_operator.utils.memoize.clear_cache_hook(linear_op)
                 linear_operator.utils.memoize.add_to_cache(
                     linear_op,
                     "root_decomposition",
-                    linear_operator.lazy.RootLinearOperator(chol),
+                    linear_operator.operators.RootLinearOperator(chol),
                 )
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)

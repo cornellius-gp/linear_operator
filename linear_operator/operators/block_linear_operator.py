@@ -12,7 +12,7 @@ from .dense_linear_operator import to_linear_operator
 class BlockLinearOperator(LinearOperator):
     """
     An abstract LinearOperator class for block tensors.
-    Super classes will determine how the different blocks are layed out
+    Subclasses will determine how the different blocks are layed out
     (e.g. block diagonal, sum over blocks, etc.)
 
     BlockLinearOperators represent the groups of blocks as a batched Tensor.
@@ -39,7 +39,7 @@ class BlockLinearOperator(LinearOperator):
         block_dim = block_dim if block_dim < 0 else (block_dim - base_linear_op.dim())
 
         # Everything is MUCH easier to write if the last batch dimension is the block dimension
-        # I.e. blopck_dim = -3
+        # I.e. block_dim = -3
         # We'll permute the dimensions if this is not the case
         if block_dim != -3:
             positive_block_dim = base_linear_op.dim() + block_dim
@@ -48,7 +48,6 @@ class BlockLinearOperator(LinearOperator):
                 *range(positive_block_dim + 1, base_linear_op.dim() - 2),
                 positive_block_dim,
             )
-
         super(BlockLinearOperator, self).__init__(to_linear_operator(base_linear_op))
         self.base_linear_op = base_linear_op
 

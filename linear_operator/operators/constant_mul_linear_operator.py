@@ -21,7 +21,7 @@ class ConstantMulLinearOperator(LinearOperator):
 
     .. note::
 
-        To element-wise multiply two lazy tensors, see :class:`linear_operator.lazy.MulLinearOperator`
+        To element-wise multiply two lazy tensors, see :class:`linear_operator.operators.MulLinearOperator`
 
     Args:
         base_linear_op (LinearOperator) or (b x n x m)): The base_lazy tensor
@@ -38,18 +38,18 @@ class ConstantMulLinearOperator(LinearOperator):
 
     Example::
 
-        >>> base_base_linear_op = linear_operator.lazy.ToeplitzLinearOperator([1, 2, 3])
+        >>> base_base_linear_op = linear_operator.operators.ToeplitzLinearOperator([1, 2, 3])
         >>> constant = torch.tensor(1.2)
-        >>> new_base_linear_op = linear_operator.lazy.ConstantMulLinearOperator(base_base_linear_op, constant)
+        >>> new_base_linear_op = linear_operator.operators.ConstantMulLinearOperator(base_base_linear_op, constant)
         >>> new_base_linear_op.to_dense()
         >>> # Returns:
         >>> # [[ 1.2, 2.4, 3.6 ]
         >>> #  [ 2.4, 1.2, 2.4 ]
         >>> #  [ 3.6, 2.4, 1.2 ]]
         >>>
-        >>> base_base_linear_op = linear_operator.lazy.ToeplitzLinearOperator([[1, 2, 3], [2, 3, 4]])
+        >>> base_base_linear_op = linear_operator.operators.ToeplitzLinearOperator([[1, 2, 3], [2, 3, 4]])
         >>> constant = torch.tensor([1.2, 0.5])
-        >>> new_base_linear_op = linear_operator.lazy.ConstantMulLinearOperator(base_base_linear_op, constant)
+        >>> new_base_linear_op = linear_operator.operators.ConstantMulLinearOperator(base_base_linear_op, constant)
         >>> new_base_linear_op.to_dense()
         >>> # Returns:
         >>> # [[[ 1.2, 2.4, 3.6 ]

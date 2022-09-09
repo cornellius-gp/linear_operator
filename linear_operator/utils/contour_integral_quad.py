@@ -23,7 +23,7 @@ def contour_integral_quad(
     Performs :math:`\mathbf K^{1/2} \mathbf b` or :math:`\mathbf K^{-1/2} \mathbf b`
     using contour integral quadrature.
 
-    :param linear_operator.lazy.LinearOperator linear_op: LinearOperator representing :math:`\mathbf K`
+    :param linear_operator.operators.LinearOperator linear_op: LinearOperator representing :math:`\mathbf K`
     :param torch.Tensor rhs: Right hand side tensor :math:`\mathbf b`
     :param bool inverse: (default False) whether to compute :math:`\mathbf K^{1/2} \mathbf b` (if False)
         or `\mathbf K^{-1/2} \mathbf b` (if True)
