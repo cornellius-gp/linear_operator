@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import math
+import numbers
 import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -2546,17 +2547,13 @@ class LinearOperator(ABC):
 
         return samples
 
-    def __add__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
-        from torch import Tensor
-
+    def __add__(self, other: Union[Tensor, LinearOperator, float]) -> LinearOperator:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator
         from .diag_linear_operator import DiagLinearOperator
         from .root_linear_operator import RootLinearOperator
         from .sum_linear_operator import SumLinearOperator
         from .zero_linear_operator import ZeroLinearOperator
-
-        import numbers
 
         if isinstance(other, ZeroLinearOperator):
             return self
