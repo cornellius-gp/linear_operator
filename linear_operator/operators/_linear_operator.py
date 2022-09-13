@@ -469,12 +469,10 @@ class LinearOperator(ABC):
         from .keops_linear_operator import KeOpsLinearOperator
         from .triangular_linear_operator import TriangularLinearOperator
 
-        evaluated_kern_mat = self.evaluate_kernel()
-
-        if any(isinstance(sub_mat, KeOpsLinearOperator) for sub_mat in evaluated_kern_mat._args):
+        if any(isinstance(sub_mat, KeOpsLinearOperator) for sub_mat in self._args):
             raise RuntimeError("Cannot run Cholesky with KeOps: it will either be really slow or not work.")
 
-        evaluated_mat = evaluated_kern_mat.to_dense()
+        evaluated_mat = self.to_dense()
 
         # if the tensor is a scalar, we can just take the square root
         if evaluated_mat.size(-1) == 1:
@@ -554,8 +552,6 @@ class LinearOperator(ABC):
         from .dense_linear_operator import DenseLinearOperator
         from .mul_linear_operator import MulLinearOperator
 
-        self = self.evaluate_kernel()
-        other = other.evaluate_kernel()
         if isinstance(self, DenseLinearOperator) or isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.to_dense() * other.to_dense())
         else:
@@ -1444,14 +1440,6 @@ class LinearOperator(ABC):
         except CachingError:
             pass
         return self._symeig(eigenvectors=False)[0]
-
-    # TODO: remove
-    def evaluate_kernel(self):
-        """
-        Return a new LinearOperator representing the same one as this one, but with
-        all lazily evaluated kernels actually evaluated.
-        """
-        return self.representation_tree()(*self.representation())
 
     @_implements(torch.exp)
     def exp(self) -> "LinearOperator":
@@ -2522,7 +2510,7 @@ class LinearOperator(ABC):
             base_samples = base_samples.permute(-1, *range(self.dim() - 1)).contiguous()
             base_samples = base_samples.unsqueeze(-1)
             solves, weights, _, _ = contour_integral_quad(
-                self.evaluate_kernel(),
+                self,
                 base_samples,
                 inverse=False,
                 num_contour_quadrature=settings.num_contour_quadrature.value(),

@@ -186,7 +186,3 @@ class AddedDiagLinearOperator(SumLinearOperator):
             evals = evals_ + self._diag_tensor._diagonal()
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)
-
-    def evaluate_kernel(self) -> LinearOperator:
-        added_diag_linear_op = self.representation_tree()(*self.representation())
-        return added_diag_linear_op._linear_op + added_diag_linear_op._diag_tensor
