@@ -23,7 +23,7 @@ class DenseLinearOperator(LinearOperator):
         Args:
         - tsr (Tensor: matrix) a Tensor
         """
-        super(DenseLinearOperator, self).__init__(tsr)
+        super().__init__(tsr)
         self.tensor = tsr
 
     def _cholesky_solve(self, rhs, upper=False):
@@ -76,13 +76,7 @@ class DenseLinearOperator(LinearOperator):
         elif isinstance(other, torch.Tensor):
             return DenseLinearOperator(self.tensor + other)
         else:
-            return super(DenseLinearOperator, self).__add__(other)
-
-    def mul(self, other):
-        if isinstance(other, DenseLinearOperator):
-            return DenseLinearOperator(self.tensor * other.tensor)
-        else:
-            return super(DenseLinearOperator, self).mul(other)
+            return super().__add__(other)
 
 
 def to_linear_operator(obj: Union[torch.Tensor, LinearOperator]) -> LinearOperator:

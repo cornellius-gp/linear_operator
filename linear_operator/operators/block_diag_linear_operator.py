@@ -153,8 +153,9 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             return BlockDiagLinearOperator(self.base_linear_op @ other.base_linear_op)
         # special case if we have a DiagLinearOperator
         if isinstance(other, DiagLinearOperator):
-            diag_reshape = other._diag.view(*self.base_linear_op.shape[:-2], 1, -1)
-            return BlockDiagLinearOperator(self.base_linear_op * diag_reshape)
+            diag_reshape = other._diag.view(*self.base_linear_op.shape[:-1])
+            diag = DiagLinearOperator(diag_reshape)
+            return BlockDiagLinearOperator(self.base_linear_op @ diag)
         return super().matmul(other)
 
     @cached(name="svd")

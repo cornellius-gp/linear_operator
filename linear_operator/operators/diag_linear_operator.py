@@ -65,16 +65,6 @@ class DiagLinearOperator(TriangularLinearOperator):
         res = res * torch.eq(row_index, col_index).to(device=res.device, dtype=res.dtype)
         return res
 
-    def _matmul(self, rhs: Tensor) -> Tensor:
-        # to perform matrix multiplication with diagonal matrices we can just
-        # multiply element-wise with the diagonal (using proper broadcasting)
-        if rhs.ndimension() == 1:
-            return self._diag * rhs
-        # special case if we have a DenseLinearOperator
-        if isinstance(rhs, DenseLinearOperator):
-            return DenseLinearOperator(self._diag.unsqueeze(-1) * rhs.tensor)
-        return self._diag.unsqueeze(-1) * rhs
-
     def _mul_constant(self, constant: Tensor) -> "DiagLinearOperator":
         return self.__class__(self._diag * constant.unsqueeze(-1))
 
@@ -164,20 +154,29 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag.log())
 
     def matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
-        # this is trivial if we multiply two DiagLinearOperators
         if isinstance(other, DiagLinearOperator):
             return DiagLinearOperator(self._diag * other._diag)
-        # special case if we have a DenseLinearOperator
-        if isinstance(other, DenseLinearOperator):
-            return DenseLinearOperator(self._diag.unsqueeze(-1) * other.tensor)
-        # special case if we have a BlockDiagLinearOperator
-        if isinstance(other, BlockDiagLinearOperator):
-            diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1], 1)
-            return BlockDiagLinearOperator(diag_reshape * other.base_linear_op)
+        elif isinstance(other, BlockDiagLinearOperator):
+            diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1])
+            diag = DiagLinearOperator(diag_reshape)
+            # using matmul here avoids having to implement special case of elementwise multiplication
+            # with block diagonal operator, which itself has special cases for vectors and matrices
+            return BlockDiagLinearOperator(diag @ other.base_linear_op)
         # special case if we have a TriangularLinearOperator
-        if isinstance(other, TriangularLinearOperator):
-            return TriangularLinearOperator(self._diag.unsqueeze(-1) * other._tensor, upper=other.upper)
-        return super().matmul(other)
+        elif isinstance(other, TriangularLinearOperator):
+            return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
+        elif isinstance(other, DenseLinearOperator):
+            return DenseLinearOperator(self @ other.tensor)
+        else:
+            return super().matmul(other)
+
+    def _matmul(self, other: Tensor) -> Tensor:
+        # to perform matrix multiplication with diagonal matrices we can just
+        # multiply element-wise with the diagonal (using proper broadcasting)
+        diag = self._diag
+        if other.ndimension() > 1:
+            diag = diag.unsqueeze(-1)
+        return diag * other
 
     def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
         res = self.inverse()._matmul(right_tensor)
