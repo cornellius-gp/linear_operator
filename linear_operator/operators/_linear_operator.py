@@ -559,12 +559,7 @@ class LinearOperator(ABC):
         if isinstance(self, DenseLinearOperator) or isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.to_dense() * other.to_dense())
         else:
-            left_linear_op = self if self._root_decomposition_size() < other._root_decomposition_size() else other
-            right_linear_op = other if left_linear_op is self else self
-            return MulLinearOperator(
-                left_linear_op.root_decomposition(),
-                right_linear_op.root_decomposition(),
-            )
+            return MulLinearOperator(self, other)
 
     def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
         """

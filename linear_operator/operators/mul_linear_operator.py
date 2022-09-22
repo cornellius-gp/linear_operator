@@ -22,11 +22,14 @@ class MulLinearOperator(LinearOperator):
         Args:
             - linear_ops (A list of LinearOperator) - A list of LinearOperator to multiplicate with.
         """
+        if left_linear_op._root_decomposition_size() < right_linear_op._root_decomposition_size():
+            left_linear_op, right_linear_op = right_linear_op, left_linear_op
+
         if not isinstance(left_linear_op, RootLinearOperator):
             left_linear_op = left_linear_op.root_decomposition()
         if not isinstance(right_linear_op, RootLinearOperator):
             right_linear_op = right_linear_op.root_decomposition()
-        super(MulLinearOperator, self).__init__(left_linear_op, right_linear_op)
+        super().__init__(left_linear_op, right_linear_op)
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 
@@ -62,7 +65,7 @@ class MulLinearOperator(LinearOperator):
             left_res = left_res.view(*output_batch_shape, n, rank, m)
             res = left_res.mul_(left_root.unsqueeze(-1)).sum(-2)
         # This is the case where we're not doing a root decomposition, because the matrix is too small
-        else:
+        else:  # Dead?
             res = (self.left_linear_op.to_dense() * self.right_linear_op.to_dense()).matmul(rhs)
         res = res.squeeze(-1) if is_vector else res
         return res

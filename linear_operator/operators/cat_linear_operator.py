@@ -366,6 +366,9 @@ class CatLinearOperator(LinearOperator):
         )
         return res
 
+    def to_dense(self):
+        return torch.cat([to_dense(L) for L in self.linear_ops], dim=self.cat_dim)
+
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
         return tuple(r.to(self.device) for r in res)
