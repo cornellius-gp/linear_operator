@@ -153,6 +153,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             return BlockDiagLinearOperator(self.base_linear_op @ other.base_linear_op)
         # special case if we have a DiagLinearOperator
         if isinstance(other, DiagLinearOperator):
+            # matmul is going to be cheap because of the special casing in DiagLinearOperator
             diag_reshape = other._diag.view(*self.base_linear_op.shape[:-1])
             diag = DiagLinearOperator(diag_reshape)
             return BlockDiagLinearOperator(self.base_linear_op @ diag)
