@@ -23,7 +23,7 @@ class BlockLinearOperator(LinearOperator):
 
     Args:
         - :attr:`base_linear_op` (LinearOperator or Tensor):
-            Must be at least 3 dimenional.
+            Must be at least 3 dimensional.
         - :attr:`block_dim` (int):
             The dimension that specifies blocks.
     """
@@ -149,7 +149,12 @@ class BlockLinearOperator(LinearOperator):
         return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
     def _transpose_nonbatch(self):
-        return self.__class__(self.base_linear_op._transpose_nonbatch())
+        base_op = self.base_linear_op
+        if isinstance(base_op, LinearOperator):
+            new_base_op = base_op._transpose_nonbatch()
+        else:
+            new_base_op = base_op.transpose(-1, -2)
+        return self.__class__(new_base_op)
 
     def zero_mean_mvn_samples(self, num_samples):
         res = self.base_linear_op.zero_mean_mvn_samples(num_samples)
