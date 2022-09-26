@@ -108,11 +108,8 @@ torch.linalg.solve(A, d, b)  # computes A^{-1} b efficiently!
 ### What is a Linear Operator?
 A linear operator is a generalization of a matrix.
 It is a linear function that is defined in by its application to a vector.
-
-$$ \mathcal L \left( \boldsymbol x \right) = \boldsymbol y. $$
-
 The most common linear operators are (potentially structured) matrices,
-where the function applying them to a vector are some (potentially efficient)
+where the function applying them to a vector are (potentially efficient)
 matrix-vector multiplication routines.
 
 In code, a `LinearOperator` is a class that
@@ -163,3 +160,102 @@ using only these three primitative functions.
 Moreover, because `_matmul` is a linear function, it is very easy to compose linear operators in various ways.
 For example: adding two linear operators (`SumLinearOperator`) just requires adding the output of their `_matmul` functions.
 This makes it possible to define very complex compositional structures that still yield efficient linear algebraic routines.
+
+
+## Use Cases
+
+There are several use cases for the LinearOperator package.
+Here we highlight two general themes:
+
+### Modular Code for Structured Matrices
+
+For example, let's say that you have a generative model that involves
+sampling from a high-dimensional multivariate Gaussian.
+This sampling operation will require storing and manipulating a large covariance matrix,
+so to speed things up you might want to experiment with different structured
+approximations of that covariance matrix.
+This is easy with the LinearOperator package.
+
+```python
+from gpytorch.distributions import MultivariateNormal
+
+# variance = torch.randn(10000)
+cov = DiagLinearOperator(variance)
+# or
+# cov = RootLinearOperator(...) + DiagLinearOperator(...)
+# or
+# cov = KroneckerProductLinearOperator(...)
+# or
+# cov = ToeplitzLinearOperator(...)
+# or
+# ...
+
+mvn = MultivariateNormal(torch.zeros(cov.size(-1), cov) # 10000-dimensional MVN
+mvn.rsample()  # returns a 10000-dimensional vector
+```
+
+### Efficient Routines for Complex Operators
+
+Many of the efficient linear algebra routines in LinearOperator are iterative algorithms
+based on matrix-vector multiplication.
+Since matrix-vector multiplication obeys many nice compositional properties
+it is possible to obtain efficient routines for extremely complex compositional LienarOperators:
+
+```python
+from linear_operator.operators import KroneckerProductLinearOperator, RootLinearOperator, ToeplitzLinearOperator
+
+# mat1 = 200 x 200 PSD matrix
+# mat2 = 100 x 100 PSD matrix
+# vec3 = 20000 vector
+
+A = KroneckerProductLinearOperator(mat1, mat2) + RootLinearOperator(ToeplitzLinearOperator(vec3))
+# represents a 20000 x 20000 matrix
+
+torch.linalg.solve(A, torch.randn(20000))  # Sub O(N^3) routine!
+```
+
+
+## Using the torch API with LinearOperator
+
+LinearOperator objects share (mostly) the same API as `torch.Tensor` objects.
+They can also be used with (most) functions available in the `torch` and `torch.linalg` namespace.
+This includes
+- `torch.add`
+- `torch.cat`
+- `torch.clone`
+- `torch.diagonal`
+- `torch.dim`
+- `torch.div`
+- `torch.expand`
+- `torch.logdet`
+- `torch.matmul`
+- `torch.mul`
+- `torch.numel`
+- `torch.permute`
+- `torch.prod`
+- `torch.squeeze`
+- `torch.sub`
+- `torch.sum`
+- `torch.transpose`
+- `torch.unsqueeze`
+- `torch.linalg.cholesky`
+- `torch.linalg.eigh`
+- `torch.linalg.eigvalsh`
+- `torch.linalg.solve`
+- `torch.linalg.svd`
+
+Each of these functions will either return a `torch.Tensor`, or a new `LinearOperator` object,
+depending on the function.
+For example:
+
+```python
+# A = RootLinearOperator(...)
+# B = ToeplitzLinearOperator(...)
+# d = vec
+
+C = torch.mul(A, B)  # A new LienearOperator representing the elementwise mul between A and B
+torch.linalg.solve(C, d)  # A torch.Tensor
+```
+
+For more examples, see the [examples section](https://linear-operator.readthedocs.io/en/latest/)
+in the documentation.
