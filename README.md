@@ -268,3 +268,14 @@ torch.linalg.solve(C, d)  # A torch.Tensor
 ```
 
 For more examples, see the [examples folder](https://github.com/cornellius-gp/linear_operator/blob/main/examples/).
+
+
+## Contributing
+
+See the contributing guidelines [CONTRIBUTING.md](https://github.com/cornellius-gp/linear_operator/blob/main/CONTRIBUTING.md)
+for information on submitting issues and pull requests.
+
+
+## License
+
+LinearOperator is [MIT licensed](https://github.com/cornellius-gp/linear_operator/blob/main/LICENSE).
