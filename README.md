@@ -1,13 +1,12 @@
 # LinearOperator
 
-<hr />
-
 [![Test](https://github.com/cornellius-gp/linear_operator/actions/workflows/run_test_suite.yml/badge.svg)](https://github.com/cornellius-gp/linear_operator/actions/workflows/run_test_suite.yml)
 [![Documentation](https://readthedocs.org/projects/linear-operator/badge/?version=latest)](https://linear-operator.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Conda](https://img.shields.io/conda/v/gpytorch/linear_operator.svg)](https://anaconda.org/gpytorch/linear_operator)
 [![PyPI](https://img.shields.io/pypi/v/linear_operator.svg)](https://pypi.org/project/linear_operator)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 LinearOperator is a PyTorch package for abstracting away the linear algebra routines needed for structured matrices (or operators).
 
@@ -20,6 +19,14 @@ Package development TODOs:
  - [ ] Interface to specify structure (i.e. symmetric, triangular, PSD, etc.)
  - [ ] Add algebraic routines for symmetric operators
  - [ ] Add algebraic routines for generic operators
+
+To get started, run either
+```sh
+pip install linear_operator
+# or
+conda install linear_operator -c gpytorch
+```
+or [see below](#installation) for more detailed instructions.
 
 ## Why LinearOperator
 Before describing what linear operators are and why they make a useful abstraction, it's easiest to see an example.
@@ -268,6 +275,50 @@ torch.linalg.solve(C, d)  # A torch.Tensor
 ```
 
 For more examples, see the [examples folder](https://github.com/cornellius-gp/linear_operator/blob/main/examples/).
+
+
+## Installation
+
+LinearOperator requires Python >= 3.8.
+
+### Standard Installation (Most Recent Stable Version)
+We recommend installing via `pip` or Anaconda:
+
+```sh
+pip install linear_operator
+# or
+conda install linear_operator -c gpytorch
+```
+
+The installation requires the following packages:
+- PyTorch >= 1.11
+- Scipy
+
+You can customize your PyTorch installation (i.e. CUDA version, CPU only option)
+by following the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+
+### Installing from the `main` Branch (Latest Unsable Version)
+To install what is currently on the `main` branch (potentially buggy and unstable):
+
+```sh
+pip install --upgrade git+https://github.com/cornellius-gp/linear_operator.git
+```
+
+### Development Installation
+If you are contributing a pull request, it is best to perform a manual installation:
+
+```sh
+git clone https://github.com/cornellius-gp/linear_operator.git
+cd linear_operator
+pip install -e .[dev,test]
+```
+
+To generate the documentation locally, you will also need to run the following command
+from the linear_operator folder:
+
+```sh
+pip install -r docs/requirements.txt
+```
 
 
 ## Contributing
