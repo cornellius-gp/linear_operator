@@ -10,15 +10,16 @@
 
 LinearOperator is a PyTorch package for abstracting away the linear algebra routines needed for structured matrices (or operators).
 
-**LinearOperator is in beta.**
-Currently, most of the functionality only supports positive semi-definite and triangular operators.
-
+**This package is in beta.**
+Currently, most of the functionality only supports positive semi-definite and triangular matrices.
 Package development TODOs:
  - [x] Support PSD operators
  - [x] Support triangular operators
  - [ ] Interface to specify structure (i.e. symmetric, triangular, PSD, etc.)
  - [ ] Add algebraic routines for symmetric operators
- - [ ] Add algebraic routines for generic operators
+ - [ ] Add algebraic routines for generic square operators
+ - [ ] Add algebraic routines for generic rectangular operators
+ - [ ] Add sparse operators
 
 To get started, run either
 ```sh
@@ -47,16 +48,15 @@ While this is easy, the `solve` routine is $\mathcal O(N^3)$, which gets very sl
 However, let's imagine that we knew that $\boldsymbol A$ was equal to a low rank matrix plus a diagonal
 (i.e. $\boldsymbol A = \boldsymbol C \boldsymbol C^\top + \boldsymbol D$
 for some skinny matrix $\boldsymbol C$ and some diagonal matrix $\boldsymbol D$.)
-There's now a very efficient $\boldsymbol O(N)$ routine to compute $\boldsymbol A^{-1}$
-called the [Woodbury formula](https://en.wikipedia.org/wiki/Woodbury_matrix_identity).
+There's now a very efficient $\boldsymbol O(N)$ routine to compute $\boldsymbol A^{-1}$ (the [Woodbury formula](https://en.wikipedia.org/wiki/Woodbury_matrix_identity)).
 **In general**, if we know that $\boldsymbol A$ has structure,
-we want to use efficient linear algebra routines (rather than the general routines)
-that will exploit this structure.
+we want to use efficient linear algebra routines - rather than the general routines -
+that exploit this structure.
 
 
 ### Without LinearOperator
 
-Implementing the efficient solve that exploits the structure in $\boldsymbol A$ would look something like this:
+Implementing the efficient solve that exploits $\boldsymbol A$'s low-rank-plus-diagonal structure would look something like this:
 
 ```python
 def low_rank_plus_diagonal_solve(C, d, b):
@@ -104,7 +104,7 @@ it provides an interface that lets us treat $\boldsymbol A$ as if it were a gene
 using the standard PyTorch API...
 
 ```python
-torch.linalg.solve(A, d, b)  # computes A^{-1} b efficiently!
+torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
 ```
 
 but under-the-hood, the `LinearOperator` object keeps track of the algebraic structure of $\boldsymbol A$ (low rank plus diagonal)
@@ -232,10 +232,11 @@ torch.linalg.solve(A, torch.randn(20000))  # Sub O(N^3) routine!
 ```
 
 
-## Using the torch API with LinearOperator
+## Using LinearOperator Objects
 
 LinearOperator objects share (mostly) the same API as `torch.Tensor` objects.
-They can also be used with (most) functions available in the `torch` and `torch.linalg` namespace.
+Under the hood, these objects use `__torch_function__` to dispatch all efficient linear algebra operations
+to the `torch` and `torch.linalg` namespaces.
 This includes
 - `torch.add`
 - `torch.cat`
@@ -246,7 +247,6 @@ This includes
 - `torch.expand`
 - `torch.logdet`
 - `torch.matmul`
-- `torch.mul`
 - `torch.numel`
 - `torch.permute`
 - `torch.prod`
@@ -276,6 +276,55 @@ torch.linalg.solve(C, d)  # A torch.Tensor
 
 For more examples, see the [examples folder](https://github.com/cornellius-gp/linear_operator/blob/main/examples/).
 
+### Batch Support and Broadcasting
+
+`LinearOperator` objects operate naturally in batch mode.
+For example, to represent a batch of 3 `100 x 100` diagonal matrices:
+
+```python
+# d = torch.randn(3, 100)
+D = DiagLinearOperator(d)  # Reprents an operator of size 3 x 100 x 100
+```
+
+These objects fully support broadcasted operations:
+
+```python
+D @ torch.randn(100, 2)  # Returns a tensor of size 3 x 100 x 2
+
+D2 = DiagLinearOperator(torch.randn([2, 1, 100]))  # Represents an operator of size 2 x 1 x 100 x 100
+D2 + D  # Represents an operator of size 2 x 3 x 100 x 100
+```
+
+### Indexing
+
+`LinearOperator` objects can be indexed in ways similar to torch Tensors. This includes:
+- Integer indexing (get a row, column, or batch)
+- Slice indexing (get a subset of rows, columns, or batches)
+- LongTensor indexing (get a set of individual entries by index)
+- Ellipses (support indexing operations with arbitrary batch dimensions)
+
+```python
+D = DiagLinearOperator(torch.randn(2, 3, 100))  # Represents an operator of size 2 x 3 x 100 x 100
+D[-1]  # Returns a 3 x 100 x 100 operator
+D[..., :10, -5:]  # Returns a 2 x 3 x 10 x 5 operator
+D[..., torch.LongTensor([0, 1, 2, 3]), torch.LongTensor([0, 1, 2, 3])]  # Returns a 2 x 3 x 4 tensor
+```
+
+### Composition and Decoration
+LinearOperators can be composed with one another in various ways.
+This includes
+- Addition (`LinearOpA + LinearOpB`)
+- Matrix multiplication (`LinearOpA @ LinearOpB`)
+- Concatenation (`torch.cat([LinearOpA, LinearOpB], dim=-2)`)
+- Kronecker product (`torch.kron(LinearOpA, LinearOpB)`)
+
+In addition, there are many ways to "decorate" LinearOperator objects.
+This includes:
+- Elementwise multiplying by constants (`torch.mul(2., LinearOpA)`)
+- Summing over batches (`torch.sum(LinearOpA, dim=-3)`)
+- Elementwise multiplying over batches (`torch.prod(LinearOpA, dim=-3)`)
+
+See the documentation for a [full list of supported composition and decoration operations](https://linear-operator.readthedocs.io/en/latest/composition_decoration_operators.html).
 
 ## Installation
 
