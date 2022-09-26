@@ -68,7 +68,7 @@ def low_rank_plus_diagonal_solve(C, d, b):
     D_inv_C = C / d.unsqueeze(-1)
     eye = torch.eye(C.size(-2))
     return (
-        D_inv_b - D_inv_c @ torch.cholesky_solve(
+        D_inv_b - D_inv_C @ torch.cholesky_solve(
             C.mT @ D_inv_b,
             torch.linalg.cholesky(eye + C.mT @ D_inv_C, upper=False),
             upper=False
