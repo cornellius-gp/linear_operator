@@ -107,7 +107,7 @@ using the standard PyTorch API:
 torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
 ```
 
-but under-the-hood, the `LinearOperator` object keeps track of the algebraic structure of $\boldsymbol A$ (low rank plus diagonal)
+Under-the-hood, the `LinearOperator` object keeps track of the algebraic structure of $\boldsymbol A$ (low rank plus diagonal)
 and determines the most efficient routine to use (the Woodbury formula).
 This way, we can get a efficient ($\mathcal O(N)$) solve while abstracting away all of the details.
 
