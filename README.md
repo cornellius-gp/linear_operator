@@ -115,11 +115,11 @@ Crucially, $\boldsymbol A$ is never explicitly instantiated as a matrix, which m
 to very large operators without running out of memory:
 
 ```python
-C = torch.randn(10000000, 20)
-d = torch.randn(10000000)
-b = torch.randn(10000000)
+# C = torch.randn(10000000, 20)
+# d = torch.randn(10000000)
+# b = torch.randn(10000000)
 A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents a 10M x 10M matrix!
-torch.linalg.solve(A, d, b)  # computes A^{-1} b efficiently!
+torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
 ```
 
 ### What is a Linear Operator?
