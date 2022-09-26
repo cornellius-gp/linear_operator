@@ -93,11 +93,11 @@ While this is efficient code, it's not ideal for a number of reasons:
 The LinearOperator package offers the best of both worlds:
 
 ```python
-from linear_operator.operators import DiagLinearOperator, RootLinearOperator
+from linear_operator.operators import DiagLinearOperator, LowRankRootLinearOperator
 # C = torch.randn(1000, 20)
 # d = torch.randn(1000)
 # b = torch.randn(1000)
-A = RootLinearOperator(C) + DiagLinearOperator(d)  # represents C C^T + diag(d)
+A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents C C^T + diag(d)
 ```
 
 it provides an interface that lets us treat $\boldsymbol A$ as if it were a generic tensor,
@@ -109,7 +109,7 @@ torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
 
 Under-the-hood, the `LinearOperator` object keeps track of the algebraic structure of $\boldsymbol A$ (low rank plus diagonal)
 and determines the most efficient routine to use (the Woodbury formula).
-This way, we can get a efficient ($\mathcal O(N)$) solve while abstracting away all of the details.
+This way, we can get a efficient $\mathcal O(N)$ solve while abstracting away all of the details.
 
 Crucially, $\boldsymbol A$ is never explicitly instantiated as a matrix, which makes it possible to scale
 to very large operators without running out of memory:
@@ -118,7 +118,7 @@ to very large operators without running out of memory:
 C = torch.randn(10000000, 20)
 d = torch.randn(10000000)
 b = torch.randn(10000000)
-A = RootLinearOperator(C) + DiagLinearOperator(d)  # represents a 10M x 10M matrix!
+A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents a 10M x 10M matrix!
 torch.linalg.solve(A, d, b)  # computes A^{-1} b efficiently!
 ```
 
@@ -146,8 +146,8 @@ class DiagLinearOperator(linear_operator.LinearOperator):
         # diag: the vector that defines the diagonal of the matrix
         self.diag = diag
 
-    def _matmul(self):
-        return torch.Size([*self.diag.shape, self.diag.size(-1)])
+    def _matmul(self, v):
+        return self.diag.unsqueeze(-1) * v
 
     def _size(self):
         return torch.Size([*self.diag.shape, self.diag.size(-1)])
@@ -199,7 +199,7 @@ from gpytorch.distributions import MultivariateNormal
 # variance = torch.randn(10000)
 cov = DiagLinearOperator(variance)
 # or
-# cov = RootLinearOperator(...) + DiagLinearOperator(...)
+# cov = LowRankRootLinearOperator(...) + DiagLinearOperator(...)
 # or
 # cov = KroneckerProductLinearOperator(...)
 # or
@@ -270,7 +270,7 @@ For example:
 # B = ToeplitzLinearOperator(...)
 # d = vec
 
-C = torch.mul(A, B)  # A new LienearOperator representing the elementwise mul between A and B
+C = torch.matmul(A, B)  # A new LienearOperator representing the product of A and B
 torch.linalg.solve(C, d)  # A torch.Tensor
 ```
 
