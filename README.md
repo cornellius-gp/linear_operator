@@ -79,7 +79,7 @@ def low_rank_plus_diagonal_solve(C, d, b):
 # C = torch.randn(1000, 20)
 # d = torch.randn(1000)
 # b = torch.randn(1000)
-low_rank_plus_diagonal_solve(C, d, b)  # computes A^{-1} b efficiently
+low_rank_plus_diagonal_solve(C, d, b)  # computes A^{-1} b in O(N) time, instead of O(N^3)
 ```
 
 While this is efficient code, it's not ideal for a number of reasons:
