@@ -11,6 +11,16 @@
 
 LinearOperator is a PyTorch package for abstracting away the linear algebra routines needed for structured matrices (or operators).
 
+**LinearOperator is in beta.**
+Currently, most of the functionality only supports positive semi-definite and triangular operators.
+
+Package development TODOs:
+ - [x] Support PSD operators
+ - [x] Support triangular operators
+ - [ ] Interface to specify structure (i.e. symmetric, triangular, PSD, etc.)
+ - [ ] Add algebraic routines for symmetric operators
+ - [ ] Add algebraic routines for generic operators
+
 ## Why LinearOperator
 Before describing what linear operators are and why they make a useful abstraction, it's easiest to see an example.
 Let's say you wanted to compute a matrix solve:
@@ -257,5 +267,4 @@ C = torch.mul(A, B)  # A new LienearOperator representing the elementwise mul be
 torch.linalg.solve(C, d)  # A torch.Tensor
 ```
 
-For more examples, see the [examples section](https://linear-operator.readthedocs.io/en/latest/)
-in the documentation.
+For more examples, see the [examples folder](https://github.com/cornellius-gp/linear_operator/blob/main/examples/).
