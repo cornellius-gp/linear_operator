@@ -101,7 +101,7 @@ A = RootLinearOperator(C) + DiagLinearOperator(d)  # represents C C^T + diag(d)
 ```
 
 it provides an interface that lets us treat $\boldsymbol A$ as if it were a generic tensor,
-using the standard PyTorch API...
+using the standard PyTorch API:
 
 ```python
 torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
