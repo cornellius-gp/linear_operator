@@ -29,13 +29,38 @@ class TestLinearCG(unittest.TestCase):
         matrix.div_(matrix.norm())
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
-        rhs = torch.randn(size, 50, dtype=torch.float64)
+        # set up vector rhs
+        rhs = torch.randn(size, dtype=torch.float64)
+
+        # basic solve
         solves = linear_cg(matrix.matmul, rhs=rhs, max_iter=size)
+
+        # solve with init value
+        init = torch.randn(size, dtype=torch.float64)
+        solves_with_init = linear_cg(matrix.matmul, rhs=rhs, max_iter=size, initial_guess=init)
 
         # Check cg
         matrix_chol = torch.linalg.cholesky(matrix)
+        actual = torch.cholesky_solve(rhs.unsqueeze(dim=1), matrix_chol).squeeze()
+        self.assertTrue(torch.allclose(solves, actual, atol=1e-3, rtol=1e-4))
+        self.assertTrue(torch.allclose(solves_with_init, actual, atol=1e-3, rtol=1e-4))
+
+        # set up matrix rhs
+        numcols = 50
+        rhs = torch.randn(size, numcols, dtype=torch.float64)
+
+        # basic solve
+        solves = linear_cg(matrix.matmul, rhs=rhs, max_iter=size)
+
+        # solve with init value
+        init = torch.randn(size, numcols, dtype=torch.float64)
+        solves_with_init = linear_cg(matrix.matmul, rhs=rhs, max_iter=size, initial_guess=init)
+
+        # Check cg
         actual = torch.cholesky_solve(rhs, matrix_chol)
         self.assertTrue(torch.allclose(solves, actual, atol=1e-3, rtol=1e-4))
+        self.assertTrue(torch.allclose(solves_with_init, actual, atol=1e-3, rtol=1e-4))
+        
 
     def test_cg_with_tridiag(self):
         size = 10
