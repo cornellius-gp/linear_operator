@@ -134,6 +134,7 @@ In code, a `LinearOperator` is a class that
 1. specifies a `_matmul` function (how the LinearOperator is applied to a vector),
 1. specifies a `_size` function (how big is the LinearOperator if it is represented as a matrix, or batch of matrices), and
 1. specifies a `_transpose_nonbatch` function (the adjoint of the LinearOperator).
+1. (optionally) defines other functions (e.g. `logdet`, `eigh`, etc.) to accelerate computations for which efficient sturcture-exploiting routines exist.
 
 For example:
 
@@ -155,7 +156,9 @@ class DiagLinearOperator(linear_operator.LinearOperator):
     def _transpose_nonbatch(self):
         return self  # Diagonal matrices are symmetric
 
-
+    # this function is optional, but it will accelerate computation
+    def logdet(self):
+        return self.diag.log().sum(dim=-1)
 # ...
 
 D = DiagLinearOperator(torch.tensor([1., 2., 3.])
@@ -167,8 +170,6 @@ torch.matmul(D, torch.tensor([4., 5., 6.])
 # Returns [4., 10., 18.]
 ```
 
-Other functions (e.g. `logdet`, `eigh`, etc.) can be defined as needed if efficient routines exist.
-
 #### Why is This Useful?
 While `_matmul`, `_size`, and `_transpose_nonbatch` might seem like a limited set of functions,
 it turns out that most functions on the `torch` and `torch.linalg` namespaces can be efficiently implemented
@@ -178,6 +179,9 @@ Moreover, because `_matmul` is a linear function, it is very easy to compose lin
 For example: adding two linear operators (`SumLinearOperator`) just requires adding the output of their `_matmul` functions.
 This makes it possible to define very complex compositional structures that still yield efficient linear algebraic routines.
 
+Finally, `LinearOperator` objects can be composed with one another, yielding new `LinearOperator` objects and automatically keeping track of algebraic structure after each computation.
+As a result, users never need to reason about what efficient linear algebra routines to use  (so long as the input elements defined by the user encode known input structure).
+See the [using LinearOperator objects](#using-linearoperator-objects) section for more details.
 
 ## Use Cases
 
