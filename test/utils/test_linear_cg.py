@@ -60,7 +60,6 @@ class TestLinearCG(unittest.TestCase):
         actual = torch.cholesky_solve(rhs, matrix_chol)
         self.assertTrue(torch.allclose(solves, actual, atol=1e-3, rtol=1e-4))
         self.assertTrue(torch.allclose(solves_with_init, actual, atol=1e-3, rtol=1e-4))
-        
 
     def test_cg_with_tridiag(self):
         size = 10
