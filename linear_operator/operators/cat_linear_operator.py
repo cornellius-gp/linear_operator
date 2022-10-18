@@ -244,6 +244,14 @@ class CatLinearOperator(LinearOperator):
                     res_list.append(res)
 
         elif torch.is_tensor(cat_dim_indices):
+            if cat_dim_indices.dim() > 1:
+                # Supporting broadcasting tensor indices for CatLinearOpeartor is very challenging to implement,
+                # and probvably not a featuer we need.
+                raise RuntimeError(
+                    "CatLinearOperator does not support broadcasted tensor indexes. "
+                    f"Got tensor indices of size {[idx.shape for idx in indices if torch.is_tensor(idx)]}."
+                )
+
             # Find out for which indices we switch to different tensors
             target_tensors = self.idx_to_tensor_idx[cat_dim_indices]
             does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=bool_compat, device=self.device)
