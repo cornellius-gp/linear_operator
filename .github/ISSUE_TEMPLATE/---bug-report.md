@@ -32,7 +32,7 @@ assignees: ''
 ## System information
 
 **Please complete the following information:**
-- <!-- GPyTorch Version (run `print(gpytorch.__version__)` -->
+- <!-- LinearOperator Version (run `print(linear_operator.__version__)` -->
 - <!-- PyTorch Version (run `print(torch.__version__)` -->
 - <!-- Computer OS -->
 

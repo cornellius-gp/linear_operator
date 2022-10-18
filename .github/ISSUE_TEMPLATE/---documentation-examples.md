@@ -20,5 +20,4 @@ assignees: ''
 
 ** Think you know how to fix the docs? ** (If so, we'd love a pull request from you!)
 
-- Link to [GPyTorch documentation](https://gpytorch.readthedocs.io)
-- Link to [GPyTorch examples](https://github.com/cornellius-gp/gpytorch/tree/master/examples)
+(Link to [LinearOperator documentation](https://linear-operator.readthedocs.io))

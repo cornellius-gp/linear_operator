@@ -1,6 +1,6 @@
 ---
 name: "\U0001F527 Refactor"
-about: Propose a refactor/speedup/improvement to GPyTorch's internals
+about: Propose a refactor/speedup/improvement to LinearOperator's internals
 title: ''
 labels: ''
 assignees: ''

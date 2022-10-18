@@ -133,6 +133,11 @@ def linear_cg(
         max_tridiag_iter = settings.max_lanczos_quadrature_iterations.value()
     if initial_guess is None:
         initial_guess = torch.zeros_like(rhs)
+    else:
+        # Unsqueeze, if necesasry
+        is_vector = initial_guess.ndimension() == 1
+        if is_vector:
+            initial_guess = initial_guess.unsqueeze(-1)
     if tolerance is None:
         tolerance = settings.cg_tolerance.value()
     if preconditioner is None:
