@@ -2634,8 +2634,7 @@ class LinearOperator(ABC):
             tensor_index_shape = torch.broadcast_shapes(*[idx.shape for idx in orig_indices if torch.is_tensor(idx)])
             # Flatten existing tensor indices
             flattened_orig_indices = [
-                idx.expand(tensor_index_shape).reshape(-1) if torch.is_tensor(idx) else idx
-                for idx in orig_indices
+                idx.expand(tensor_index_shape).reshape(-1) if torch.is_tensor(idx) else idx for idx in orig_indices
             ]
             # Convert all indices into tensor indices
             (
