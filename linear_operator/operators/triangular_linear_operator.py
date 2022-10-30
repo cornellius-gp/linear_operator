@@ -194,14 +194,20 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             res = left_tensor @ res
         return res
 
-    def solve_triangular(self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False) -> torch.Tensor:
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
         if upper != self.upper:
             raise RuntimeError(
                 f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with `upper={upper}`, "
                 f"but `LinearOperator` has `upper={self.upper}`."
             )
         if not left:
-            raise NotImplementedError(f"Argument `left=False` not yet supported for {self.__class__.__name__}.solve_triangular.")
+            raise NotImplementedError(
+                f"Argument `left=False` not yet supported for {self.__class__.__name__}.solve_triangular."
+            )
         if unitriangular:
-            raise NotImplementedError(f"Argument `unitriangular=True` not yet supported for {self.__class__.__name__}.solve_triangular.")
+            raise NotImplementedError(
+                f"Argument `unitriangular=True` not yet supported for {self.__class__.__name__}.solve_triangular."
+            )
         return self.solve(right_tensor=rhs)

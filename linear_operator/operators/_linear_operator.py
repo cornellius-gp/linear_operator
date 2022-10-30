@@ -2199,7 +2199,9 @@ class LinearOperator(ABC):
             )
 
     @_implements(torch.linalg.solve_triangular)
-    def solve_triangular(self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False) -> torch.Tensor:
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
         r"""
         Computes a triangular linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
         If left=True, computes the soluton :math:`\mathbf X` to

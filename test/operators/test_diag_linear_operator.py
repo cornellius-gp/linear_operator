@@ -76,7 +76,7 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # unittriangular case
         with self.assertRaisesRegex(RuntimeError, "Received `unitriangular=True`"):
             torch.linalg.solve_triangular(linear_op, rhs, upper=False, unitriangular=True)
-        linear_op = DiagLinearOperator(torch.ones(4)) # TODO: Test gradients
+        linear_op = DiagLinearOperator(torch.ones(4))  # TODO: Test gradients
         res = torch.linalg.solve_triangular(linear_op, rhs, upper=False, unitriangular=True)
         self.assertAllClose(res, rhs)
 
