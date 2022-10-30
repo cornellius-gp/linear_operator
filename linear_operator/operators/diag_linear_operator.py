@@ -190,7 +190,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         # upper or lower doesn't matter here, it's all the same
         if unitriangular:
             if not torch.all(self.diagonal() == 1):
-                raise RuntimeError(f"Received `unitriangular=True` but `LinearOperator` does not have a unit diagonal.")
+                raise RuntimeError("Received `unitriangular=True` but `LinearOperator` does not have a unit diagonal.")
             return rhs
         return self.solve(right_tensor=rhs)
 

@@ -2212,6 +2212,7 @@ class LinearOperator(ABC):
            \end{equation}
 
         If left=False, computes the soluton :math:`\mathbf X` to
+
         .. math::
            \begin{equation}
                \mathbf X \mathbf A = \mathbf R,
@@ -2221,7 +2222,8 @@ class LinearOperator(ABC):
 
         :param rhs: :math:`\mathbf R` - the right hand side
         :param upper: If True (False), consider :math:`\mathbf A` to be upper (lower) triangular.
-        :param left: If True (False), solve for :math:`\mathbf A \mathbf X = \mathbf R` (:math:`\mathbf X \mathbf A = \mathbf R`).
+        :param left: If True (False), solve for :math:`\mathbf A \mathbf X = \mathbf R`
+            (:math:`\mathbf X \mathbf A = \mathbf R`).
         :param unitriangular: Unsupported (must be False),
         :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
         """
