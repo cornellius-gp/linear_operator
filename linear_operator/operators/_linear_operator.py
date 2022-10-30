@@ -2192,6 +2192,35 @@ class LinearOperator(ABC):
                 *self.representation(),
             )
 
+    @_implements(torch.linalg.solve_triangular)
+    def solve_triangular(self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False) -> torch.Tensor:
+        r"""
+        Computes a triangular linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
+        If left=True, computes the soluton :math:`\mathbf X` to
+
+        .. math::
+           \begin{equation}
+               \mathbf A \mathbf X = \mathbf R,
+           \end{equation}
+
+        If left=False, computes the soluton :math:`\mathbf X` to
+        .. math::
+           \begin{equation}
+               \mathbf X \mathbf A = \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf R` is :attr:`rhs` and :math:`\mathbf A` is the (triangular) LinearOperator.
+
+        :param rhs: :math:`\mathbf R` - the right hand side
+        :param upper: If True (False), consider :math:`\mathbf A` to be upper (lower) triangular.
+        :param left: If True (False), solve for :math:`\mathbf A \mathbf X = \mathbf R` (:math:`\mathbf X \mathbf A = \mathbf R`).
+        :param unitriangular: Unsupported (must be False),
+        :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
+        """
+        # This function is only implemented by TriangularLinearOperator subclasses. We define it here so
+        # that we can map the torch function torch.linalg.solve_triangular to the LinearOperator method.
+        raise NotImplementedError(f"torch.linalg.solve_triangular({self.__class__.__name__}) is not implemented.")
+
     @_implements(torch.sqrt)
     def sqrt(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
@@ -2389,7 +2418,6 @@ class LinearOperator(ABC):
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
 
-    # TODO: rename to_dense
     @cached
     def to_dense(self) -> torch.Tensor:
         """

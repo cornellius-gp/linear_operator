@@ -55,6 +55,16 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad)
 
+    def test_solve_triangular(self):
+        linear_op = self.create_linear_op()
+        is_upper = linear_op.upper
+        rhs = torch.randn(linear_op.size(-1), 1)
+        res = torch.linalg.solve_triangular(linear_op, rhs, upper=is_upper)
+        res_actual = torch.linalg.solve_triangular(linear_op.to_dense(), rhs, upper=is_upper)
+        self.assertAllClose(res, res_actual)
+        with self.assertRaisesRegex(RuntimeError, "Incompatible argument"):
+            torch.linalg.solve_triangular(linear_op, rhs, upper=not is_upper)
+
     # Tests that we bypass because TriangularLinearOperators are not symmetric or PSD
 
     def test_add_low_rank(self):

@@ -34,6 +34,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         if isinstance(tensor, TriangularLinearOperator):
             # this is a null-op, we can just use underlying tensor directly.
             tensor = tensor._tensor
+            # TODO: Use a metaclass to create a DiagLinearOperator if tensor is diagonal
         elif isinstance(tensor, BatchRepeatLinearOperator):
             # things get kind of messy when interleaving repeats and triangualrisms
             if not isinstance(tensor.base_linear_op, TriangularLinearOperator):
@@ -192,3 +193,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         if left_tensor is not None:
             res = left_tensor @ res
         return res
+
+    def solve_triangular(self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False) -> torch.Tensor:
+        if upper != self.upper:
+            raise RuntimeError(
+                f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with `upper={upper}`, "
+                f"but `LinearOperator` has `upper={self.upper}`."
+            )
+        if not left:
+            raise NotImplementedError(f"Argument `left=False` not yet supported for {self.__class__.__name__}.solve_triangular.")
+        if unitriangular:
+            raise NotImplementedError(f"Argument `unitriangular=True` not yet supported for {self.__class__.__name__}.solve_triangular.")
+        return self.solve(right_tensor=rhs)
