@@ -271,6 +271,56 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
             actual = evaluated.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
             self.assertAllClose(res, actual)
 
+    def test_getitem_broadcasted_tensor_index(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        # Non-batch case
+        if linear_op.ndimension() == 2:
+            index = (torch.tensor([0, 0, 1, 2]).unsqueeze(-1), torch.tensor([0, 1, 0, 2]).unsqueeze(-2))
+            res, actual = linear_op[index], evaluated[index]
+            self.assertAllClose(res, actual)
+            index = (Ellipsis, torch.tensor([0, 0, 1, 2]).unsqueeze(-2), torch.tensor([0, 1, 0, 2]).unsqueeze(-1))
+            res, actual = linear_op[index], evaluated[index]
+            self.assertAllClose(res, actual)
+
+        # Batch case
+        else:
+            for batch_index in product(
+                [torch.tensor([0, 1, 1]).view(-1, 1, 1), slice(None, None, None)],
+                repeat=(linear_op.dim() - 2),
+            ):
+                index = (
+                    *batch_index,
+                    torch.tensor([0, 1]).view(-1, 1),
+                    torch.tensor([1, 2, 0, 1]).view(1, -1),
+                )
+                res, actual = linear_op[index], evaluated[index]
+                self.assertAllClose(res, actual)
+                res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
+                self.assertAllClose(res, actual)
+                index = (*batch_index, slice(None, None, None), slice(None, None, None))
+                res, actual = linear_op[index].to_dense(), evaluated[index]
+                self.assertAllClose(res, actual)
+
+            # Ellipsis
+            res = linear_op.__getitem__(
+                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+            )
+            actual = evaluated.__getitem__(
+                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+            )
+            self.assertAllClose(res, actual)
+            res = linear_operator.to_dense(
+                linear_op.__getitem__(
+                    (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+                )
+            )
+            actual = evaluated.__getitem__(
+                (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+            )
+            self.assertAllClose(res, actual)
+
     def test_permute(self):
         linear_op = self.create_linear_op()
         if linear_op.dim() >= 4:
