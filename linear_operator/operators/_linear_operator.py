@@ -1681,6 +1681,10 @@ class LinearOperator(ABC):
     def is_square(self) -> bool:
         return self.matrix_shape[0] == self.matrix_shape[1]
 
+    @_implements_symmetric(torch.isclose)
+    def isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+        return self._isclose(other, rtol=rtol, atol=atol, equal_nan=equal_nan)
+
     @_implements(torch.log)
     def log(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
@@ -2705,6 +2709,13 @@ class LinearOperator(ABC):
 
         # We're done!
         return res
+
+    def _isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+        # As the default we can fall back to just calling isclose on the dense tensors. This is problematic
+        # if the represented tensor is massive (in which case using this method may not make a lot of sense.
+        # Regardless, if possible it would make sense to overwrite this method on the subclasses if that can
+        # be done without instantiating the full tensor.
+        return torch.isclose(to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
 
     def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
         return self.matmul(other)
