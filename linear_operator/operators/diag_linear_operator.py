@@ -184,6 +184,16 @@ class DiagLinearOperator(TriangularLinearOperator):
             res = left_tensor @ res
         return res
 
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
+        # upper or lower doesn't matter here, it's all the same
+        if unitriangular:
+            if not torch.all(self.diagonal() == 1):
+                raise RuntimeError("Received `unitriangular=True` but `LinearOperator` does not have a unit diagonal.")
+            return rhs
+        return self.solve(right_tensor=rhs)
+
     def sqrt(self) -> "DiagLinearOperator":
         """
         Returns a DiagLinearOperator with the square root of all diagonal entries.
@@ -317,6 +327,11 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         if isinstance(other, ConstantDiagLinearOperator):
             return self._mul_matrix(other)
         return super().matmul(other)
+
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
+        return rhs / self.diag_values
 
     def sqrt(self) -> "ConstantDiagLinearOperator":
         """

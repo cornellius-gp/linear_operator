@@ -1035,6 +1035,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
             self._test_solve(rhs)
 
+    def test_solve_triangular(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        with self.assertRaisesRegex(NotImplementedError, "torch.linalg.solve_triangular"):
+            torch.linalg.solve_triangular(linear_op, rhs, upper=True)
+
     def test_sqrt_inv_matmul(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         if len(linear_op.batch_shape):
