@@ -165,6 +165,13 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         self.assertAllClose(U.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
         self.assertAllClose(Vt.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
 
+    def test_solve_triangular(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        res = torch.linalg.solve_triangular(linear_op, rhs, upper=False)
+        res_actual = rhs / linear_op.diag_values
+        self.assertAllClose(res, res_actual)
+
 
 class TestIdentityLinearOperatorBatch(TestIdentityLinearOperator):
     def create_linear_op(self):
