@@ -83,6 +83,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _expand_batch(self, batch_shape: torch.Size) -> "TriangularLinearOperator":
         if len(batch_shape) == 0:
             return self
+        if batch_shape[0] == -1:  # TODO: Should we allow this more generally?
+            batch_shape = torch.Size([1, *batch_shape[1:]])
         return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
 
     def _get_indices(

@@ -1964,6 +1964,14 @@ class LinearOperator(ABC):
         self._set_requires_grad(val)
         return self
 
+    def reshape(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+        """
+        Alias for expand
+        """
+        # TODO: Do we really want to do this? I guess the difference betwen reshape and
+        # expand is kind of unclear for LinearOperator.
+        return self.expand(*sizes)
+
     @_implements_second_arg(torch.matmul)
     def rmatmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
         r"""
