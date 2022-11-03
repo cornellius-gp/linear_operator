@@ -1757,7 +1757,7 @@ class LinearOperator(ABC):
         if torch.is_tensor(other):
             if other.numel() == 1:
                 return self._mul_constant(other.squeeze())
-            elif other.shape[-2:] == torch.Size((1, 1)):
+            elif other.shape[-2:] == torch.Size((1, 1)) and other.numel() == self.batch_shape:
                 return self._mul_constant(other.view(*other.shape[:-2]))
 
         return self._mul_matrix(to_linear_operator(other))
