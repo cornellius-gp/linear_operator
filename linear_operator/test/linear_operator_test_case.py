@@ -846,13 +846,13 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_is_close(self):
         linear_op = self.create_linear_op()
-        comparator = linear_op.to_dense().detach().clone()
-        comparator[..., 0, 0] += 1.0
+        other = linear_op.to_dense().detach().clone()
+        other[..., 0, 0] += 1.0
         if not isinstance(linear_op, DenseLinearOperator):
             with self.assertWarnsRegex(PerformanceWarning, "dense torch.Tensor due to a torch.isclose call"):
-                is_close = torch.isclose(linear_op, comparator)
+                is_close = torch.isclose(linear_op, other)
         else:
-            is_close = torch.isclose(linear_op, comparator)
+            is_close = torch.isclose(linear_op, other)
         self.assertFalse(torch.any(is_close[..., 0, 0]))
         is_close[..., 0, 0] = True
         self.assertTrue(torch.all(is_close))
