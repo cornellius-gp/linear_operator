@@ -1748,7 +1748,7 @@ class LinearOperator(ABC):
             other = torch.tensor(other, dtype=self.dtype, device=self.device)
 
         try:
-            torch.broadcast_shapes(self.shape, other.shape)
+            broadcast_shape = torch.broadcast_shapes(self.shape, other.shape)
         except RuntimeError:
             raise RuntimeError(
                 "Cannot multiply LinearOperator of size {} by an object of size {}".format(self.shape, other.shape)
@@ -1757,7 +1757,7 @@ class LinearOperator(ABC):
         if torch.is_tensor(other):
             if other.numel() == 1:
                 return self._mul_constant(other.squeeze())
-            elif other.shape[-2:] == torch.Size((1, 1)):
+            elif other.shape[-2:] == torch.Size((1, 1)) and self.batch_shape == broadcast_shape[:-2]:
                 return self._mul_constant(other.view(*other.shape[:-2]))
 
         return self._mul_matrix(to_linear_operator(other))
