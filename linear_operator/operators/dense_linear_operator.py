@@ -3,8 +3,9 @@
 from typing import Union
 
 import torch
+from torch import Tensor
 
-from ._linear_operator import LinearOperator
+from ._linear_operator import LinearOperator, to_dense
 
 
 class DenseLinearOperator(LinearOperator):
@@ -44,6 +45,9 @@ class DenseLinearOperator(LinearOperator):
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
         return self.__class__(res)
+
+    def _isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+        return torch.isclose(self.tensor, to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
 
     def _matmul(self, rhs):
         return torch.matmul(self.tensor, rhs)
