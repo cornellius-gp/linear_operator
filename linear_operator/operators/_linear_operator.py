@@ -38,7 +38,7 @@ from ..utils.getitem import (
 from ..utils.lanczos import _postprocess_lanczos_root_inv_decomp
 from ..utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache
 from ..utils.pinverse import stable_pinverse
-from ..utils.warnings import NumericalWarning
+from ..utils.warnings import NumericalWarning, PerformanceWarning
 from .linear_operator_representation_tree import LinearOperatorRepresentationTree
 
 _HANDLED_FUNCTIONS = {}
@@ -2715,6 +2715,11 @@ class LinearOperator(ABC):
         # if the represented tensor is massive (in which case using this method may not make a lot of sense.
         # Regardless, if possible it would make sense to overwrite this method on the subclasses if that can
         # be done without instantiating the full tensor.
+        warnings.warn(
+            f"Converting {self.class.name} into a dense torch.Tensor due to a torch.isclose call. "
+            "This may incur substantial performance and memory penalties.",
+            PerformanceWarning,
+        )
         return torch.isclose(to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
 
     def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
