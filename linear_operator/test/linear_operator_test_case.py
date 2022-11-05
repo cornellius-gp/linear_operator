@@ -8,10 +8,11 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
-from linear_operator.operators import DiagLinearOperator, to_dense
+from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
 from linear_operator.settings import linalg_dtypes
 from linear_operator.utils.errors import CachingError
 from linear_operator.utils.memoize import get_from_cache
+from linear_operator.utils.warnings import PerformanceWarning
 
 from .base_test_case import BaseTestCase
 
@@ -842,6 +843,19 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_inv_quad_logdet_no_reduce_cholesky(self):
         return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True)
+
+    def test_is_close(self):
+        linear_op = self.create_linear_op()
+        comparator = linear_op.to_dense().detach().clone()
+        comparator[..., 0, 0] += 1.0
+        if not isinstance(linear_op, DenseLinearOperator):
+            with self.assertWarnsRegex(PerformanceWarning, "dense torch.Tensor due to a torch.isclose call"):
+                is_close = torch.isclose(linear_op, comparator)
+        else:
+            is_close = torch.isclose(linear_op, comparator)
+        self.assertFalse(torch.any(is_close[..., 0, 0]))
+        is_close[..., 0, 0] = True
+        self.assertTrue(torch.all(is_close))
 
     def test_logdet(self):
         tolerances = self.tolerances["logdet"]

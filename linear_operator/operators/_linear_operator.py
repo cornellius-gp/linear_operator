@@ -2716,7 +2716,7 @@ class LinearOperator(ABC):
         # Regardless, if possible it would make sense to overwrite this method on the subclasses if that can
         # be done without instantiating the full tensor.
         warnings.warn(
-            f"Converting {self.class.name} into a dense torch.Tensor due to a torch.isclose call. "
+            f"Converting {self.__class__.__name__} into a dense torch.Tensor due to a torch.isclose call. "
             "This may incur substantial performance and memory penalties.",
             PerformanceWarning,
         )
