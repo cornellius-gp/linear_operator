@@ -85,7 +85,7 @@ class TestConstantMulLinearOperatorBatchBroadcastOperator(LinearOperatorTestCase
     def create_linear_op(self):
         mat = torch.randn(5, 6)
         mat = mat.matmul(mat.mT).reshape(1, 5, 5)
-        constant = torch.ones(2, 1, 1)
+        constant = torch.randn(2, 1, 1).abs()
         return DenseLinearOperator(mat) * constant
 
     def evaluate_linear_op(self, linear_op):
