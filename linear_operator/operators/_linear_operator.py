@@ -1968,6 +1968,16 @@ class LinearOperator(ABC):
         self._set_requires_grad(val)
         return self
 
+    def reshape(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+        """
+        Alias for expand
+        """
+        # While for regular tensors expand doesn't handle a leading non-existing -1 dimension,
+        # reshape does. So we handle this conversion here.
+        if len(sizes) == len(self.shape) + 1 and sizes[0] == -1:
+            sizes = (1,) + sizes[1:]
+        return self.expand(*sizes)
+
     @_implements_second_arg(torch.matmul)
     def rmatmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
         r"""
