@@ -8,11 +8,41 @@
 LinearOperator
 ===========================================
 
+.. include:: ../../README.md
+   :start-after: <!-- docs_intro_start -->
+   :end-before: <!-- docs_intro_end -->
+   :parser: myst_parser.sphinx_
+
+Why LinearOperator
+------------------
+
+.. include:: ../../README.md
+   :start-after: <!-- docs_index_start -->
+   :end-before: <!-- docs_index_end -->
+   :parser: myst_parser.sphinx_
+
+Use Cases
+----------
+
+.. include:: ../../README.md
+   :start-after: ## Use Cases
+   :end-before: ## Using LinearOperator Objects
+   :parser: myst_parser.sphinx_
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Getting Started
+
+   self
+   install
+
 .. toctree::
    :maxdepth: 1
    :caption: Basic Concepts
 
-   intro
+   about
+   using
    converting
    custom_linear_operators
 
