@@ -281,7 +281,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         return self.__class__(self.diag_values.expand(*batch_shape, 1), diag_shape=self.diag_shape)
 
     def _mul_constant(self, constant: Tensor) -> "ConstantDiagLinearOperator":
-        return self.__class__(self.diag_values * constant, diag_shape=self.diag_shape)
+        return self.__class__(self.diag_values * constant.unsqueeze(-1), diag_shape=self.diag_shape)
 
     def _mul_matrix(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
         if isinstance(other, ConstantDiagLinearOperator):
