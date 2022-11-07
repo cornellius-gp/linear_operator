@@ -5,7 +5,7 @@
 
 :github_url: https://github.com/cornellius-gp/linear_operator
 
-LinearOperator Documentation
+LinearOperator
 ===========================================
 
 .. toctree::
@@ -14,7 +14,6 @@ LinearOperator Documentation
 
    intro
    converting
-   structure
    custom_linear_operators
 
 
@@ -22,8 +21,6 @@ LinearOperator Documentation
    :maxdepth: 1
    :caption: Core API
 
-   namespace
-   settings
 
 
 .. toctree::
@@ -33,12 +30,15 @@ LinearOperator Documentation
    linear_operator
    data_sparse_operators
    composition_decoration_operators
+   structure
 
 
 .. toctree::
    :maxdepth: 1
    :caption: Advanced Package Reference
 
+   settings
+   namespace
    utils
 
 
