@@ -816,6 +816,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         with self.assertRaisesRegex(RuntimeError, expected_msg):
             linear_op.expand(*expand_args)
 
+    def test_reshape(self):
+        # reshape is mostly an alias for expand, we just need to check the handling of a leading -1 dim
+        linear_op = self.create_linear_op()
+        expanded_op = linear_op.reshape(-1, *linear_op.shape)
+        self.assertEqual(expanded_op.shape, torch.Size([1]) + linear_op.shape)
+
     def test_float(self):
         linear_op = self.create_linear_op().double()
         evaluated = self.evaluate_linear_op(linear_op)

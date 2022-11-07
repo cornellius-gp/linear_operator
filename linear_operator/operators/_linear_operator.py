@@ -1972,8 +1972,10 @@ class LinearOperator(ABC):
         """
         Alias for expand
         """
-        # TODO: Do we really want to do this? I guess the difference betwen reshape and
-        # expand is kind of unclear for LinearOperator.
+        # While for regular tensors expand doesn't handle a leading non-existing -1 dimension,
+        # reshape does. So we handle this conversion here.
+        if len(sizes) == len(self.shape) + 1 and sizes[0] == -1:
+            sizes = (1,) + sizes[1:]
         return self.expand(*sizes)
 
     @_implements_second_arg(torch.matmul)
