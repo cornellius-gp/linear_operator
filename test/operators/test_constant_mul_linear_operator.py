@@ -78,7 +78,7 @@ class TestConstantMulLinearOperatorMultiBatchBroadcastConstant(LinearOperatorTes
 
 class TestConstantMulLinearOperatorBatchBroadcastOperator(LinearOperatorTestCase, unittest.TestCase):
     """Test which broadcasts the operator to match the constant tensor's batch size, see Github issue #33"""
-    
+
     seed = 0
     should_test_sample = False
     skip_slq_tests = True
