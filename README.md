@@ -8,6 +8,9 @@
 [![Conda](https://img.shields.io/conda/v/gpytorch/linear_operator.svg)](https://anaconda.org/gpytorch/linear_operator)
 [![PyPI](https://img.shields.io/pypi/v/linear_operator.svg)](https://pypi.org/project/linear_operator)
 
+
+<!-- docs_intro_start -->
+
 LinearOperator is a PyTorch package for abstracting away the linear algebra routines needed for structured matrices (or operators).
 
 **This package is in beta.**
@@ -21,6 +24,8 @@ Package development TODOs:
  - [ ] Add algebraic routines for generic rectangular operators
  - [ ] Add sparse operators
 
+<!-- docs_intro_end -->
+
 To get started, run either
 ```sh
 pip install linear_operator
@@ -28,6 +33,10 @@ pip install linear_operator
 conda install linear_operator -c gpytorch
 ```
 or [see below](#installation) for more detailed instructions.
+
+
+<!-- docs_index_start -->
+
 
 ## Why LinearOperator
 Before describing what linear operators are and why they make a useful abstraction, it's easiest to see an example.
@@ -122,7 +131,12 @@ A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents a 10M x 1
 torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
 ```
 
-### What is a Linear Operator?
+
+<!-- docs_index_end -->
+<!-- docs_about_start -->
+
+
+## What is a Linear Operator?
 A linear operator is a generalization of a matrix.
 It is a linear function that is defined in by its application to a vector.
 The most common linear operators are (potentially structured) matrices,
@@ -170,7 +184,6 @@ torch.matmul(D, torch.tensor([4., 5., 6.])
 # Returns [4., 10., 18.]
 ```
 
-#### Why is This Useful?
 While `_matmul`, `_size`, and `_transpose_nonbatch` might seem like a limited set of functions,
 it turns out that most functions on the `torch` and `torch.linalg` namespaces can be efficiently implemented
 using only these three primitative functions.
@@ -181,7 +194,12 @@ This makes it possible to define very complex compositional structures that stil
 
 Finally, `LinearOperator` objects can be composed with one another, yielding new `LinearOperator` objects and automatically keeping track of algebraic structure after each computation.
 As a result, users never need to reason about what efficient linear algebra routines to use  (so long as the input elements defined by the user encode known input structure).
+<!-- docs_about_end -->
 See the [using LinearOperator objects](#using-linearoperator-objects) section for more details.
+
+
+<!-- docs_usecases_start -->
+
 
 ## Use Cases
 
@@ -234,6 +252,10 @@ A = KroneckerProductLinearOperator(mat1, mat2) + RootLinearOperator(ToeplitzLine
 
 torch.linalg.solve(A, torch.randn(20000))  # Sub O(N^3) routine!
 ```
+
+
+<!-- docs_usecases_end -->
+<!-- docs_using_start -->
 
 
 ## Using LinearOperator Objects
@@ -330,6 +352,11 @@ This includes:
 
 See the documentation for a [full list of supported composition and decoration operations](https://linear-operator.readthedocs.io/en/latest/composition_decoration_operators.html).
 
+
+<!-- docs_using_end -->
+<!-- docs_install_start -->
+
+
 ## Installation
 
 LinearOperator requires Python >= 3.8.
@@ -356,6 +383,10 @@ To install what is currently on the `main` branch (potentially buggy and unstabl
 ```sh
 pip install --upgrade git+https://github.com/cornellius-gp/linear_operator.git
 ```
+
+
+<!-- docs_install_end -->
+
 
 ### Development Installation
 If you are contributing a pull request, it is best to perform a manual installation:

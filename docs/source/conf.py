@@ -44,6 +44,7 @@ release = version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "myst_parser",  # For adding sections of the README to the docs
     "sphinx.ext.intersphinx",
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
@@ -51,6 +52,12 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
+]
+
+myst_enable_extensions = [
+    "amsmath",  # Ensure markdown math from README gets compiled into rst math
+    "dollarmath",  # Ensure markdown math from README gets compiled into rst math
+    "tasklist",  # Check boxes
 ]
 
 # Add any paths that contain templates here, relative to this directory.
