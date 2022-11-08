@@ -7,3 +7,11 @@ class NumericalWarning(RuntimeWarning):
     """
 
     pass
+
+
+class PerformanceWarning(RuntimeWarning):
+    """
+    Warning thrown when LinearOperators are used in a way that may incur large performance / memory penalties.
+    """
+
+    pass

@@ -1,7 +1,7 @@
 .. role:: hidden
     :class: hidden-section
 
-linear_operator.settings
+Settings
 ===================================
 
 .. currentmodule:: linear_operator.settings

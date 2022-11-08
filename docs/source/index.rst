@@ -5,16 +5,45 @@
 
 :github_url: https://github.com/cornellius-gp/linear_operator
 
-LinearOperator Documentation
+LinearOperator
 ===========================================
+
+.. include:: ../../README.md
+   :start-after: <!-- docs_intro_start -->
+   :end-before: <!-- docs_intro_end -->
+   :parser: myst_parser.sphinx_
+
+Why LinearOperator
+------------------
+
+.. include:: ../../README.md
+   :start-after: <!-- docs_index_start -->
+   :end-before: <!-- docs_index_end -->
+   :parser: myst_parser.sphinx_
+
+Use Cases
+----------
+
+.. include:: ../../README.md
+   :start-after: ## Use Cases
+   :end-before: ## Using LinearOperator Objects
+   :parser: myst_parser.sphinx_
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Getting Started
+
+   self
+   install
 
 .. toctree::
    :maxdepth: 1
    :caption: Basic Concepts
 
-   intro
+   about
+   using
    converting
-   structure
    custom_linear_operators
 
 
@@ -22,8 +51,6 @@ LinearOperator Documentation
    :maxdepth: 1
    :caption: Core API
 
-   namespace
-   settings
 
 
 .. toctree::
@@ -33,12 +60,15 @@ LinearOperator Documentation
    linear_operator
    data_sparse_operators
    composition_decoration_operators
+   structure
 
 
 .. toctree::
    :maxdepth: 1
    :caption: Advanced Package Reference
 
+   settings
+   namespace
    utils
 
 

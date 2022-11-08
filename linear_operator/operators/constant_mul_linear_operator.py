@@ -96,12 +96,11 @@ class ConstantMulLinearOperator(LinearOperator):
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
         # It prevents constructing an InterpolatedLinearOperator when one isn't needed
-        # This affects runntimes by up to 5x on simple exact GPs
+        # This affects runtimes by up to 5x on simple exact GPs
         # Run __getitem__ on the base_linear_op and the constant
         base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices)
         constant = self._constant.expand(self.batch_shape)[batch_indices]
-        constant = constant.view(*constant.shape, 1, 1)
-        return base_linear_op * constant
+        return type(self)(base_linear_op=base_linear_op, constant=constant)
 
     def _matmul(self, rhs):
         res = self.base_linear_op._matmul(rhs)
