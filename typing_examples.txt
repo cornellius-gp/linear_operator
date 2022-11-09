@@ -1,0 +1,55 @@
+    # Predictable dimensions.
+    # Still some noise to account for optional batch dimenstion and potential use of 1-D tensors
+
+    @abstractmethod
+    def _matmul(
+        self: LinearOperatorType[..., "M", "N"], rhs: Union[TensorType[..., "N", "C"], TensorType["N"]]
+    ) -> Union[TensorType[..., "M", "C"], TensorType["M"]]:
+
+
+    def _diagonal(self: LinearOperatorType[..., "N"]) -> TensorType[..., "N"]:
+
+
+    # Dynamic addition/removal of dimensions
+    # I don't know of a way to type check these
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator
+
+    def _expand_batch(self, batch_shape: torch.Size) -> LinearOperator:
+    """
+    Expands along batch dimensions. Return size will be *batch_shape x *matrix_shape.
+    """
+
+    def _sum_batch(self, dim: int) -> LinearOperator:
+    """
+    Sum the LinearOperator across a batch dimension (supplied as a positive number).
+    """
+
+
+    # Example of layout specification?
+    # Here the dimensions are unchanged but we use a different storage strategy internally
+    def _cholesky(self, upper: bool = False) -> "TriangularLinearOperator":
+
+    # Example of signature where we want to perform math on the dimnesions
+    # TensorType doesn't actually support dimension arithmetic
+    def cat_rows(
+        self: LinearOperatorType[..., "M", "N"],
+        cross_mat: TensorType[..., "O", "N"],
+        new_mat: TensorType[..., "O", "N"],
+        generate_roots: bool = True,
+        generate_inv_roots: bool = True,
+        **root_decomp_kwargs,
+    ) -> LinearOperatorType[..., "M" + "O", "N" + "O"]:
+        r"""
+        Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
+
+        .. math::
+            \mathbf C = \begin{bmatrix}
+                \mathbf A & \mathbf B^\top \\
+                \mathbf B & \mathbf D
+            \end{bmatrix}
+
+        where :math:`\mathbf A` is the existing LinearOperator, and
+        :math:`\mathbf B` (cross_mat) and :math:`\mathbf D` (new_mat)
+        are new components. This is most commonly used when fantasizing with
+        kernel matrices.
+        """
