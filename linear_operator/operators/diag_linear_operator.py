@@ -153,30 +153,33 @@ class DiagLinearOperator(TriangularLinearOperator):
         """
         return self.__class__(self._diag.log())
 
+    # this needs to be the public "matmul", instead of "_matmul", to hit the special cases before
+    # a MatmulLinearOperator is created.
     def matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
+        if isinstance(other, Tensor):
+            diag = self._diag if other.ndim == 1 else self._diag.unsqueeze(-1)
+            return diag * other
+
+        if isinstance(other, DenseLinearOperator):
+            return DenseLinearOperator(self @ other.tensor)
+
         if isinstance(other, DiagLinearOperator):
             return DiagLinearOperator(self._diag * other._diag)
-        elif isinstance(other, BlockDiagLinearOperator):
+
+        if isinstance(other, TriangularLinearOperator):
+            return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
+
+        if isinstance(other, BlockDiagLinearOperator):
             diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1])
             diag = DiagLinearOperator(diag_reshape)
             # using matmul here avoids having to implement special case of elementwise multiplication
             # with block diagonal operator, which itself has special cases for vectors and matrices
             return BlockDiagLinearOperator(diag @ other.base_linear_op)
-        # special case if we have a TriangularLinearOperator
-        elif isinstance(other, TriangularLinearOperator):
-            return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
-        elif isinstance(other, DenseLinearOperator):
-            return DenseLinearOperator(self @ other.tensor)
-        else:
-            return super().matmul(other)
 
-    def _matmul(self, other: Tensor) -> Tensor:
-        # to perform matrix multiplication with diagonal matrices we can just
-        # multiply element-wise with the diagonal (using proper broadcasting)
-        diag = self._diag
-        if other.ndimension() > 1:
-            diag = diag.unsqueeze(-1)
-        return diag * other
+        return super().matmul(other)  # happens with other structured linear operators
+
+    def _matmul(self, other: Union[Tensor, LinearOperator]) -> Union[Tensor, LinearOperator]:
+        return self.matmul(other)
 
     def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
         res = self.inverse()._matmul(right_tensor)
