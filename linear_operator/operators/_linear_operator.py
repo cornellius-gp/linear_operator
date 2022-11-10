@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 import linear_operator
@@ -93,6 +94,14 @@ def _implements_symmetric(torch_function: Callable) -> Callable:
     return decorator
 
 
+# Linear operator storage layout types
+class LinopLayout:
+    pass
+
+
+linop_diagonal: LinopLayout
+
+
 class LinearOperator(ABC):
     r"""
     Base class for LinearOperators.
@@ -138,8 +147,12 @@ class LinearOperator(ABC):
     ####
     # The following methods need to be defined by the LinearOperator
     ####
+
     @abstractmethod
-    def _matmul(self, rhs: torch.Tensor) -> torch.Tensor:
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch N C"], Float[torch.Tensor, "*batch N"]],
+    ) -> Union[Float[torch.Tensor, "*batch M C"], Float[torch.Tensor, "*batch M"]]:
         r"""
         Performs a matrix multiplication :math:`\mathbf KM` with the (... x M x N) matrix :math:`\mathbf K`
         that this LinearOperator represents. Should behave as
@@ -441,7 +454,7 @@ class LinearOperator(ABC):
     def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator"], ...]) -> None:
         self._args_memo = args
 
-    def _approx_diagonal(self) -> torch.Tensor:
+    def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
         """
         (Optional) returns an (approximate) diagonal of the matrix
 
@@ -456,7 +469,9 @@ class LinearOperator(ABC):
         return self._diagonal()
 
     @cached(name="cholesky")
-    def _cholesky(self, upper: bool = False) -> "TriangularLinearOperator":  # noqa F811
+    def _cholesky(
+        self: Float[LinearOperator, "*batch N N"], upper: bool = False
+    ) -> Float[LinearOperator, "*batch N N", linop_diagonal]:
         """
         (Optional) Cholesky-factorizes the LinearOperator
 
@@ -1064,13 +1079,13 @@ class LinearOperator(ABC):
         return self.shape[:-2]
 
     def cat_rows(
-        self,
-        cross_mat: torch.Tensor,
-        new_mat: torch.Tensor,
+        self: Float[LinearOperator, "*batch M N"],
+        cross_mat: Float[torch.Tensor, "*batch O N"],
+        new_mat: Float[torch.Tensor, "*batch O N"],
         generate_roots: bool = True,
         generate_inv_roots: bool = True,
         **root_decomp_kwargs,
-    ) -> LinearOperator:
+    ) -> Float[LinearOperator, "*batch M+O N+O"]:
         r"""
         Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
 
