@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+from abc import ABC
 from typing import Optional, Tuple, Union
 
 import torch
 
 from ._dsmm import DSMM
 
-Anysor = Union["LinearOperator", torch.Tensor]  # noqa F811
+
+# We need this here as a forward declarationn for the LinearOperator type
+class LinearOperatorBase(ABC):
+    pass
 
 
-def add_diagonal(input: Anysor, diag: torch.Tensor) -> "LinearOperator":  # noqa F811
+Anysor = Union[LinearOperatorBase, torch.Tensor]
+
+
+def add_diagonal(input: Anysor, diag: torch.Tensor) -> LinearOperatorBase:
     r"""
     Adds an element to the diagonal of the matrix :math:`\mathbf A`.
 
@@ -156,7 +163,7 @@ def pivoted_cholesky(
     return to_linear_operator(input).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
 
 
-def root_decomposition(input: Anysor, method: Optional[str] = None) -> "LinearOperator":  # noqa F811
+def root_decomposition(input: Anysor, method: Optional[str] = None) -> LinearOperatorBase:
     r"""
     Returns a (usually low-rank) root decomposition linear operator of the
     positive definite matrix (or batch of matrices) :math:`\mathbf A`.
@@ -178,7 +185,7 @@ def root_inv_decomposition(
     initial_vectors: Optional[torch.Tensor] = None,
     test_vectors: Optional[torch.Tensor] = None,
     method: Optional[str] = None,
-) -> "LinearOperator":  # noqa F811
+) -> LinearOperatorBase:
     r"""
     Returns a (usually low-rank) inverse root decomposition linear operator
     of the PSD LinearOperator :math:`\mathbf A`.
@@ -277,4 +284,5 @@ __all__ = [
     "root_inv_decomposition",
     "solve",
     "sqrt_inv_matmul",
+    "LinearOperatorBase",
 ]

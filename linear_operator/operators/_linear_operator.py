@@ -6,10 +6,11 @@ import functools
 import math
 import numbers
 import warnings
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
+import numpy as np
 import torch
 from jaxtyping import Float
 from torch import Tensor
@@ -17,6 +18,7 @@ from torch import Tensor
 import linear_operator
 
 from .. import settings, utils
+from ..functions import LinearOperatorBase
 from ..functions._diagonalization import Diagonalization
 from ..functions._inv_quad import InvQuad
 from ..functions._inv_quad_logdet import InvQuadLogdet
@@ -102,7 +104,7 @@ class LinopLayout:
 linop_diagonal: LinopLayout
 
 
-class LinearOperator(ABC):
+class LinearOperator(LinearOperatorBase):
     r"""
     Base class for LinearOperators.
 
@@ -471,7 +473,7 @@ class LinearOperator(ABC):
     @cached(name="cholesky")
     def _cholesky(
         self: Float[LinearOperator, "*batch N N"], upper: bool = False
-    ) -> Float[LinearOperator, "*batch N N", linop_diagonal]:
+    ) -> Float[LinearOperator, "*batch N N"]:  # TODO  return Float[LinearOperator, "*batch N N", linop_diagonal]
         """
         (Optional) Cholesky-factorizes the LinearOperator
 
@@ -842,7 +844,7 @@ class LinearOperator(ABC):
             evecs = None
         return evals, evecs
 
-    def _t_matmul(self, rhs: torch.Tensor) -> LinearOperator:
+    def _t_matmul(self, rhs: torch.Tensor) -> Union[LinearOperator, torch.Tensor]:
         r"""
         Performs a transpose matrix multiplication :math:`\mathbf K^\top \mathbf M` with the
         (... x M x N) matrix :math:`\mathbf K` that this LinearOperator represents.
@@ -953,7 +955,7 @@ class LinearOperator(ABC):
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
         **root_decomp_kwargs,
-    ) -> "SumLinearOperator":  # noqa F811
+    ) -> LinearOperator:  # returns SumLinearOperator
         r"""
         Adds a low rank matrix to the matrix that this LinearOperator represents, e.g.
         computes :math:`\mathbf A + \mathbf{BB}^\top`.
@@ -1079,9 +1081,9 @@ class LinearOperator(ABC):
         return self.shape[:-2]
 
     def cat_rows(
-        self: Float[LinearOperator, "*batch M N"],
-        cross_mat: Float[torch.Tensor, "*batch O N"],
-        new_mat: Float[torch.Tensor, "*batch O N"],
+        self: Float[LinearOperator, "... M N"],
+        cross_mat: Float[torch.Tensor, "... O N"],
+        new_mat: Float[torch.Tensor, "... O O"],
         generate_roots: bool = True,
         generate_inv_roots: bool = True,
         **root_decomp_kwargs,
@@ -1228,7 +1230,7 @@ class LinearOperator(ABC):
         return new_linear_op
 
     @_implements(torch.linalg.cholesky)
-    def cholesky(self, upper: bool = False) -> "TriangularLinearOperator":  # noqa F811
+    def cholesky(self, upper: bool = False) -> LinearOperator:  # returns TriangularLinearOperator
         """
         Cholesky-factorizes the LinearOperator.
 
@@ -1288,7 +1290,7 @@ class LinearOperator(ABC):
         return self.__class__(*new_args, **new_kwargs)
 
     @property
-    def device(self) -> str:
+    def device(self) -> torch.device:
         return self._args[0].device
 
     def detach(self) -> LinearOperator:
@@ -1788,7 +1790,7 @@ class LinearOperator(ABC):
         """
         return self.shape.numel()
 
-    def numpy(self) -> "numpy.ndarray":  # noqa F811
+    def numpy(self) -> np.ndarray:
         """
         Returns the LinearOperator as an dense numpy array.
         """

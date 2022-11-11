@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 
+import logging
 import math
+import traceback
 from abc import abstractmethod
 from itertools import combinations, product
 from unittest.mock import MagicMock, patch
 
 import torch
+from jaxtyping import install_import_hook
 
-import linear_operator
-from linear_operator.operators import DiagLinearOperator, to_dense
-from linear_operator.settings import linalg_dtypes
-from linear_operator.utils.errors import CachingError
-from linear_operator.utils.memoize import get_from_cache
+with install_import_hook("linear_operator", ("typeguard", "typechecked")):
+    import linear_operator
+    from linear_operator.operators import DiagLinearOperator, to_dense
+    from linear_operator.settings import linalg_dtypes
+    from linear_operator.utils.errors import CachingError
+    from linear_operator.utils.memoize import get_from_cache
 
 from .base_test_case import BaseTestCase
 
@@ -525,6 +529,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         other_diag = torch.tensor(1.5)
         res = linear_operator.add_diagonal(linear_op, other_diag).to_dense()
+
         actual = evaluated + torch.eye(evaluated.size(-1)).view(
             *[1 for _ in range(linear_op.dim() - 2)], evaluated.size(-1), evaluated.size(-1)
         ).repeat(*linear_op.batch_shape, 1, 1).mul(1.5)
@@ -555,7 +560,11 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
 
-        res = linear_operator.add_jitter(linear_op, 0.4).to_dense()
+        try:
+            res = linear_operator.add_jitter(linear_op, 0.4).to_dense()
+        except Exception:
+            msg = traceback.format_exc()
+            logging.warning(msg)
         actual = evaluated + torch.eye(evaluated.size(-1)).mul_(0.4)
         self.assertAllClose(res, actual)
 
@@ -566,7 +575,11 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         new_rows = torch.randn(*linear_op.shape[:-1], 3)
 
         summed_lt = evaluated + new_rows.matmul(new_rows.mT)
-        new_lt = linear_op.add_low_rank(new_rows)
+        try:
+            new_lt = linear_op.add_low_rank(new_rows)
+        except Exception:
+            msg = traceback.format_exc()
+            logging.warning(msg)
 
         # check that the concatenation is okay
         self.assertAllClose(new_lt.to_dense(), summed_lt)
@@ -609,7 +622,11 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             cat_col2 = torch.cat((new_rows.mT, new_point), dim=-2)
 
             concatenated_lt = torch.cat((cat_col1, cat_col2), dim=-1)
-            new_lt = linear_op.cat_rows(new_rows, new_point)
+            try:
+                new_lt = linear_op.cat_rows(new_rows, new_point)
+            except Exception:
+                msg = traceback.format_exc()
+                logging.warning(msg)
 
             # check that the concatenation is okay
             self.assertAllClose(new_lt.to_dense(), concatenated_lt)
