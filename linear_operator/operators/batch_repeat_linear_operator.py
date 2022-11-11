@@ -231,7 +231,9 @@ class BatchRepeatLinearOperator(LinearOperator):
     def add_jitter(self, jitter_val=1e-3):
         return self.__class__(self.base_linear_op.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if not self.is_square:
             raise RuntimeError(
                 "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "

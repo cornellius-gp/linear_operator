@@ -136,7 +136,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         inverses = [lt.inverse() for lt in self.linear_ops]
         return self.__class__(*inverses)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if inv_quad_rhs is not None:
             inv_quad_term, _ = super().inv_quad_logdet(
                 inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad

@@ -157,7 +157,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)

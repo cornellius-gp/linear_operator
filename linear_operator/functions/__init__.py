@@ -114,7 +114,7 @@ def inv_quad(input: Anysor, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = 
 
 def inv_quad_logdet(
     input: Anysor, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
     r"""
     Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive definite matrix (or batch) :math:`\mathbf A`.
     However, calling this method is far more efficient and stable than calling each method independently.
@@ -242,7 +242,9 @@ def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) 
     return to_linear_operator(input).solve(right_tensor=rhs, left_tensor=lhs)
 
 
-def sqrt_inv_matmul(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+def sqrt_inv_matmul(
+    input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     r"""
     Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`
     and a right hand size :math:`\mathbf R`,

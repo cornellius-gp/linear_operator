@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Optional, Tuple
 
 import torch
 
@@ -89,7 +90,9 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         else:
             return AddedDiagLinearOperator(self._linear_op + other, self._diag_tensor)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if not self.is_square:
             raise RuntimeError(
                 "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "

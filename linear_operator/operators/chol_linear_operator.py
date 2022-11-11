@@ -93,7 +93,7 @@ class CholLinearOperator(RootLinearOperator):
 
     def inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if not self.is_square:
             raise RuntimeError(
                 "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "

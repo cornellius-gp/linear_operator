@@ -167,7 +167,7 @@ class ZeroLinearOperator(LinearOperator):
 
     def inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def logdet(self) -> torch.Tensor:

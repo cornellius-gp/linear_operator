@@ -578,7 +578,7 @@ class LinearOperator(LinearOperatorBase):
         else:
             return MulLinearOperator(self, other)
 
-    def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
+    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
         """
         (Optional) define a preconditioner (:math:`\mathbf P`) for linear conjugate gradients
 
@@ -752,7 +752,7 @@ class LinearOperator(LinearOperatorBase):
             preconditioner=preconditioner,
         )
 
-    def _solve_preconditioner(self) -> Callable:
+    def _solve_preconditioner(self) -> Optional[Callable]:
         r"""
         (Optional) define a preconditioner :math:`\mathbf P` that can be used for linear systems,
         but not necessarily for log determinants. By default, this can call
@@ -823,7 +823,7 @@ class LinearOperator(LinearOperatorBase):
         V = evecs
         return U, S, V
 
-    def _symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
+    def _symeig(self, eigenvectors: bool = False) -> Tuple[torch.Tensor, Optional[LinearOperator]]:
         r"""
         Method that allows implementing special-cased symeig computation. Should not be called directly
         """
@@ -1340,7 +1340,7 @@ class LinearOperator(LinearOperatorBase):
         return self._diagonal()
 
     @cached(name="diagonalization")
-    def diagonalization(self, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def diagonalization(self, method: Optional[str] = None) -> Tuple[torch.Tensor, Optional[LinearOperator]]:
         """
         Returns a (usually partial) diagonalization of a symmetric PSD matrix.
         Options are either "lanczos" or "symeig". "lanczos" runs Lanczos while
@@ -1418,7 +1418,7 @@ class LinearOperator(LinearOperatorBase):
         return self._args[0].dtype
 
     @_implements(torch.linalg.eigh)
-    def eigh(self) -> Tuple[torch.Tensor, "LinearOperator"]:
+    def eigh(self) -> Tuple[torch.Tensor, Optional[LinearOperator]]:
         """
         Compute the symmetric eigendecomposition of the linear operator.
         This can be very slow for large tensors.
@@ -1471,7 +1471,7 @@ class LinearOperator(LinearOperatorBase):
         # We define it here so that we can map the torch function torch.exp to the LinearOperator method
         raise NotImplementedError(f"torch.exp({self.__class__.__name__}) is not implemented.")
 
-    def expand(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+    def expand(self, *sizes: Tuple[Union[torch.Size, int], ...]) -> LinearOperator:
         r"""
         Returns a new view of the self
         :obj:`~linear_operator.operators.LinearOperator` with singleton
@@ -1572,7 +1572,7 @@ class LinearOperator(LinearOperatorBase):
 
     def inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         r"""
         Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive
         definite matrix (or batch) :math:`\mathbf A`.  However, calling this
@@ -2215,7 +2215,9 @@ class LinearOperator(LinearOperatorBase):
         # We define it here so that we can map the torch function torch.sqrt to the LinearOperator method
         raise NotImplementedError(f"torch.sqrt({self.__class__.__name__}) is not implemented.")
 
-    def sqrt_inv_matmul(self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def sqrt_inv_matmul(
+        self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         r"""
         If the LinearOperator :math:`\mathbf A` is positive definite,
         computes

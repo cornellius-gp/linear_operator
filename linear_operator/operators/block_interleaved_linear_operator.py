@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Optional, Tuple
 
 import torch
 
@@ -96,7 +97,9 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
             res = self._remove_batch_dim(res)
             return res
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)
         inv_quad_res, logdet_res = self.base_linear_op.inv_quad_logdet(

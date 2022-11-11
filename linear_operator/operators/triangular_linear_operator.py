@@ -144,7 +144,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         inv_quad_rhs: Optional[Tensor] = None,
         logdet: bool = False,
         reduce_inv_quad: bool = True,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
