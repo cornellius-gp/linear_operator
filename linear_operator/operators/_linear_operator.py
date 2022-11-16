@@ -2772,7 +2772,7 @@ class LinearOperator(ABC):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
                 kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}{kwarg_classes}) is not implemented.")
+                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_SECOND_ARG_FUNCTIONS[func])
@@ -2782,7 +2782,7 @@ class LinearOperator(ABC):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
                 kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}{kwarg_classes}) is not implemented.")
+                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_FUNCTIONS[func])
