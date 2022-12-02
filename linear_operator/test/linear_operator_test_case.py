@@ -779,7 +779,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         # check that error is raised if incompatible expand shape
         expand_args = (*linear_op.shape[:-2], 4, 5)
         expected_msg = r"Invalid expand arguments \({}\)".format(", ".join(str(a) for a in expand_args))
-        with self.assertRaisesRegex(TypeError, expected_msg):
+        with self.assertRaisesRegex((TypeError, RuntimeError), expected_msg):
             linear_op.expand(*expand_args)
 
     def test_float(self):
