@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import warnings
 from typing import Callable, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from .. import settings
@@ -67,13 +70,20 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._q_cache = None
         self._r_cache = None
 
-    def _matmul(self, rhs: Tensor) -> Tensor:
+    def _matmul(
+        self: Float[AddedDiagLinearOperator, "*batch N N"], rhs: Float[torch.Tensor, "*batch N C"]
+    ) -> Float[torch.Tensor, "*batch N C"]:
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
-    def add_diagonal(self, added_diag: Tensor) -> "AddedDiagLinearOperator":
+    def add_diagonal(
+        self: Float[AddedDiagLinearOperator, "*batch N N"], added_diag: Float[Tensor, "*batch N"]
+    ) -> Float[AddedDiagLinearOperator, "*batch N N"]:
         return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(added_diag))
 
-    def __add__(self, other: Union[Tensor, LinearOperator]) -> LinearOperator:
+    def __add__(
+        self: Float[AddedDiagLinearOperator, "*batch N N"],
+        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]],
+    ) -> Float[AddedDiagLinearOperator, "*batch N N"]:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -81,7 +91,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         else:
             return self.__class__(self._linear_op + other, self._diag_tensor)
 
-    def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
+    def _preconditioner(self) -> Tuple[Callable, LinearOperator, torch.Tensor]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 
@@ -173,14 +183,18 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._precond_logdet_cache = logdet.view(*batch_shape) if len(batch_shape) else logdet.squeeze()
 
     @cached(name="svd")
-    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
+    def _svd(
+        self: Float[AddedDiagLinearOperator, "*batch N N"]
+    ) -> Tuple[Float[LinearOperator, "*batch N N"], Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             U, S_, V = self._linear_op.svd()
             S = S_ + self._diag_tensor._diagonal()
             return U, S, V
         return super()._svd()
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
+    def _symeig(
+        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+    ) -> Tuple[Float[Tensor, " M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor._diagonal()
