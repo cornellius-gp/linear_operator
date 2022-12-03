@@ -91,7 +91,9 @@ class AddedDiagLinearOperator(SumLinearOperator):
         else:
             return self.__class__(self._linear_op + other, self._diag_tensor)
 
-    def _preconditioner(self) -> Tuple[Callable, LinearOperator, torch.Tensor]:
+    def _preconditioner(
+        self: Float[AddedDiagLinearOperator, "*batch N N"]
+    ) -> Tuple[Callable, Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch 1"]]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 

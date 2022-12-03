@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import itertools
 from typing import Optional, Tuple
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from .. import settings
@@ -37,7 +39,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         self.batch_repeat = batch_repeat
 
     @cached(name="cholesky")
-    def _cholesky(self, upper=False):
+    def _cholesky(self: Float[LinearOperator, "*batch N N"], upper=False) -> Float[LinearOperator, "*batch N N"]:
         from .triangular_linear_operator import TriangularLinearOperator
 
         res = self.base_linear_op.cholesky(upper=upper)._tensor
@@ -55,21 +57,27 @@ class BatchRepeatLinearOperator(LinearOperator):
         res = self._move_repeat_batches_back(res, output_shape)
         return res
 
-    def _compute_batch_repeat_size(self, current_batch_shape, desired_batch_shape):
+    def _compute_batch_repeat_size(
+        self, current_batch_shape: torch.Size, desired_batch_shape: torch.Size
+    ) -> torch.Size:
         batch_repeat = torch.Size(
             desired_batch_size // current_batch_size
             for desired_batch_size, current_batch_size in zip(desired_batch_shape, current_batch_shape)
         )
         return batch_repeat
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[BatchRepeatLinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[BatchRepeatLinearOperator, "... M N"]:
         padding_dims = torch.Size(tuple(1 for _ in range(max(len(batch_shape) + 2 - self.base_linear_op.dim(), 0))))
         current_batch_shape = padding_dims + self.base_linear_op.batch_shape
         return self.__class__(
             self.base_linear_op, batch_repeat=self._compute_batch_repeat_size(current_batch_shape, batch_shape)
         )
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+    ) -> torch.Tensor:
         # First remove any new batch indices that were added - they aren't necessary
         num_true_batch_indices = self.base_linear_op.dim() - 2
         batch_indices = batch_indices[len(batch_indices) - num_true_batch_indices :]

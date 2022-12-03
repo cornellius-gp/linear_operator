@@ -206,7 +206,7 @@ class LinearOperator(LinearOperatorBase):
     # The following methods MIGHT have be over-written by LinearOperator subclasses
     # if the LinearOperator does weird things with the batch dimensions
     ####
-    def _permute_batch(self, *dims: Tuple[int, ...]) -> LinearOperator:
+    def _permute_batch(self, *dims: int) -> LinearOperator:
         """
         Permute the batch dimensions.
         This probably won't have to be overwritten by LinearOperators, unless they use batch dimensions
@@ -237,7 +237,7 @@ class LinearOperator(LinearOperatorBase):
         self,
         row_index: Union[slice, torch.LongTensor],
         col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+        *batch_indices: Union[int, slice, torch.LongTensor],
     ) -> LinearOperator:
         """
         Supports subindexing of the matrix this LinearOperator represents.
@@ -372,7 +372,9 @@ class LinearOperator(LinearOperatorBase):
 
         return tuple(grads)
 
-    def _expand_batch(self, batch_shape: torch.Size) -> LinearOperator:
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         """
         Expands along batch dimensions. Return size will be *batch_shape x *matrix_shape.
 
@@ -388,7 +390,7 @@ class LinearOperator(LinearOperatorBase):
         return self.repeat(*batch_repeat, 1, 1)
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: torch.LongTensor
     ) -> torch.Tensor:
         """
         This method selects elements from the LinearOperator based on tensor indices for each dimension.
@@ -561,9 +563,9 @@ class LinearOperator(LinearOperatorBase):
         return ConstantMulLinearOperator(self, other)
 
     def _mul_matrix(
-        self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[torch.Tensor, "*batch N P"], Float[LinearOperator, "*batch N P"]],
-    ) -> Float[LinearOperator, "*batch M P"]:
+        self: Float[LinearOperator, "..."],
+        other: Union[Float[torch.Tensor, "..."], Float[LinearOperator, "..."]],
+    ) -> Float[LinearOperator, "..."]:
         r"""
         Multiplies the LinearOperator by a (batch of) matrices.
 
@@ -747,11 +749,11 @@ class LinearOperator(LinearOperatorBase):
                     arg.requires_grad_(val)
 
     def _solve(
-        self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[torch.Tensor, " N"],
-        preconditioner: Callable,
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable],
         num_tridiag: int = 0,
-    ) -> Float[torch.Tensor, " N"]:
+    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "_ N N"]]]:
         r"""
         TODO
         """
@@ -861,7 +863,8 @@ class LinearOperator(LinearOperatorBase):
         return evals, evecs
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"], rhs: Float[LinearOperator, "*batch M P"]
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[Tensor, "... M P"], Float[LinearOperator, "... M P"]],
     ) -> Union[Float[LinearOperator, "*batch N P"], Float[Tensor, "*batch N P"]]:
         r"""
         Performs a transpose matrix multiplication :math:`\mathbf K^\top \mathbf M` with the
@@ -910,7 +913,8 @@ class LinearOperator(LinearOperatorBase):
             return self + alpha * other
 
     def add_diagonal(
-        self: Float[LinearOperator, "*batch N N"], diag: Union[Float[Tensor, "... N"], Float[Tensor, "... 1"]]
+        self: Float[LinearOperator, "*batch N N"],
+        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
         r"""
         Adds an element to the diagonal of the matrix.
@@ -976,7 +980,7 @@ class LinearOperator(LinearOperatorBase):
 
     def add_low_rank(
         self: Float[LinearOperator, "*batch N N"],
-        low_rank_mat: Float[Tensor, "*batch N N"],
+        low_rank_mat: Float[Tensor, "... N _"],
         root_decomp_method: Optional[str] = None,
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
@@ -1509,7 +1513,7 @@ class LinearOperator(LinearOperatorBase):
         # We define it here so that we can map the torch function torch.exp to the LinearOperator method
         raise NotImplementedError(f"torch.exp({self.__class__.__name__}) is not implemented.")
 
-    def expand(self, *sizes: Tuple[Union[torch.Size, int], ...]) -> LinearOperator:
+    def expand(self, *sizes: Union[torch.Size, int]) -> LinearOperator:
         r"""
         Returns a new view of the self
         :obj:`~linear_operator.operators.LinearOperator` with singleton
@@ -1617,12 +1621,12 @@ class LinearOperator(LinearOperatorBase):
         return inv_quad_term
 
     def inv_quad_logdet(
-        self: Float[LinearOperator, "*batch M N"],
+        self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
         logdet: bool = False,
         reduce_inv_quad: bool = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, "*batch 1"]]
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
     ]:
         r"""
         Calls both :func:`inv_quad` and :func:`logdet` on a positive
@@ -1750,7 +1754,7 @@ class LinearOperator(LinearOperatorBase):
         raise NotImplementedError(f"torch.log({self.__class__.__name__}) is not implemented.")
 
     @_implements(torch.logdet)
-    def logdet(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch 1"]:
+    def logdet(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, " *batch"]:
         r"""
         Computes the log determinant :math:`\log \vert \mathbf A \vert`.
         """
@@ -1759,9 +1763,9 @@ class LinearOperator(LinearOperatorBase):
 
     @_implements(torch.matmul)
     def matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch N P"], Float[LinearOperator, "*batch N P"]],
-    ) -> Union[Float[Tensor, "*batch M P"], Float[LinearOperator, "*batch M P"]]:
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... N P"], Float[Tensor, " N"], Float[LinearOperator, "... N P"]],
+    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         r"""
         Performs :math:`\mathbf A \mathbf B`, where :math:`\mathbf A \in
         \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
@@ -1854,7 +1858,7 @@ class LinearOperator(LinearOperatorBase):
         return self.to_dense().detach().cpu().numpy()
 
     @_implements(torch.permute)
-    def permute(self, *dims: Tuple[int, ...]) -> LinearOperator:
+    def permute(self, *dims: Union[int, Tuple[int, ...]]) -> LinearOperator:
         """
         Returns a view of the original tensor with its dimensions permuted.
 
@@ -2037,9 +2041,9 @@ class LinearOperator(LinearOperatorBase):
 
     @_implements_second_arg(torch.matmul)
     def rmatmul(
-        self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch P M"], Float[LinearOperator, "*batch P M"]],
-    ) -> Union[Float[Tensor, "*batch P N"], Float[LinearOperator, "*batch P N"]]:
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
+    ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "... N"], Float[LinearOperator, "... P N"]]:
         r"""
         Performs :math:`\mathbf B \mathbf A`, where :math:`\mathbf A \in
         \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
@@ -2223,10 +2227,10 @@ class LinearOperator(LinearOperatorBase):
 
     @_implements(torch.linalg.solve)
     def solve(
-        self: Float[LinearOperator, "*batch N N"],
-        right_tensor: Float[Tensor, "*batch N P"],
-        left_tensor: Optional[Float[Tensor, "*batch O N"]] = None,
-    ) -> Union[Float[Tensor, "*batch N P"], Float[Tensor, "*batch O P"]]:
+        self: Float[LinearOperator, "... N N"],
+        right_tensor: Union[Float[Tensor, "... N P"], Float[Tensor, " N"]],
+        left_tensor: Optional[Float[Tensor, "... O N"]] = None,
+    ) -> Union[Float[Tensor, "... N P"], Float[Tensor, "... N"], Float[Tensor, "... O P"], Float[Tensor, "... O"]]:
         r"""
         Computes a linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
         I.e. computes
@@ -2643,8 +2647,8 @@ class LinearOperator(LinearOperatorBase):
         return samples
 
     def __add__(
-        self: Float[LinearOperator, "*batch M N"], other: Union[Tensor, LinearOperator, float]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: Float[LinearOperator, "... M N"], other: Union[Tensor, LinearOperator, float]
+    ) -> Float[LinearOperator, "... M N"]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator
         from .diag_linear_operator import DiagLinearOperator
@@ -2825,9 +2829,7 @@ def _import_dotted_name(name: str):
     return obj
 
 
-def to_dense(
-    obj: Union[Float[LinearOperator, "*batch M N"], Float[Tensor, "*batch M N"]]
-) -> Float[Tensor, "*batch M N"]:
+def to_dense(obj: Union[LinearOperator, Tensor]) -> Tensor:
     r"""
     A function which ensures that `obj` is a (normal) Tensor.
     - If `obj` is a Tensor, this function does nothing.
