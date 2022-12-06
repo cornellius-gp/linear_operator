@@ -533,6 +533,34 @@ class LinearOperator(ABC):
         row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
         return self[..., row_col_iter, row_col_iter]
 
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""
+        A private version of inv_quad_logdet that should be overwritten by specialty LinearOperator classes.
+
+        ..note::
+            This method is used as an internal helper. Calling this method directly is discouraged.
+        """
+        from .chol_linear_operator import CholLinearOperator
+        from .triangular_linear_operator import TriangularLinearOperator
+
+        # if the root decomposition has already been computed and is triangular we can use it instead
+        # of computing the cholesky.
+        will_need_cholesky = True
+        if _is_in_cache_ignore_all_args(self, "root_decomposition"):
+            root = self.root_decomposition().root
+            if isinstance(root, TriangularLinearOperator):
+                cholesky = CholLinearOperator(root)
+                will_need_cholesky = False
+        if will_need_cholesky:
+            cholesky = CholLinearOperator(TriangularLinearOperator(self.cholesky()))
+        return cholesky.inv_quad_logdet(
+            inv_quad_rhs=inv_quad_rhs,
+            logdet=logdet,
+            reduce_inv_quad=reduce_inv_quad,
+        )
+
     def _mul_constant(self, other: Union[float, torch.Tensor]) -> LinearOperator:
         """
         Multiplies the LinearOperator by a costant.
@@ -729,7 +757,7 @@ class LinearOperator(ABC):
                 if arg.dtype in (torch.float, torch.double, torch.half):
                     arg.requires_grad_(val)
 
-    def _solve(self, rhs: torch.Tensor, preconditioner: Callable, num_tridiag: int = 0) -> torch.Tensor:
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
         r"""
         TODO
         """
@@ -1571,27 +1599,6 @@ class LinearOperator(ABC):
         :returns: The inverse quadratic term (or None), and the logdet term (or None).
             If `reduce_inv_quad=True`, the inverse quadratic term is of shape (...). Otherwise, it is (... x M).
         """
-        # Special case: use Cholesky to compute these terms
-        if settings.fast_computations.log_prob.off() or (self.size(-1) <= settings.max_cholesky_size.value()):
-            from .chol_linear_operator import CholLinearOperator
-            from .triangular_linear_operator import TriangularLinearOperator
-
-            # if the root decomposition has already been computed and is triangular we can use it instead
-            # of computing the cholesky.
-            will_need_cholesky = True
-            if _is_in_cache_ignore_all_args(self, "root_decomposition"):
-                root = self.root_decomposition().root
-                if isinstance(root, TriangularLinearOperator):
-                    cholesky = CholLinearOperator(root)
-                    will_need_cholesky = False
-            if will_need_cholesky:
-                cholesky = CholLinearOperator(TriangularLinearOperator(self.cholesky()))
-            return cholesky.inv_quad_logdet(
-                inv_quad_rhs=inv_quad_rhs,
-                logdet=logdet,
-                reduce_inv_quad=reduce_inv_quad,
-            )
-
         # Short circuit to inv_quad function if we're not computing logdet
         if not logdet:
             if inv_quad_rhs is None:
@@ -1628,42 +1635,48 @@ class LinearOperator(ABC):
                     )
                 )
 
-        args = self.representation()
-        if inv_quad_rhs is not None:
-            args = [inv_quad_rhs] + list(args)
+        # Special case: use Cholesky to compute these terms
+        if self.linear_solver is None:
+            return self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet, reduce_inv_quad=reduce_inv_quad)
 
-        preconditioner, precond_lt, logdet_p = self._preconditioner()
-        if precond_lt is None:
-            from ..operators.identity_linear_operator import IdentityLinearOperator
+        else:
+            args = self.representation()
+            if inv_quad_rhs is not None:
+                args = [inv_quad_rhs] + list(args)
 
-            precond_lt = IdentityLinearOperator(
-                diag_shape=self.size(-1),
-                batch_shape=self.batch_shape,
-                dtype=self.dtype,
-                device=self.device,
+            preconditioner, precond_lt, logdet_p = self._preconditioner()
+            if precond_lt is None:
+                from ..operators.identity_linear_operator import IdentityLinearOperator
+
+                precond_lt = IdentityLinearOperator(
+                    diag_shape=self.size(-1),
+                    batch_shape=self.batch_shape,
+                    dtype=self.dtype,
+                    device=self.device,
+                )
+                logdet_p = 0.0
+
+            precond_args = precond_lt.representation()
+            probe_vectors, probe_vector_norms = self._probe_vectors_and_norms()
+
+            func = InvQuadLogdet.apply
+            inv_quad_term, pinvk_logdet = func(
+                self.representation_tree(),
+                self.linear_solver,
+                precond_lt.representation_tree(),
+                preconditioner,
+                len(precond_args),
+                (inv_quad_rhs is not None),
+                probe_vectors,
+                probe_vector_norms,
+                *(list(args) + list(precond_args)),
             )
-            logdet_p = 0.0
+            logdet_term = pinvk_logdet
+            logdet_term = logdet_term + logdet_p
 
-        precond_args = precond_lt.representation()
-        probe_vectors, probe_vector_norms = self._probe_vectors_and_norms()
-
-        func = InvQuadLogdet.apply
-        inv_quad_term, pinvk_logdet = func(
-            self.representation_tree(),
-            precond_lt.representation_tree(),
-            preconditioner,
-            len(precond_args),
-            (inv_quad_rhs is not None),
-            probe_vectors,
-            probe_vector_norms,
-            *(list(args) + list(precond_args)),
-        )
-        logdet_term = pinvk_logdet
-        logdet_term = logdet_term + logdet_p
-
-        if inv_quad_term.numel() and reduce_inv_quad:
-            inv_quad_term = inv_quad_term.sum(-1)
-        return inv_quad_term, logdet_term
+            if inv_quad_term.numel() and reduce_inv_quad:
+                inv_quad_term = inv_quad_term.sum(-1)
+            return inv_quad_term, logdet_term
 
     @_implements(torch.inverse)
     def inverse(self) -> "LinearOperator":
@@ -2194,8 +2207,8 @@ class LinearOperator(ABC):
                     )
                 )
 
-        if self.linear_solver is None: 
-            res = self._solve(rhs=right_tensor, preconditioner=self._solve_preconditioner(), num_tridiag=0)
+        if self.linear_solver is None:
+            res = self._solve(rhs=right_tensor)
             if left_tensor is not None:
                 res = left_tensor @ res
             return res
@@ -2203,7 +2216,9 @@ class LinearOperator(ABC):
         else:
             func = Solve
             if left_tensor is None:
-                return func.apply(self.representation_tree(), self.linear_solver, False, right_tensor, *self.representation())
+                return func.apply(
+                    self.representation_tree(), self.linear_solver, False, right_tensor, *self.representation()
+                )
             else:
                 return func.apply(
                     self.representation_tree(),

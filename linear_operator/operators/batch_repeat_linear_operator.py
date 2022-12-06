@@ -231,31 +231,12 @@ class BatchRepeatLinearOperator(LinearOperator):
     def add_jitter(self, jitter_val=1e-3):
         return self.__class__(self.base_linear_op.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
-        if not self.is_square:
-            raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
-                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
-            )
-
-        if inv_quad_rhs is not None:
-            if self.dim() != inv_quad_rhs.dim():
-                raise RuntimeError(
-                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
-                    "of dimensions.".format(self.shape, inv_quad_rhs.shape)
-                )
-            elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
-                raise RuntimeError(
-                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                        self.shape, inv_quad_rhs.shape
-                    )
-                )
-
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
             output_shape = _matmul_broadcast_shape(self.shape, inv_quad_rhs.shape)
             inv_quad_rhs = self._move_repeat_batches_to_columns(inv_quad_rhs, output_shape)
 
-        inv_quad_term, logdet_term = self.base_linear_op.inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=False)
+        inv_quad_term, logdet_term = self.base_linear_op._inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=False)
 
         if inv_quad_term is not None and inv_quad_term.numel():
             inv_quad_term = inv_quad_term.view(*inv_quad_term.shape[:-1], -1, 1, self.batch_repeat.numel())

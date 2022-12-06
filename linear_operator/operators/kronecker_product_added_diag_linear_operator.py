@@ -59,9 +59,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             )
         self._diag_is_constant = isinstance(self.diag_tensor, ConstantDiagLinearOperator)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
-            inv_quad_term, _ = super().inv_quad_logdet(
+            inv_quad_term, _ = super()._inv_quad_logdet(
                 inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad
             )
         else:
@@ -117,8 +117,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         # solves don't use CG so don't waste time computing it
         return None, None, None
 
-    def _solve(self, rhs, preconditioner=None, num_tridiag=0):
-
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
         rhs_dtype = rhs.dtype
 
         # we perform the solve in double for numerical stability issues
@@ -196,7 +195,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             return res.to(rhs_dtype)
 
         # in all other cases we fall back to the default
-        return super()._solve(rhs, preconditioner=preconditioner, num_tridiag=num_tridiag)
+        return super()._solve(rhs)
 
     def _root_decomposition(self):
         if self._diag_is_constant:

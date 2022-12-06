@@ -165,7 +165,7 @@ class ZeroLinearOperator(LinearOperator):
     def inv_quad(self, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = True) -> torch.Tensor:
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
-    def inv_quad_logdet(
+    def _inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         raise RuntimeError("ZeroLinearOperators are not invertible!")

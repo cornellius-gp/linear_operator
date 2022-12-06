@@ -1,32 +1,38 @@
 #!/usr/bin/env python3
 
+from typing import Tuple
+
 import torch
 from torch import Tensor
 from torch.autograd import Function
-from typing import Tuple
 
 from .. import settings
 
-
 # TODO: why is this special casing in here????
 # def _solve(linear_op, rhs):
-    # from ..operators import CholLinearOperator, TriangularLinearOperator
+# from ..operators import CholLinearOperator, TriangularLinearOperator
 
-    # if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
-        # # May want to do this for some KroneckerProductLinearOperators and possibly
-        # # KroneckerProductAddedDiagLinearOperators as well
-        # return linear_op.solve(rhs)
+# if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
+# # May want to do this for some KroneckerProductLinearOperators and possibly
+# # KroneckerProductAddedDiagLinearOperators as well
+# return linear_op.solve(rhs)
 
 
 class Solve(Function):
     @staticmethod
-    def forward(ctx, representation_tree: "LinearOperatorRepresentationTree", solver: "LinearSolver", has_left: bool, *args: Tuple[Tensor, ...]):
+    def forward(
+        ctx,
+        representation_tree: "LinearOperatorRepresentationTree",
+        linear_solver: "LinearSolver",
+        has_left: bool,
+        *args: Tuple[Tensor, ...],
+    ):
         left_tensor = None
         right_tensor = None
         matrix_args = None
 
         ctx.representation_tree = representation_tree
-        ctx.solver = solver
+        ctx.linear_solver = linear_solver
         ctx.has_left = has_left
 
         if ctx.has_left:
@@ -42,13 +48,15 @@ class Solve(Function):
             ctx.is_vector = True
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
+        with torch.no_grad():
+            preconditioner = linear_op.detach()._solve_preconditioner()
         if ctx.has_left:
             rhs = torch.cat([left_tensor.mT, right_tensor], -1)
-            solves = solver.solve(linear_op, rhs)
+            solves = linear_solver.solve(linear_op, rhs, preconditioner=preconditioner)
             res = solves[..., left_tensor.size(-2) :]
             res = left_tensor @ res
         else:
-            solves = solver.solve(linear_op, right_tensor)
+            solves = linear_solver.solve(linear_op, right_tensor, preconditioner=preconditioner)
             res = solves
 
         if ctx.is_vector:
@@ -92,7 +100,7 @@ class Solve(Function):
 
             if not ctx.has_left:
                 # Compute self^{-1} grad_output
-                left_solves = Solve.apply(ctx.representation_tree, ctx.solver, False, grad_output, *matrix_args)
+                left_solves = Solve.apply(ctx.representation_tree, ctx.linear_solver, False, grad_output, *matrix_args)
 
                 if any(ctx.needs_input_grad[4:]):
                     # We call _bilinear_derivative to compute dl/dK

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from torch import Tensor
+
 from .kronecker_product_linear_operator import KroneckerProductLinearOperator
 from .sum_linear_operator import SumLinearOperator
 
@@ -32,7 +34,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         inv_root_times_lt1 = KroneckerProductLinearOperator(*lt2_inv_root_mm_lt2).add_jitter(1.0)
         return inv_root_times_lt1
 
-    def _solve(self, rhs, preconditioner=None, num_tridiag=0):
+    def _solve(self, rhs: Tensor) -> Tensor:
         inner_mat = self._sum_formulation
         # root decomposition may not be trustworthy if it uses a different method than
         # root_inv_decomposition. so ensure that we call this locally
@@ -68,7 +70,7 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         inv_root = lt2_root_inv.matmul(inner_mat_root_inv)
         return inv_root
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         inv_quad_term = None
         logdet_term = None
 

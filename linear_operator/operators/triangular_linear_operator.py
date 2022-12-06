@@ -105,12 +105,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _size(self) -> torch.Size:
         return self._tensor.shape
 
-    def _solve(
-        self,
-        rhs: Tensor,
-        preconditioner: Callable[[Tensor], Tensor],
-        num_tridiag: int = 0,
-    ) -> Tensor:
+    def _solve(self, rhs: Tensor) -> Tensor:
         # already triangular, can just call solve for the solve
         return self.solve(rhs)
 
@@ -140,7 +135,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         """
         return self.__class__(self._tensor.exp(), upper=self.upper)
 
-    def inv_quad_logdet(
+    def _inv_quad_logdet(
         self,
         inv_quad_rhs: Optional[Tensor] = None,
         logdet: bool = False,

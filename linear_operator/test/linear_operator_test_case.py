@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
-from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
 from linear_operator.linear_solvers import CGSolver
+from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
 from linear_operator.settings import linalg_dtypes
 from linear_operator.utils.errors import CachingError
 from linear_operator.utils.memoize import get_from_cache
@@ -489,7 +489,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         res = torch.add(grad, grad.mT).mul(0.5)
         return res
 
-    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
+    def _test_inv_quad_logdet(self, reduce_inv_quad=True, iterative=True, linear_op=None):
         if not self.__class__.skip_slq_tests:
             # Forward
             if linear_op is None:
@@ -497,14 +497,15 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             evaluated = self.evaluate_linear_op(linear_op)
             flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
 
+            if iterative:
+                linear_op.linear_solver = CGSolver(tol=1e-5)
+
             vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 3, requires_grad=True)
             vecs_copy = vecs.clone().detach().requires_grad_(True)
 
             _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
             with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
-                with linear_operator.settings.num_trace_samples(256), linear_operator.settings.max_cholesky_size(
-                    math.inf if cholesky else 0
-                ), linear_operator.settings.cg_tolerance(1e-5):
+                with linear_operator.settings.num_trace_samples(256):
                     with linear_operator.settings.min_preconditioning_size(
                         4
                     ), linear_operator.settings.max_preconditioner_size(2):
@@ -522,18 +523,18 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             self.assertAllClose(res_inv_quad, actual_inv_quad, **self.tolerances["inv_quad"])
             self.assertAllClose(res_logdet, actual_logdet, **self.tolerances["logdet"])
 
-            if not cholesky and self.__class__.should_call_cg:
+            if iterative:
                 self.assertTrue(linear_cg_mock.called)
             else:
                 self.assertFalse(linear_cg_mock.called)
 
-    def _test_solve(self, rhs, lhs=None, cholesky=False):
+    def _test_solve(self, rhs, lhs=None, iterative=True):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(self._ensure_symmetric_grad)
 
-        if not cholesky:
+        if iterative:
             linear_op.linear_solver = CGSolver(tol=1e-4)
 
         # Create a test right hand side and left hand side
@@ -567,7 +568,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["grad"])
 
             # Determine if we've called CG or not
-            if not cholesky and self.__class__.should_call_cg:
+            if iterative:
                 self.assertTrue(linear_cg_mock.called)
             else:
                 self.assertFalse(linear_cg_mock.called)
@@ -844,13 +845,13 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         self._test_half(linear_op)
 
     def test_inv_quad_logdet(self):
-        return self._test_inv_quad_logdet(reduce_inv_quad=False, cholesky=False)
+        return self._test_inv_quad_logdet(reduce_inv_quad=False, iterative=True)
 
     def test_inv_quad_logdet_no_reduce(self):
-        return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=False)
+        return self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=True)
 
     def test_inv_quad_logdet_no_reduce_cholesky(self):
-        return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True)
+        return self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=False)
 
     def test_is_close(self):
         linear_op = self.create_linear_op()
@@ -966,7 +967,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
                 _wrapped_cholesky = MagicMock(wraps=torch.linalg.cholesky_ex)
                 with patch("torch.linalg.cholesky_ex", new=_wrapped_cholesky) as cholesky_mock:
-                    self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True, linear_op=linear_op)
+                    self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=False, linear_op=linear_op)
                 self.assertFalse(cholesky_mock.called)
 
     def test_root_decomposition_cholesky(self):
@@ -995,7 +996,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             sample_covar = samples.unsqueeze(-1).matmul(samples.unsqueeze(-2)).mean(0)
             self.assertAllClose(sample_covar, evaluated, **self.tolerances["sample"])
 
-    def test_solve_vector(self, cholesky=False):
+    def test_solve_vector(self, iterative=True):
         linear_op = self.create_linear_op()
         rhs = torch.randn(linear_op.size(-1))
 
@@ -1006,7 +1007,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         else:
             return self._test_solve(rhs)
 
-    def test_solve_vector_with_left(self, cholesky=False):
+    def test_solve_vector_with_left(self, iterative=True):
         linear_op = self.create_linear_op()
         rhs = torch.randn(linear_op.size(-1))
         lhs = torch.randn(6, linear_op.size(-1))
@@ -1022,15 +1023,15 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
         lhs = torch.randn(*linear_op.batch_shape, 6, linear_op.size(-1))
-        return self._test_solve(rhs, lhs=lhs, cholesky=True)
+        return self._test_solve(rhs, lhs=lhs, iterative=False)
 
-    def test_solve_matrix(self, cholesky=False):
+    def test_solve_matrix(self, iterative=True):
         linear_op = self.create_linear_op()
         rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
-        return self._test_solve(rhs, cholesky=cholesky)
+        return self._test_solve(rhs, iterative=iterative)
 
     def test_solve_matrix_cholesky(self):
-        return self.test_solve_matrix(cholesky=True)
+        return self.test_solve_matrix(iterative=False)
 
     def test_solve_matrix_with_left(self):
         linear_op = self.create_linear_op()

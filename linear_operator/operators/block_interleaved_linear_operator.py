@@ -87,19 +87,16 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         del shape[-3]
         return torch.Size(shape)
 
-    def _solve(self, rhs, preconditioner, num_tridiag=0):
-        if num_tridiag:
-            return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
-        else:
-            rhs = self._add_batch_dim(rhs)
-            res = self.base_linear_op._solve(rhs, preconditioner, num_tridiag=None)
-            res = self._remove_batch_dim(res)
-            return res
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
+        rhs = self._add_batch_dim(rhs)
+        res = self.base_linear_op._solve(rhs)
+        res = self._remove_batch_dim(res)
+        return res
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)
-        inv_quad_res, logdet_res = self.base_linear_op.inv_quad_logdet(
+        inv_quad_res, logdet_res = self.base_linear_op._inv_quad_logdet(
             inv_quad_rhs, logdet, reduce_inv_quad=reduce_inv_quad
         )
         if inv_quad_res is not None and inv_quad_res.numel():

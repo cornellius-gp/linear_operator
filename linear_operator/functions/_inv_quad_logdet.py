@@ -26,10 +26,11 @@ class InvQuadLogdet(Function):
     @staticmethod
     def forward(
         ctx,
-        representation_tree,
-        precond_representation_tree,
-        preconditioner,
-        num_precond_args,
+        representation_tree: "LinearOperatorRepresentationTree",
+        linear_solver: "LinearSolver",
+        precond_representation_tree: "LinearOperatorRepresentationTree",
+        preconditioner: "LinearOperator",
+        num_precond_args: int,
         inv_quad,
         probe_vectors,
         probe_vector_norms,
@@ -129,7 +130,7 @@ class InvQuadLogdet(Function):
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
         rhs = torch.cat(rhs_list, -1)
-        solves, t_mat = linear_op._solve(rhs, preconditioner, num_tridiag=num_random_probes)
+        solves, t_mat = linear_solver.solve(linear_op, rhs, preconditioner, num_tridiag=num_random_probes)
 
         # Final values to return
         logdet_term = torch.zeros(linear_op.batch_shape, dtype=ctx.dtype, device=ctx.device)
@@ -222,4 +223,4 @@ class InvQuadLogdet(Function):
         else:
             res = list(matrix_arg_grads) + list(precond_arg_grads)
 
-        return tuple([None] * 7 + res)
+        return tuple([None] * 8 + res)

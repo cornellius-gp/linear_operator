@@ -59,9 +59,7 @@ class CholLinearOperator(RootLinearOperator):
         # TODO: Can we be smarter here?
         return (self.root.to_dense() ** 2).sum(-1)
 
-    def _solve(self, rhs: torch.Tensor, preconditioner: Callable, num_tridiag: int = 0) -> torch.Tensor:
-        if num_tridiag:
-            return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
         return self.root._cholesky_solve(rhs, upper=self.upper)
 
     @cached
@@ -91,35 +89,9 @@ class CholLinearOperator(RootLinearOperator):
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term
 
-    def inv_quad_logdet(
+    def _inv_quad_logdet(
         self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        if not self.is_square:
-            raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
-                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
-            )
-
-        if inv_quad_rhs is not None:
-            if self.dim() == 2 and inv_quad_rhs.dim() == 1:
-                if self.shape[-1] != inv_quad_rhs.numel():
-                    raise RuntimeError(
-                        "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                            self.shape, inv_quad_rhs.shape
-                        )
-                    )
-            elif self.dim() != inv_quad_rhs.dim():
-                raise RuntimeError(
-                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
-                    "of dimensions.".format(self.shape, inv_quad_rhs.shape)
-                )
-            elif self.shape[-1] != inv_quad_rhs.shape[-2]:
-                raise RuntimeError(
-                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                        self.shape, inv_quad_rhs.shape
-                    )
-                )
-
         inv_quad_term = None
         logdet_term = None
 
@@ -139,14 +111,3 @@ class CholLinearOperator(RootLinearOperator):
     ) -> LinearOperator:
         inv_root = self.root.inverse()
         return RootLinearOperator(inv_root._transpose_nonbatch())
-
-    def solve(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
-        is_vector = right_tensor.ndim == 1
-        if is_vector:
-            right_tensor = right_tensor.unsqueeze(-1)
-        res = self.root._cholesky_solve(right_tensor, upper=self.upper)
-        if is_vector:
-            res = res.squeeze(-1)
-        if left_tensor is not None:
-            res = left_tensor @ res
-        return res

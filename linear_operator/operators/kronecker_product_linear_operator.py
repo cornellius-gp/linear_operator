@@ -136,9 +136,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         inverses = [lt.inverse() for lt in self.linear_ops]
         return self.__class__(*inverses)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
-            inv_quad_term, _ = super().inv_quad_logdet(
+            inv_quad_term, _ = super()._inv_quad_logdet(
                 inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad
             )
         else:
@@ -177,7 +177,7 @@ class KroneckerProductLinearOperator(LinearOperator):
 
         return res
 
-    def _solve(self, rhs, preconditioner=None, num_tridiag=0):
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
         # Computes solve by exploiting the identity (A \kron B)^-1 = A^-1 \kron B^-1
         # we perform the solve first before worrying about any tridiagonal matrices
 
@@ -192,18 +192,15 @@ class KroneckerProductLinearOperator(LinearOperator):
             y = y.reshape(*batch_shape, n, n_rows // n, -1).permute(*perm_batch, -2, -3, -1)
         res = y.reshape(*batch_shape, n_rows, -1)
 
-        if num_tridiag == 0:
-            return res
-        else:
-            # we need to return the t mat, so we return the eigenvalues
-            # in general, this should not be called because log determinant estimation
-            # is closed form and is implemented in _logdet
-            # TODO: make this more efficient
-            evals, _ = self.diagonalization()
-            evals_repeated = evals.unsqueeze(0).repeat(num_tridiag, *[1] * evals.ndim)
-            lazy_evals = DiagLinearOperator(evals_repeated)
-            batch_repeated_evals = lazy_evals.to_dense()
-            return res, batch_repeated_evals
+        # we need to return the t mat, so we return the eigenvalues
+        # in general, this should not be called because log determinant estimation
+        # is closed form and is implemented in _logdet
+        # TODO: make this more efficient
+        evals, _ = self.diagonalization()
+        evals_repeated = evals.unsqueeze(0).repeat(num_tridiag, *[1] * evals.ndim)
+        lazy_evals = DiagLinearOperator(evals_repeated)
+        # batch_repeated_evals = lazy_evals.to_dense()
+        return res  # , batch_repeated_evals
 
     def _inv_matmul(self, right_tensor, left_tensor=None):
         # if _inv_matmul is called, we ignore the eigenvalue handling

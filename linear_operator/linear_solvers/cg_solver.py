@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 
+from typing import Callable, Optional
+
 import torch
 from torch import Tensor
 
-from .linear_solver import LinearSolver, SolverState
+from .. import settings, utils
 from ..operators import LinearOperator
-from .. import utils
-from .. import settings
+from .linear_solver import LinearSolver, SolverState
 
 
 class CGSolver(LinearSolver):
@@ -20,16 +21,15 @@ class CGSolver(LinearSolver):
         self.tol = tol
         self.max_iter = max_iter if max_iter is not None else settings.max_cg_iterations.value()
 
-    def solve(self, linear_op: LinearOperator, rhs: Tensor) -> SolverState:
-        with torch.no_grad():
-            preconditioner = linear_op.detach()._solve_preconditioner()
+    def solve(
+        self, linear_op: LinearOperator, rhs: Tensor, preconditioner: Optional[Callable] = None, num_tridiag: int = 0
+    ) -> SolverState:
         return utils.linear_cg(
             linear_op._matmul,
             rhs,
             tolerance=self.tol,
-            n_tridiag=0,
+            n_tridiag=num_tridiag,
             max_iter=self.max_iter,
             max_tridiag_iter=settings.max_lanczos_quadrature_iterations.value(),
             preconditioner=preconditioner,
         )
-

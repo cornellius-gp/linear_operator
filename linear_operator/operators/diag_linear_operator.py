@@ -121,7 +121,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         """
         return self.__class__(self._diag.reciprocal())
 
-    def inv_quad_logdet(
+    def _inv_quad_logdet(
         self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
     ) -> Tuple[Tensor, Tensor]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)

@@ -53,7 +53,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _preconditioner(self):
         return None, None, None
 
-    def _solve(self, rhs, preconditioner=None, num_tridiag=0):
+    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._linear_op.root
         V = self._linear_op.root.mT
@@ -89,33 +89,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         else:
             return AddedDiagLinearOperator(self._linear_op + other, self._diag_tensor)
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
-        if not self.is_square:
-            raise RuntimeError(
-                "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
-                "Got a {} of size {}.".format(self.__class__.__name__, self.size())
-            )
-
-        if inv_quad_rhs is not None:
-            if self.dim() == 2 and inv_quad_rhs.dim() == 1:
-                if self.shape[-1] != inv_quad_rhs.numel():
-                    raise RuntimeError(
-                        "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                            self.shape, inv_quad_rhs.shape
-                        )
-                    )
-            elif self.dim() != inv_quad_rhs.dim():
-                raise RuntimeError(
-                    "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
-                    "of dimensions.".format(self.shape, inv_quad_rhs.shape)
-                )
-            elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
-                raise RuntimeError(
-                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
-                        self.shape, inv_quad_rhs.shape
-                    )
-                )
-
+    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         inv_quad_term, logdet_term = None, None
 
         if inv_quad_rhs is not None:
