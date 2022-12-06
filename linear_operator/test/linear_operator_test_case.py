@@ -9,6 +9,7 @@ import torch
 
 import linear_operator
 from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
+from linear_operator.linear_solvers import CGSolver
 from linear_operator.settings import linalg_dtypes
 from linear_operator.utils.errors import CachingError
 from linear_operator.utils.memoize import get_from_cache
@@ -532,6 +533,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(self._ensure_symmetric_grad)
 
+        if not cholesky:
+            linear_op.linear_solver = CGSolver(tol=1e-4)
+
         # Create a test right hand side and left hand side
         rhs.requires_grad_(True)
         rhs_copy = rhs.clone().detach().requires_grad_(True)
@@ -541,28 +545,26 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
         _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
         with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
-            with linear_operator.settings.max_cholesky_size(
-                math.inf if cholesky else 0
-            ), linear_operator.settings.cg_tolerance(1e-4):
-                # Perform the solve
-                if lhs is not None:
-                    res = linear_operator.solve(linear_op, rhs, lhs)
-                    actual = lhs_copy @ evaluated.inverse() @ rhs_copy
-                else:
-                    res = torch.linalg.solve(linear_op, rhs)
-                    actual = evaluated.inverse().matmul(rhs_copy)
-                self.assertAllClose(res, actual, **self.tolerances["solve"])
 
-                # Perform backward pass
-                grad = torch.randn_like(res)
-                res.backward(gradient=grad)
-                actual.backward(gradient=grad)
-                for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-                    if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
-                        self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["grad"])
-                self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["grad"])
-                if lhs is not None:
-                    self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["grad"])
+            # Perform the solve
+            if lhs is not None:
+                res = linear_operator.solve(linear_op, rhs, lhs)
+                actual = lhs_copy @ evaluated.inverse() @ rhs_copy
+            else:
+                res = torch.linalg.solve(linear_op, rhs)
+                actual = evaluated.inverse().matmul(rhs_copy)
+            self.assertAllClose(res, actual, **self.tolerances["solve"])
+
+            # Perform backward pass
+            grad = torch.randn_like(res)
+            res.backward(gradient=grad)
+            actual.backward(gradient=grad)
+            for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+                if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+                    self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["grad"])
+            self.assertAllClose(rhs.grad, rhs_copy.grad, **self.tolerances["grad"])
+            if lhs is not None:
+                self.assertAllClose(lhs.grad, lhs_copy.grad, **self.tolerances["grad"])
 
             # Determine if we've called CG or not
             if not cholesky and self.__class__.should_call_cg:

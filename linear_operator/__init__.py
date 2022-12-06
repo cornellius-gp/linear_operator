@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from . import beta_features, operators, settings, utils
+from . import beta_features, linear_solvers, operators, settings, utils
 from .functions import (
     add_diagonal,
     add_jitter,
@@ -34,6 +34,7 @@ __all__ = [
     "diagonalization",
     "inv_quad",
     "inv_quad_logdet",
+    "linear_solvers",
     "pivoted_cholesky",
     "root_decomposition",
     "root_inv_decomposition",

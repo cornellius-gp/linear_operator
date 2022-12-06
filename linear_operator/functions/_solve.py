@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
 
 import torch
+from torch import Tensor
 from torch.autograd import Function
+from typing import Tuple
 
 from .. import settings
 
 
-def _solve(linear_op, rhs):
-    from ..operators import CholLinearOperator, TriangularLinearOperator
+# TODO: why is this special casing in here????
+# def _solve(linear_op, rhs):
+    # from ..operators import CholLinearOperator, TriangularLinearOperator
 
-    if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
-        # May want to do this for some KroneckerProductLinearOperators and possibly
-        # KroneckerProductAddedDiagLinearOperators as well
-        return linear_op.solve(rhs)
-    if settings.fast_computations.solves.off() or linear_op.size(-1) <= settings.max_cholesky_size.value():
-        return linear_op.cholesky()._cholesky_solve(rhs)
-    else:
-        with torch.no_grad():
-            preconditioner = linear_op.detach()._solve_preconditioner()
-        return linear_op._solve(rhs, preconditioner)
+    # if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
+        # # May want to do this for some KroneckerProductLinearOperators and possibly
+        # # KroneckerProductAddedDiagLinearOperators as well
+        # return linear_op.solve(rhs)
 
 
 class Solve(Function):
     @staticmethod
-    def forward(ctx, representation_tree, has_left, *args):
+    def forward(ctx, representation_tree: "LinearOperatorRepresentationTree", solver: "LinearSolver", has_left: bool, *args: Tuple[Tensor, ...]):
         left_tensor = None
         right_tensor = None
         matrix_args = None
 
         ctx.representation_tree = representation_tree
+        ctx.solver = solver
         ctx.has_left = has_left
 
         if ctx.has_left:
@@ -46,11 +44,11 @@ class Solve(Function):
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
         if ctx.has_left:
             rhs = torch.cat([left_tensor.mT, right_tensor], -1)
-            solves = _solve(linear_op, rhs)
+            solves = solver.solve(linear_op, rhs)
             res = solves[..., left_tensor.size(-2) :]
             res = left_tensor @ res
         else:
-            solves = _solve(linear_op, right_tensor)
+            solves = solver.solve(linear_op, right_tensor)
             res = solves
 
         if ctx.is_vector:
@@ -94,29 +92,12 @@ class Solve(Function):
 
             if not ctx.has_left:
                 # Compute self^{-1} grad_output
-                left_solves = Solve.apply(ctx.representation_tree, False, grad_output, *matrix_args)
+                left_solves = Solve.apply(ctx.representation_tree, ctx.solver, False, grad_output, *matrix_args)
 
-                if any(ctx.needs_input_grad[3:]):
+                if any(ctx.needs_input_grad[4:]):
                     # We call _bilinear_derivative to compute dl/dK
                     # To ensure that this term is symmetric, we concatenate the left and right solves together,
                     # and divide the result by 1/2
-                    arg_grads = linear_op._bilinear_derivative(
-                        torch.cat([left_solves, right_solves], -1), torch.cat([right_solves, left_solves], -1).mul(-0.5)
-                    )
-                if ctx.needs_input_grad[2]:
-                    right_grad = left_solves
-                    if ctx.is_vector:
-                        right_grad.squeeze_(-1)
-
-                return tuple([None, None] + [right_grad] + list(arg_grads))
-
-            else:
-                left_solves = left_solves @ grad_output
-
-                if ctx.needs_input_grad[2]:
-                    left_grad = grad_output @ right_solves.mT
-                if any(ctx.needs_input_grad[4:]):
-                    # We do this concatenation to ensure that the gradient of linear_op is symmetric
                     arg_grads = linear_op._bilinear_derivative(
                         torch.cat([left_solves, right_solves], -1), torch.cat([right_solves, left_solves], -1).mul(-0.5)
                     )
@@ -125,4 +106,21 @@ class Solve(Function):
                     if ctx.is_vector:
                         right_grad.squeeze_(-1)
 
-                return tuple([None, None] + [left_grad, right_grad] + list(arg_grads))
+                return tuple([None, None, None] + [right_grad] + list(arg_grads))
+
+            else:
+                left_solves = left_solves @ grad_output
+
+                if ctx.needs_input_grad[3]:
+                    left_grad = grad_output @ right_solves.mT
+                if any(ctx.needs_input_grad[5:]):
+                    # We do this concatenation to ensure that the gradient of linear_op is symmetric
+                    arg_grads = linear_op._bilinear_derivative(
+                        torch.cat([left_solves, right_solves], -1), torch.cat([right_solves, left_solves], -1).mul(-0.5)
+                    )
+                if ctx.needs_input_grad[4]:
+                    right_grad = left_solves
+                    if ctx.is_vector:
+                        right_grad.squeeze_(-1)
+
+                return tuple([None, None, None] + [left_grad, right_grad] + list(arg_grads))

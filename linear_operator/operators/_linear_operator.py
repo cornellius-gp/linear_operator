@@ -132,7 +132,7 @@ class LinearOperator(ABC):
         """
         return None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, linear_solver: Optional["LinearSolver"] = None, **kwargs):
         if settings.debug.on():
             err = self._check_args(*args, **kwargs)
             if err is not None:
@@ -140,6 +140,7 @@ class LinearOperator(ABC):
 
         self._args = args
         self._kwargs = kwargs
+        self.linear_solver = linear_solver
 
     ####
     # The following methods need to be defined by the LinearOperator
@@ -732,14 +733,7 @@ class LinearOperator(ABC):
         r"""
         TODO
         """
-        return utils.linear_cg(
-            self._matmul,
-            rhs,
-            n_tridiag=num_tridiag,
-            max_iter=settings.max_cg_iterations.value(),
-            max_tridiag_iter=settings.max_lanczos_quadrature_iterations.value(),
-            preconditioner=preconditioner,
-        )
+        return self.cholesky()._cholesky_solve(rhs)
 
     def _solve_preconditioner(self) -> Callable:
         r"""
@@ -2200,17 +2194,25 @@ class LinearOperator(ABC):
                     )
                 )
 
-        func = Solve
-        if left_tensor is None:
-            return func.apply(self.representation_tree(), False, right_tensor, *self.representation())
+        if self.linear_solver is None: 
+            res = self._solve(rhs=right_tensor, preconditioner=self._solve_preconditioner(), num_tridiag=0)
+            if left_tensor is not None:
+                res = left_tensor @ res
+            return res
+
         else:
-            return func.apply(
-                self.representation_tree(),
-                True,
-                left_tensor,
-                right_tensor,
-                *self.representation(),
-            )
+            func = Solve
+            if left_tensor is None:
+                return func.apply(self.representation_tree(), self.linear_solver, False, right_tensor, *self.representation())
+            else:
+                return func.apply(
+                    self.representation_tree(),
+                    self.linear_solver,
+                    True,
+                    left_tensor,
+                    right_tensor,
+                    *self.representation(),
+                )
 
     @_implements(torch.linalg.solve_triangular)
     def solve_triangular(
