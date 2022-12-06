@@ -8,6 +8,7 @@ import numbers
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
+from types import EllipsisType
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -753,7 +754,7 @@ class LinearOperator(LinearOperatorBase):
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable],
         num_tridiag: int = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "_ N N"]]]:
+    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         r"""
         TODO
         """
@@ -841,7 +842,7 @@ class LinearOperator(LinearOperatorBase):
 
     def _symeig(
         self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
-    ) -> Tuple[Float[Tensor, " M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         r"""
         Method that allows implementing special-cased symeig computation. Should not be called directly
         """
@@ -1378,7 +1379,7 @@ class LinearOperator(LinearOperatorBase):
     @cached(name="diagonalization")
     def diagonalization(
         self: Float[LinearOperator, "*batch N N"], method: Optional[str] = None
-    ) -> Tuple[Float[Tensor, " M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         """
         Returns a (usually partial) diagonalization of a symmetric PSD matrix.
         Options are either "lanczos" or "symeig". "lanczos" runs Lanczos while
@@ -2292,7 +2293,7 @@ class LinearOperator(LinearOperatorBase):
         self: Float[LinearOperator, "*batch N N"],
         rhs: Float[Tensor, "*batch N P"],
         lhs: Optional[Float[Tensor, "*batch O N"]] = None,
-    ) -> Union[Float[Tensor, "*batch N P"], Tuple[Float[Tensor, "*batch N P"], Float[Tensor, "*batch O P"]]]:
+    ) -> Union[Float[Tensor, "*batch N P"], Tuple[Float[Tensor, "*batch O P"], Float[Tensor, "*batch O"]]]:
         r"""
         If the LinearOperator :math:`\mathbf A` is positive definite,
         computes
@@ -2674,7 +2675,7 @@ class LinearOperator(LinearOperatorBase):
             return SumLinearOperator(self, other)
 
     def __getitem__(
-        self, index: Tuple[Union[slice, torch.LongTensor, int, Ellipsis], ...]
+        self, index: Union[slice, torch.LongTensor, int, Tuple[Union[slice, torch.LongTensor, int, EllipsisType], ...]]
     ) -> Union[LinearOperator, torch.Tensor]:
         ndimension = self.ndimension()
 

@@ -42,7 +42,7 @@ class DenseLinearOperator(LinearOperator):
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: torch.LongTensor
     ) -> torch.Tensor:
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
@@ -50,9 +50,9 @@ class DenseLinearOperator(LinearOperator):
 
     def _getitem(
         self,
-        row_index: Union[slice, torch.LongTensor],
-        col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+        row_index: Union[slice, torch.LongTensor, int],
+        col_index: Union[slice, torch.LongTensor, int],
+        *batch_indices: Union[int, slice, torch.LongTensor],
     ) -> DenseLinearOperator:
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
