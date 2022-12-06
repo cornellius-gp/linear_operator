@@ -7,7 +7,7 @@ from torch import Tensor
 
 from .. import settings
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .block_diag_linear_operator import BlockDiagLinearOperator
 from .dense_linear_operator import DenseLinearOperator
 from .triangular_linear_operator import TriangularLinearOperator
@@ -56,9 +56,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     def _diagonal(self) -> Tensor:
         return self._diag
 
-    def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
-    ) -> Tensor:
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> Tensor:
         res = self._diag[(*batch_indices, row_index)]
         # If row and col index don't agree, then we have off diagonal elements
         # Those should be zero'd out

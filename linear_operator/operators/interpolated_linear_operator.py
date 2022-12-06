@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
-
 import torch
 
 from ..utils import sparse
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .diag_linear_operator import DiagLinearOperator
 from .root_linear_operator import RootLinearOperator
@@ -120,7 +118,7 @@ class InterpolatedLinearOperator(LinearOperator):
             self.right_interp_values.expand(*batch_shape, *self.right_interp_values.shape[-2:]),
         )
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType):
         left_interp_indices = self.left_interp_indices.__getitem__((*batch_indices, row_index)).unsqueeze(-2)
         right_interp_indices = self.right_interp_indices.__getitem__((*batch_indices, col_index)).unsqueeze(-1)
         base_vals = self.base_linear_op._get_indices(
@@ -138,9 +136,9 @@ class InterpolatedLinearOperator(LinearOperator):
 
     def _getitem(
         self,
-        row_index: Union[slice, torch.LongTensor],
-        col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
     ) -> LinearOperator:
         # Handle batch dimensions
         # Construt a new LinearOperator

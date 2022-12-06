@@ -3,13 +3,17 @@
 import unittest
 
 import torch
+from jaxtyping import install_import_hook
 
-from linear_operator.operators import (
-    AddedDiagLinearOperator,
-    DenseLinearOperator,
-    DiagLinearOperator,
-    RootLinearOperator,
-)
+with install_import_hook("linear_operator", ("typeguard", "typechecked")):
+    from linear_operator.operators import (
+        AddedDiagLinearOperator,
+        DenseLinearOperator,
+        DiagLinearOperator,
+        RootLinearOperator,
+    )
+
+
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 

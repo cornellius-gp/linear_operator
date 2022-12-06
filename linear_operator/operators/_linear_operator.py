@@ -44,6 +44,9 @@ _HANDLED_SECOND_ARG_FUNCTIONS = {}
 _TYPES_DICT = {torch.float: "float", torch.half: "half", torch.double: "double"}
 
 
+IndexType = Union[EllipsisType, slice, torch.LongTensor, int]
+
+
 def _implements(torch_function: Callable) -> Callable:
     """
     Register a torch function override for LinearOperator
@@ -236,9 +239,9 @@ class LinearOperator(LinearOperatorBase):
 
     def _getitem(
         self,
-        row_index: Union[slice, torch.LongTensor],
-        col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Union[int, slice, torch.LongTensor],
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
     ) -> LinearOperator:
         """
         Supports subindexing of the matrix this LinearOperator represents.
@@ -390,9 +393,7 @@ class LinearOperator(LinearOperatorBase):
         )
         return self.repeat(*batch_repeat, 1, 1)
 
-    def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: torch.LongTensor
-    ) -> torch.Tensor:
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         """
         This method selects elements from the LinearOperator based on tensor indices for each dimension.
         All indices are tensor indices that are broadcastable.
@@ -2600,7 +2601,7 @@ class LinearOperator(LinearOperatorBase):
     # TODO: replace this method with something like sqrt_matmul.
     def zero_mean_mvn_samples(
         self: Float[LinearOperator, "*batch N N"], num_samples: int
-    ) -> Float[Tensor, "*batch S N"]:
+    ) -> Float[Tensor, "num_samples *batch N"]:
         r"""
         Assumes that the LinearOpeator :math:`\mathbf A` is a covariance
         matrix, or a batch of covariance matrices.
@@ -2648,7 +2649,8 @@ class LinearOperator(LinearOperatorBase):
         return samples
 
     def __add__(
-        self: Float[LinearOperator, "... M N"], other: Union[Tensor, LinearOperator, float]
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
     ) -> Float[LinearOperator, "... M N"]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator
@@ -2674,9 +2676,7 @@ class LinearOperator(LinearOperatorBase):
         else:
             return SumLinearOperator(self, other)
 
-    def __getitem__(
-        self, index: Union[slice, torch.LongTensor, int, Tuple[Union[slice, torch.LongTensor, int, EllipsisType], ...]]
-    ) -> Union[LinearOperator, torch.Tensor]:
+    def __getitem__(self, index: Union[IndexType, Tuple[IndexType, ...]]) -> Union[LinearOperator, torch.Tensor]:
         ndimension = self.ndimension()
 
         # Process the index

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 
 
 def apply_permutation(
-    matrix: Union["LinearOperator", torch.Tensor],  # noqa: F821
+    matrix: Union[Any, torch.Tensor],  # Union["LinearOperator", torch.Tensor]
     left_permutation: Optional[torch.Tensor] = None,
     right_permutation: Optional[torch.Tensor] = None,
 ):

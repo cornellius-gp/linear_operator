@@ -71,19 +71,20 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._r_cache = None
 
     def _matmul(
-        self: Float[AddedDiagLinearOperator, "*batch N N"], rhs: Float[torch.Tensor, "*batch N C"]
-    ) -> Float[torch.Tensor, "*batch N C"]:
+        self: Float[AddedDiagLinearOperator, "*batch N N"], rhs: Float[torch.Tensor, "*batch2 N C"]
+    ) -> Float[torch.Tensor, "... N C"]:
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
     def add_diagonal(
-        self: Float[AddedDiagLinearOperator, "*batch N N"], added_diag: Float[Tensor, "*batch N"]
-    ) -> Float[AddedDiagLinearOperator, "*batch N N"]:
-        return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(added_diag))
+        self: Float[AddedDiagLinearOperator, "*batch N N"],
+        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
+    ) -> Float[LinearOperator, "*batch N N"]:
+        return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(diag))
 
     def __add__(
-        self: Float[AddedDiagLinearOperator, "*batch N N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]],
-    ) -> Float[AddedDiagLinearOperator, "*batch N N"]:
+        self: Float[AddedDiagLinearOperator, "... N N"],
+        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... N N"]],
+    ) -> Float[AddedDiagLinearOperator, "... N N"]:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -93,7 +94,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def _preconditioner(
         self: Float[AddedDiagLinearOperator, "*batch N N"]
-    ) -> Tuple[Callable, Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch 1"]]:
+    ) -> Tuple[Optional[Callable], Optional[Float[LinearOperator, "*batch N N"]], Optional[Float[Tensor, " *batch"]]]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 
@@ -159,7 +160,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
         self._precond_lt = PsdSumLinearOperator(RootLinearOperator(self._piv_chol_self), self._diag_tensor)
 
-    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: torch.Size, n: int, k: int):
+    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, list[int]], n: int, k: int):
         # We can factor out the noise for for both QR and solves.
         self._noise = self._noise.narrow(-2, 0, 1)
         self._q_cache, self._r_cache = torch.linalg.qr(
@@ -172,7 +173,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         logdet = logdet + (n - k) * self._noise.squeeze(-2).squeeze(-1).log()
         self._precond_logdet_cache = logdet.view(*batch_shape) if len(batch_shape) else logdet.squeeze()
 
-    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: torch.Size, n: int):
+    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, list[int]], n: int):
         # With non-constant diagonals, we cant factor out the noise as easily
         self._q_cache, self._r_cache = torch.linalg.qr(
             torch.cat((self._piv_chol_self / self._noise.sqrt(), eye), dim=-2)
@@ -196,7 +197,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def _symeig(
         self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
-    ) -> Tuple[Float[Tensor, " M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor._diagonal()
