@@ -659,8 +659,8 @@ class LinearOperator(LinearOperatorBase):
         return res
 
     def _root_decomposition(
-        self: Float[LinearOperator, "*batch N N"]
-    ) -> Union[Float[torch.Tensor, "*batch N N"], Float[LinearOperator, "*batch N N"]]:
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         """
         Returns the (usually low-rank) root of a LinearOperator of a PSD matrix.
 
@@ -1959,7 +1959,7 @@ class LinearOperator(LinearOperatorBase):
 
         return self._prod_batch(dim)
 
-    def repeat(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+    def repeat(self, *sizes: Union[int, Tuple[int, ...]]) -> LinearOperator:
         """
         Repeats this tensor along the specified dimensions.
 
