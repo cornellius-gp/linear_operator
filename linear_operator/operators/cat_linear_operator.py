@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
 from ..utils.deprecation import bool_compat
 from ..utils.getitem import _noop_index
-from ._linear_operator import LinearOperator, to_dense
+from ._linear_operator import IndexType, LinearOperator, to_dense
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 
 
@@ -100,7 +102,7 @@ class CatLinearOperator(LinearOperator):
             (*rep_tensor.shape[:positive_dim], cat_dim_cum_sizes[-1].item(), *rep_tensor.shape[positive_dim + 1 :])
         )
 
-    def _split_slice(self, slice_idx):
+    def _split_slice(self, slice_idx: slice) -> Tuple[Sequence[int], list[slice, ...]]:
         """
         Splits a slice(a, b, None) in to a list of slices [slice(a1, b1, None), slice(a2, b2, None), ...]
         so that each slice in the list slices in to a single tensor that we have concatenated with this LinearOperator.
@@ -128,7 +130,7 @@ class CatLinearOperator(LinearOperator):
                 [first_slice] + [_noop_index] * num_middle_tensors + [last_slice],
             )
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         if self.cat_dim == -2:
             res = []
             curr_col = 0
@@ -153,7 +155,9 @@ class CatLinearOperator(LinearOperator):
             res = torch.cat([t._diagonal().to(self.device) for t in self.linear_ops], dim=self.cat_dim + 1)
         return res
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         batch_dim = self.cat_dim + 2
         if batch_dim < 0:
             if batch_shape[batch_dim] != self.batch_shape[batch_dim]:
@@ -171,7 +175,7 @@ class CatLinearOperator(LinearOperator):
         res = self.__class__(*linear_ops, dim=self.cat_dim, output_device=self.output_device)
         return res
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         indices = [*batch_indices, row_index, col_index]
         target_shape = torch.broadcast_shapes(*[index.shape for index in indices])
         indices = [index.expand(target_shape).reshape(-1) for index in indices]
@@ -216,9 +220,9 @@ class CatLinearOperator(LinearOperator):
 
     def _getitem(
         self,
-        row_index: Union[slice, torch.LongTensor],
-        col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
     ) -> LinearOperator:
         indices = [*batch_indices, row_index, col_index]
         cat_dim_indices = indices[self.cat_dim]
@@ -292,7 +296,10 @@ class CatLinearOperator(LinearOperator):
             res = self.__class__(*res_list, dim=updated_cat_dim, output_device=self.output_device)
             return res
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         output_device = self.device if self.device is not None else rhs.device
         # make a copy of `rhs` on each device
         rhs_ = []
@@ -335,7 +342,7 @@ class CatLinearOperator(LinearOperator):
 
         return res
 
-    def _permute_batch(self, *dims):
+    def _permute_batch(self, *dims: int) -> LinearOperator:
         linear_ops = [linear_op._permute_batch(*dims) for linear_op in self.linear_ops]
         if self.cat_dim < -2:
             positive_cat_dim = self.dim() + self.cat_dim
@@ -344,10 +351,10 @@ class CatLinearOperator(LinearOperator):
             new_cat_dim = self.cat_dim
         return self.__class__(*linear_ops, dim=new_cat_dim, output_device=self.output_device)
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return self._shape
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         if self.cat_dim == -2:
             new_dim = -1
         elif self.cat_dim == -1:
@@ -358,7 +365,7 @@ class CatLinearOperator(LinearOperator):
             *[t._transpose_nonbatch() for t in self.linear_ops], dim=new_dim, output_device=self.output_device
         )
 
-    def _unsqueeze_batch(self, dim):
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         cat_dim = self.dim() + self.cat_dim
         linear_ops = [linear_op._unsqueeze_batch(dim) for linear_op in self.linear_ops]
         res = self.__class__(
@@ -370,21 +377,26 @@ class CatLinearOperator(LinearOperator):
         return torch.cat([to_dense(L) for L in self.linear_ops], dim=self.cat_dim)
 
     def inv_quad_logdet(
-        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
+    ) -> Tuple[
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+    ]:
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
         return tuple(r.to(self.device) for r in res)
 
     @property
-    def device(self):
+    def device(self) -> Optional[torch.device]:
         return self.output_device
 
     @property
-    def devices(self):
+    def devices(self) -> list[torch.device]:
         return [t.device for t in self.linear_ops]
 
     @property
-    def device_count(self):
+    def device_count(self) -> int:
         return len(set(self.devices))
 
     def to(self, *args, **kwargs):

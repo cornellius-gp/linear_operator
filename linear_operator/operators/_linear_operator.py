@@ -324,7 +324,7 @@ class LinearOperator(LinearOperatorBase):
     ####
     # The following methods PROBABLY should be over-written by LinearOperator subclasses for efficiency
     ####
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor]]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         r"""
         Given :math:`\mathbf U` (left_vecs) and :math:`\mathbf V` (right_vecs),
         Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.

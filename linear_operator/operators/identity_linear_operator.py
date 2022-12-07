@@ -49,7 +49,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return self._dtype
 
     @property
-    def device(self) -> torch.device:
+    def device(self) -> Optional[torch.device]:
         return self._device
 
     def _maybe_reshape_rhs(self, rhs: torch.Tensor) -> torch.Tensor:
