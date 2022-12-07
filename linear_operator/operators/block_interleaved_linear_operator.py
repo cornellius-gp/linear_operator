@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.memoize import cached
+from ._linear_operator import IndexType, LinearOperator
 from .block_linear_operator import BlockLinearOperator
 
 
@@ -23,7 +26,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
     """
 
     @property
-    def num_blocks(self):
+    def num_blocks(self) -> int:
         return self.base_linear_op.size(-3)
 
     def _add_batch_dim(self, other):
@@ -36,7 +39,9 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         return other
 
     @cached(name="cholesky")
-    def _cholesky(self, upper=False):
+    def _cholesky(
+        self: Float[LinearOperator, "*batch N N"], upper: bool = False
+    ) -> Float[LinearOperator, "*batch N N"]:
         from .triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_linear_op.cholesky(upper=upper))
@@ -48,11 +53,11 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         res = self._remove_batch_dim(res)
         return res
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         block_diag = self.base_linear_op._diagonal()
         return block_diag.mT.contiguous().view(*block_diag.shape[:-2], -1)
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         # Figure out what block the row/column indices belong to
         row_index_block = row_index.fmod(self.base_linear_op.size(-3))
         col_index_block = col_index.fmod(self.base_linear_op.size(-3))
@@ -75,20 +80,31 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         other = other.reshape(*shape)
         return other
 
-    def _root_decomposition(self):
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         return self.__class__(self.base_linear_op._root_decomposition())
 
-    def _root_inv_decomposition(self, initial_vectors=None):
+    def _root_inv_decomposition(
+        self: Float[LinearOperator, "*batch N N"],
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> Float[LinearOperator, "*batch N N"]:
         return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         shape = list(self.base_linear_op.shape)
         shape[-2] *= shape[-3]
         shape[-1] *= shape[-3]
         del shape[-3]
         return torch.Size(shape)
 
-    def _solve(self, rhs, preconditioner, num_tridiag=0):
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable],
+        num_tridiag: Optional[int] = 0,
+    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         else:
@@ -98,8 +114,13 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
             return res
 
     def inv_quad_logdet(
-        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
+    ) -> Tuple[
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+    ]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)
         inv_quad_res, logdet_res = self.base_linear_op.inv_quad_logdet(

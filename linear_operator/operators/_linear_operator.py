@@ -477,7 +477,7 @@ class LinearOperator(LinearOperatorBase):
     @cached(name="cholesky")
     def _cholesky(
         self: Float[LinearOperator, "*batch N N"], upper: bool = False
-    ) -> Float[LinearOperator, "*batch N N"]:  # TODO  return Float[LinearOperator, "*batch N N", linop_diagonal]
+    ) -> Float[LinearOperator, "*batch N N"]:
         """
         (Optional) Cholesky-factorizes the LinearOperator
 
