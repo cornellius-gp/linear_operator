@@ -167,8 +167,8 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         return inv_quad_res, logdet_res
 
     def matmul(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N P"], Float[Tensor, " N"], Float[LinearOperator, "... N P"]],
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         from .diag_linear_operator import DiagLinearOperator
 

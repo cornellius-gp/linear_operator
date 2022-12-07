@@ -157,8 +157,8 @@ class LinearOperator(LinearOperatorBase):
     @abstractmethod
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch N C"], Float[torch.Tensor, "*batch N"]],
-    ) -> Union[Float[torch.Tensor, "*batch M C"], Float[torch.Tensor, "*batch M"]]:
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         r"""
         Performs a matrix multiplication :math:`\mathbf KM` with the (... x M x N) matrix :math:`\mathbf K`
         that this LinearOperator represents. Should behave as
@@ -1765,8 +1765,8 @@ class LinearOperator(LinearOperatorBase):
 
     @_implements(torch.matmul)
     def matmul(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N P"], Float[Tensor, " N"], Float[LinearOperator, "... N P"]],
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         r"""
         Performs :math:`\mathbf A \mathbf B`, where :math:`\mathbf A \in

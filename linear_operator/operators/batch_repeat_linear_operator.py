@@ -107,8 +107,8 @@ class BatchRepeatLinearOperator(LinearOperator):
         return new_linear_op._getitem(row_index, col_index, *batch_indices)
 
     def _matmul(
-        self: Float[BatchRepeatLinearOperator, "... M N"],
-        rhs: Union[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N"]],
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
 

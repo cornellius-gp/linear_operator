@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 from abc import abstractmethod
+from typing import Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.getitem import _is_noop_index, _noop_index
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import to_linear_operator
 
 
@@ -55,12 +58,19 @@ class BlockLinearOperator(LinearOperator):
     def _add_batch_dim(self, other):
         raise NotImplementedError
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         batch_shape = torch.Size((*batch_shape, self.base_linear_op.size(-3)))
         res = self.__class__(self.base_linear_op._expand_batch(batch_shape))
         return res
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(
+        self,
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
+    ) -> LinearOperator:
         # First the easy case: just batch indexing
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             return self.__class__(self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index))
@@ -96,7 +106,10 @@ class BlockLinearOperator(LinearOperator):
         # Now construct a kernel with those indices
         return self.__class__(new_base_linear_op, block_dim=-3)
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         isvector = rhs.ndimension() == 1
         if isvector:
             rhs = rhs.unsqueeze(1)
@@ -109,7 +122,7 @@ class BlockLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor]]:
         if left_vecs.ndim == 1:
             left_vecs = left_vecs.unsqueeze(-1)
             right_vecs = right_vecs.unsqueeze(-1)
@@ -121,7 +134,7 @@ class BlockLinearOperator(LinearOperator):
         res = self.base_linear_op._bilinear_derivative(left_vecs, right_vecs)
         return res
 
-    def _permute_batch(self, *dims):
+    def _permute_batch(self, *dims: int) -> LinearOperator:
         if torch.is_tensor(self.base_linear_op):
             base_linear_op = self.base_linear_op.permute(*dims, -3, -2, -1)
         else:
@@ -129,7 +142,7 @@ class BlockLinearOperator(LinearOperator):
         res = self.__class__(base_linear_op)
         return res
 
-    def _unsqueeze_batch(self, dim):
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         if torch.is_tensor(self.base_linear_op):
             base_linear_op = self.base_linear_op.unsqueeze(dim)
         else:
@@ -141,14 +154,16 @@ class BlockLinearOperator(LinearOperator):
     def _remove_batch_dim(self, other):
         raise NotImplementedError
 
-    def _mul_constant(self, other):
+    def _mul_constant(
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
+    ) -> Float[LinearOperator, "*batch M N"]:
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the block structure
         from .constant_mul_linear_operator import ConstantMulLinearOperator
 
         return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         base_op = self.base_linear_op
         if isinstance(base_op, LinearOperator):
             new_base_op = base_op._transpose_nonbatch()
@@ -156,7 +171,9 @@ class BlockLinearOperator(LinearOperator):
             new_base_op = base_op.transpose(-1, -2)
         return self.__class__(new_base_op)
 
-    def zero_mean_mvn_samples(self, num_samples):
+    def zero_mean_mvn_samples(
+        self: Float[LinearOperator, "*batch N N"], num_samples: int
+    ) -> Float[Tensor, "num_samples *batch N"]:
         res = self.base_linear_op.zero_mean_mvn_samples(num_samples)
         res = self._remove_batch_dim(res.unsqueeze(-1)).squeeze(-1)
         return res
