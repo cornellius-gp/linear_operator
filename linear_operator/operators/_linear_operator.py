@@ -324,7 +324,7 @@ class LinearOperator(LinearOperatorBase):
     ####
     # The following methods PROBABLY should be over-written by LinearOperator subclasses for efficiency
     ####
-    def _bilinear_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor]]:
         r"""
         Given :math:`\mathbf U` (left_vecs) and :math:`\mathbf V` (right_vecs),
         Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.
@@ -505,7 +505,7 @@ class LinearOperator(LinearOperatorBase):
         cholesky = psd_safe_cholesky(evaluated_mat, upper=upper).contiguous()
         return TriangularLinearOperator(cholesky, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: bool = False) -> LinearOperator:
+    def _cholesky_solve(self, rhs, upper: bool = False) -> Union[LinearOperator, Tensor]:
         """
         (Optional) Assuming that `self` is a Cholesky factor, computes the cholesky solve.
 
@@ -754,7 +754,7 @@ class LinearOperator(LinearOperatorBase):
         self: Float[LinearOperator, "... N N"],
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable],
-        num_tridiag: int = 0,
+        num_tridiag: Optional[int] = 0,
     ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         r"""
         TODO

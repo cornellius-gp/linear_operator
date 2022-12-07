@@ -33,7 +33,7 @@ class DiagLinearOperator(TriangularLinearOperator):
 
         return AddedDiagLinearOperator(other, self)
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
         if not self._diag.requires_grad:
             return (None,)
@@ -252,7 +252,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
             )
         return super().__add__(other)
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         # TODO: Use proper batching for input vectors (prepand to shape rathern than append)
         if not self.diag_values.requires_grad:
             return (None,)

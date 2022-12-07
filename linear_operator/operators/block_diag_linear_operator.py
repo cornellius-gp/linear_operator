@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .block_linear_operator import BlockLinearOperator
 
 
@@ -15,7 +16,7 @@ from .block_linear_operator import BlockLinearOperator
 # _MetaBlockDiagLinearOperator(base_linear_op, block_dim=-3) to return a DiagLinearOperator
 # if base_linear_op is a DiagLinearOperator itself
 class _MetaBlockDiagLinearOperator(ABCMeta):
-    def __call__(cls, base_linear_op: LinearOperator, block_dim=-3):
+    def __call__(cls, base_linear_op: Union[LinearOperator, Tensor], block_dim=-3):
         from .diag_linear_operator import DiagLinearOperator
 
         if cls is BlockDiagLinearOperator and isinstance(base_linear_op, DiagLinearOperator):
@@ -56,7 +57,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             )
 
     @property
-    def num_blocks(self):
+    def num_blocks(self) -> int:
         return self.base_linear_op.size(-3)
 
     def _add_batch_dim(self, other):
@@ -68,23 +69,25 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         return other
 
     @cached(name="cholesky")
-    def _cholesky(self, upper=False):
+    def _cholesky(
+        self: Float[LinearOperator, "*batch N N"], upper: bool = False
+    ) -> Float[LinearOperator, "*batch N N"]:
         from .triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_linear_op.cholesky(upper=upper))
         return TriangularLinearOperator(chol, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: bool = False):
+    def _cholesky_solve(self, rhs, upper: bool = False) -> Union[LinearOperator, Tensor]:
         rhs = self._add_batch_dim(rhs)
         res = self.base_linear_op._cholesky_solve(rhs, upper=upper)
         res = self._remove_batch_dim(res)
         return res
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         res = self.base_linear_op._diagonal().contiguous()
         return res.view(*self.batch_shape, self.size(-1))
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         # Figure out what block the row/column indices belong to
         row_index_block = torch.div(row_index, self.base_linear_op.size(-2), rounding_mode="floor")
         col_index_block = torch.div(col_index, self.base_linear_op.size(-1), rounding_mode="floor")
@@ -106,20 +109,31 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         other = other.reshape(*shape)
         return other
 
-    def _root_decomposition(self):
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         return self.__class__(self.base_linear_op._root_decomposition())
 
-    def _root_inv_decomposition(self, initial_vectors=None):
+    def _root_inv_decomposition(
+        self: Float[LinearOperator, "*batch N N"],
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> Float[LinearOperator, "*batch N N"]:
         return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         shape = list(self.base_linear_op.shape)
         shape[-2] *= shape[-3]
         shape[-1] *= shape[-3]
         del shape[-3]
         return torch.Size(shape)
 
-    def _solve(self, rhs, preconditioner, num_tridiag=0):
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable],
+        num_tridiag: int = 0,
+    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         else:
@@ -129,8 +143,13 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             return res
 
     def inv_quad_logdet(
-        self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
+    ) -> Tuple[
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+    ]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)
         inv_quad_res, logdet_res = self.base_linear_op.inv_quad_logdet(
@@ -147,7 +166,10 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             logdet_res = logdet_res.view(*logdet_res.shape).sum(-1)
         return inv_quad_res, logdet_res
 
-    def matmul(self, other):
+    def matmul(
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... N P"], Float[Tensor, " N"], Float[LinearOperator, "... N P"]],
+    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         from .diag_linear_operator import DiagLinearOperator
 
         # this is trivial if we multiply two BlockDiagLinearOperator with matching block sizes
@@ -162,7 +184,9 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         return super().matmul(other)
 
     @cached(name="svd")
-    def _svd(self) -> Tuple["LinearOperator", Tensor, "LinearOperator"]:
+    def _svd(
+        self: Float[LinearOperator, "*batch N N"]
+    ) -> Tuple[Float[LinearOperator, "*batch N N"], Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]]:
         U, S, V = self.base_linear_op.svd()
         # Doesn't make much sense to sort here, o/w we lose the structure
         S = S.reshape(*S.shape[:-2], S.shape[-2:].numel())
@@ -171,7 +195,9 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         V = self.__class__(V)
         return U, S, V
 
-    def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
+    def _symeig(
+        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         evals, evecs = self.base_linear_op._symeig(eigenvectors=eigenvectors)
         # Doesn't make much sense to sort here, o/w we lose the structure
         evals = evals.reshape(*evals.shape[:-2], evals.shape[-2:].numel())
