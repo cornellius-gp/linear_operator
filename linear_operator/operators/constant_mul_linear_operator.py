@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .root_linear_operator import RootLinearOperator
 
 
@@ -68,21 +70,23 @@ class ConstantMulLinearOperator(LinearOperator):
         self.base_linear_op = base_linear_op
         self._constant = constant
 
-    def _approx_diagonal(self):
+    def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
         res = self.base_linear_op._approx_diagonal()
         return res * self._constant.unsqueeze(-1)
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         res = self.base_linear_op._diagonal()
         return res * self._constant.unsqueeze(-1)
 
-    def _expand_batch(self, batch_shape: torch.Size) -> ConstantMulLinearOperator:
+    def _expand_batch(
+        self: Float[ConstantMulLinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[ConstantMulLinearOperator, "... M N"]:
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self._constant.expand(*batch_shape) if len(batch_shape) else self._constant,
         )
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
         # It prevents constructing an InterpolatedLinearOperator when one isn't needed
@@ -92,7 +96,12 @@ class ConstantMulLinearOperator(LinearOperator):
         constant = self._constant.expand(self.batch_shape)[batch_indices]
         return base_linear_op * constant
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(
+        self,
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
+    ) -> LinearOperator:
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
         # It prevents constructing an InterpolatedLinearOperator when one isn't needed
@@ -103,17 +112,20 @@ class ConstantMulLinearOperator(LinearOperator):
         constant = constant.view(*constant.shape, 1, 1)
         return base_linear_op * constant
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         res = self.base_linear_op._matmul(rhs)
         res = res * self.expanded_constant
         return res
 
-    def _permute_batch(self, *dims):
+    def _permute_batch(self, *dims: int) -> ConstantMulLinearOperator:
         return self.__class__(
             self.base_linear_op._permute_batch(*dims), self._constant.expand(self.batch_shape).permute(*dims)
         )
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         # Gradient with respect to the constant
         constant_deriv = left_vecs * self.base_linear_op._matmul(right_vecs)
         constant_deriv = constant_deriv.sum(-2).sum(-1)
@@ -129,15 +141,18 @@ class ConstantMulLinearOperator(LinearOperator):
 
         return tuple(res) + (constant_deriv,)
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return self.base_linear_op.size()
 
-    def _t_matmul(self, rhs):
+    def _t_matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
+    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         res = self.base_linear_op._t_matmul(rhs)
         res = res * self.expanded_constant
         return res
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return ConstantMulLinearOperator(self.base_linear_op._transpose_nonbatch(), self._constant)
 
     def _unsqueeze_batch(self, dim: int) -> ConstantMulLinearOperator:
@@ -147,7 +162,7 @@ class ConstantMulLinearOperator(LinearOperator):
         return ConstantMulLinearOperator(base_linear_op=base_linear_op, constant=constant)
 
     @property
-    def expanded_constant(self):
+    def expanded_constant(self) -> Tensor:
         # Make sure that the constant can be expanded to the appropriate size
         try:
             constant = self._constant.view(*self._constant.shape, 1, 1)
@@ -166,7 +181,9 @@ class ConstantMulLinearOperator(LinearOperator):
         return res * self.expanded_constant
 
     @cached(name="root_decomposition")
-    def root_decomposition(self, method: Optional[str] = None):
+    def root_decomposition(
+        self: Float[LinearOperator, "*batch N N"], method: Optional[str] = None
+    ) -> Float[LinearOperator, "*batch N N"]:
         if torch.all(self._constant >= 0):
             base_root = self.base_linear_op.root_decomposition(method=method).root
             return RootLinearOperator(ConstantMulLinearOperator(base_root, self._constant**0.5))
