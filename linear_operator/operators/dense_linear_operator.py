@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 
 
 class DenseLinearOperator(LinearOperator):
@@ -30,53 +30,52 @@ class DenseLinearOperator(LinearOperator):
         super().__init__(tsr)
         self.tensor = tsr
 
-    def _cholesky_solve(self, rhs, upper=False):
+    def _cholesky_solve(self, rhs, upper: bool = False) -> Union[LinearOperator, Tensor]:
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
-    def _diagonal(self: Float[DenseLinearOperator, "*batch N N"]) -> Float[Tensor, "*batch N"]:
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         return self.tensor.diagonal(dim1=-1, dim2=-2)
 
     def _expand_batch(
-        self: Float[DenseLinearOperator, "... M N"], batch_shape: torch.Size
-    ) -> Float[DenseLinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
 
-    def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: torch.LongTensor
-    ) -> torch.Tensor:
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
         return res
 
     def _getitem(
         self,
-        row_index: Union[slice, torch.LongTensor, int],
-        col_index: Union[slice, torch.LongTensor, int],
-        *batch_indices: Union[int, slice, torch.LongTensor],
-    ) -> DenseLinearOperator:
+        row_index: IndexType,
+        col_index: IndexType,
+        *batch_indices: IndexType,
+    ) -> LinearOperator:
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
         return self.__class__(res)
 
     def _matmul(
-        self: Float[DenseLinearOperator, "... M N"], rhs: Union[Float[Tensor, " N"], Float[Tensor, "... N P"]]
-    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"]]:
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         return torch.matmul(self.tensor, rhs)
 
-    def _prod_batch(self, dim):
+    def _prod_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self.tensor.prod(dim))
 
-    def _bilinear_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         res = left_vecs.matmul(right_vecs.mT)
         return (res,)
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return self.tensor.size()
 
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self.tensor.sum(dim))
 
-    def _transpose_nonbatch(self: Float[DenseLinearOperator, "*batch M N"]) -> Float[DenseLinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return DenseLinearOperator(self.tensor.mT)
 
     def _t_matmul(
@@ -89,7 +88,8 @@ class DenseLinearOperator(LinearOperator):
         return self.tensor
 
     def __add__(
-        self: Float[DenseLinearOperator, "... M N"], other: Union[Tensor, LinearOperator, float]
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
     ) -> Float[LinearOperator, "... M N"]:
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.tensor + other.tensor)

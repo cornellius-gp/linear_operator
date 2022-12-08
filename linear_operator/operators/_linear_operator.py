@@ -2847,4 +2847,4 @@ def to_dense(obj: Union[LinearOperator, Tensor]) -> Tensor:
 
 _deprecate_renamed_methods(LinearOperator, inv_quad_log_det="inv_quad_logdet", log_det="logdet")
 
-__all__ = ["LinearOperator", "to_dense"]
+__all__ = ["LinearOperator", "to_dense", "IndexType"]
