@@ -80,8 +80,9 @@ class DenseLinearOperator(LinearOperator):
         return DenseLinearOperator(self.tensor.mT)
 
     def _t_matmul(
-        self: Float[DenseLinearOperator, "*batch M N"], rhs: Float[Tensor, "... M P"]
-    ) -> Float[Tensor, "*batch N P"]:
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
+    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         return torch.matmul(self.tensor.mT, rhs)
 
     def to_dense(self):

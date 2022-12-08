@@ -866,8 +866,8 @@ class LinearOperator(LinearOperatorBase):
 
     def _t_matmul(
         self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "... M P"], Float[LinearOperator, "... M P"]],
-    ) -> Union[Float[LinearOperator, "*batch N P"], Float[Tensor, "*batch N P"]]:
+        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
+    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         r"""
         Performs a transpose matrix multiplication :math:`\mathbf K^\top \mathbf M` with the
         (... x M x N) matrix :math:`\mathbf K` that this LinearOperator represents.
@@ -982,7 +982,7 @@ class LinearOperator(LinearOperatorBase):
 
     def add_low_rank(
         self: Float[LinearOperator, "*batch N N"],
-        low_rank_mat: Float[Tensor, "... N _"],
+        low_rank_mat: Union[Float[Tensor, "... N _"], Float[LinearOperator, "... N N"]],
         root_decomp_method: Optional[str] = None,
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
@@ -1573,7 +1573,7 @@ class LinearOperator(LinearOperatorBase):
         return self.type(torch.half)
 
     def inv_quad(
-        self: Float[LinearOperator, "*batch M N"],
+        self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Float[Tensor, "*batch N M"],
         reduce_inv_quad: bool = True,
     ) -> Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]:
@@ -1592,6 +1592,7 @@ class LinearOperator(LinearOperatorBase):
         .. math::
            \text{diag}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right).
 
+        :param input: :math:`\mathbf A` - the positive definite matrix (... X N X N)
         :param inv_quad_rhs: :math:`\mathbf R` - the right hand sides of the inverse quadratic term (... x N x M)
         :param reduce_inv_quad: Whether to compute
             :math:`\text{tr}\left( \mathbf R^\top \mathbf A^{-1} \mathbf R \right)`

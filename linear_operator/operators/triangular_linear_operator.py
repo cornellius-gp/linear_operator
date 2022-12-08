@@ -7,7 +7,7 @@ from torch import Tensor
 
 from ..utils.errors import NotPSDError
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 from .dense_linear_operator import DenseLinearOperator
 
@@ -84,9 +84,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             return self
         return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
 
-    def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
-    ) -> Tensor:
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
 
     def _matmul(self, rhs: Tensor) -> Tensor:
