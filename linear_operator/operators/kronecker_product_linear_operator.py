@@ -138,9 +138,9 @@ class KroneckerProductLinearOperator(LinearOperator):
 
     def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
-            inv_quad_term, _ = super()._inv_quad_logdet(
-                inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad
-            )
+            inv_quad_term = (inv_quad_rhs * self._solve(inv_quad_rhs)).sum(dim=-2)
+            if inv_quad_term.numel() and reduce_inv_quad:
+                inv_quad_term = inv_quad_term.sum(-1)
         else:
             inv_quad_term = None
         logdet_term = self._logdet() if logdet else None
@@ -192,22 +192,6 @@ class KroneckerProductLinearOperator(LinearOperator):
             y = y.reshape(*batch_shape, n, n_rows // n, -1).permute(*perm_batch, -2, -3, -1)
         res = y.reshape(*batch_shape, n_rows, -1)
 
-        # we need to return the t mat, so we return the eigenvalues
-        # in general, this should not be called because log determinant estimation
-        # is closed form and is implemented in _logdet
-        # TODO: make this more efficient
-        evals, _ = self.diagonalization()
-        evals_repeated = evals.unsqueeze(0).repeat(num_tridiag, *[1] * evals.ndim)
-        lazy_evals = DiagLinearOperator(evals_repeated)
-        # batch_repeated_evals = lazy_evals.to_dense()
-        return res  # , batch_repeated_evals
-
-    def _inv_matmul(self, right_tensor, left_tensor=None):
-        # if _inv_matmul is called, we ignore the eigenvalue handling
-        # this is efficient because of the structure of the lazy tensor
-        res = self._solve(rhs=right_tensor)
-        if left_tensor is not None:
-            res = left_tensor @ res
         return res
 
     def _logdet(self):
@@ -338,10 +322,6 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
 
     def _symeig(self, eigenvectors: bool = False) -> Tuple[Tensor, Optional[LinearOperator]]:
         raise NotImplementedError("_symeig not applicable to triangular lazy tensors")
-
-    def solve(self, right_tensor, left_tensor=None):
-        # For triangular components, using triangular-triangular substition should generally be good
-        return self._inv_matmul(right_tensor=right_tensor, left_tensor=left_tensor)
 
 
 class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTriangularLinearOperator):

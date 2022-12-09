@@ -178,10 +178,8 @@ class DiagLinearOperator(TriangularLinearOperator):
             diag = diag.unsqueeze(-1)
         return diag * other
 
-    def solve(self, right_tensor: Tensor, left_tensor: Optional[Tensor] = None) -> Tensor:
-        res = self.inverse()._matmul(right_tensor)
-        if left_tensor is not None:
-            res = left_tensor @ res
+    def _solve(self, rhs: Tensor) -> Tensor:
+        res = self.inverse()._matmul(rhs)
         return res
 
     def solve_triangular(

@@ -61,9 +61,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if inv_quad_rhs is not None:
-            inv_quad_term, _ = super()._inv_quad_logdet(
-                inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad
-            )
+            inv_quad_term = (inv_quad_rhs * self._solve(inv_quad_rhs)).sum(dim=-2)
+            if inv_quad_term.numel() and reduce_inv_quad:
+                inv_quad_term = inv_quad_term.sum(-1)
         else:
             inv_quad_term = None
         logdet_term = self._logdet() if logdet else None
@@ -111,7 +111,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
                 diag_term = self.diag_tensor.logdet()
                 return diag_term + evals_plus_i.logdet()
 
-        return super().inv_quad_logdet(logdet=True)[1]
+        return super()._inv_quad_logdet(logdet=True)[1]
 
     def _preconditioner(self):
         # solves don't use CG so don't waste time computing it

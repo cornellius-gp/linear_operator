@@ -29,7 +29,7 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         actual = lhs @ evaluated
         self.assertAllClose(res, actual)
 
-    def _test_solve(self, rhs, lhs=None, cholesky=False):
+    def _test_solve(self, rhs, lhs=None, iterative=True):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = linear_op.clone().detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
@@ -48,7 +48,7 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             actual = evaluated.inverse().matmul(rhs_copy)
         self.assertAllClose(res, actual, **self.tolerances["solve"])
 
-    def _test_inv_quad_logdet(self, reduce_inv_quad=True, cholesky=False, linear_op=None):
+    def _test_inv_quad_logdet(self, reduce_inv_quad=True, iterative=True, linear_op=None):
         if linear_op is None:
             linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)

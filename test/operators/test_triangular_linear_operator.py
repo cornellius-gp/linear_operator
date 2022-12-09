@@ -20,6 +20,16 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # We actually want triangular gradients
         return grad.tril()
 
+    def _test_solve(self, rhs, lhs=None, iterative=True):
+        if iterative:
+            return
+        return super()._test_solve(rhs, lhs, iterative=False)
+
+    def _test_inv_quad_logdet(self, reduce_inv_quad=True, iterative=True, linear_op=None):
+        if iterative:
+            return
+        return super()._test_inv_quad_logdet(reduce_inv_quad=reduce_inv_quad, iterative=False, linear_op=linear_op)
+
     def create_linear_op(self):
         tensor = torch.randn(5, 5).tril()
 

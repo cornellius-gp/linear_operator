@@ -130,7 +130,7 @@ class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAdded
         rhs = torch.randn(linear_op.size(-1))
         # Check that cholesky is not called
         with mock.patch.object(linear_op, "cholesky") as chol_mock:
-            self._test_solve(rhs, cholesky=False)
+            self._test_solve(rhs, iterative=True)
             chol_mock.assert_not_called()
 
     def test_root_inv_decomposition_no_cholesky(self):

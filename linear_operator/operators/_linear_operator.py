@@ -2208,7 +2208,15 @@ class LinearOperator(ABC):
                 )
 
         if self.linear_solver is None:
+            squeeze = False
+            if right_tensor.dim() == 1:
+                right_tensor = right_tensor.unsqueeze(-1)
+                squeeze = True
+
             res = self._solve(rhs=right_tensor)
+
+            if squeeze:
+                res = res.squeeze(-1)
             if left_tensor is not None:
                 res = left_tensor @ res
             return res
