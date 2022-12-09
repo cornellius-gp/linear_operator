@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Any, Tuple, Union
 
 import torch
 
@@ -14,7 +14,10 @@ _noop_index = slice(None, None, None)
 
 
 def _compute_getitem_size(
-    obj: Union[torch.Tensor, "LinearOperator"], indices: Tuple[Union[slice, torch.LongTensor, int], ...]  # noqa F811
+    obj: Union[torch.Tensor, Any],
+    indices: Tuple[
+        Union[slice, torch.LongTensor, int], ...
+    ],  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
 ) -> torch.Size:
     """
     Given an object and a tuple of indices, computes the final size of the
@@ -92,7 +95,10 @@ def _compute_getitem_size(
 
 
 def _convert_indices_to_tensors(
-    obj: Union[torch.Tensor, "LinearOperator"], indices: Tuple[Union[slice, torch.LongTensor, int], ...]  # noqa F811
+    obj: Union[torch.Tensor, Any],
+    indices: Tuple[
+        Union[slice, torch.LongTensor, int], ...
+    ],  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
 ) -> Tuple[torch.LongTensor, ...]:
     """
     Given an index made up of tensors/slices/ints, returns a tensor-only index that has the

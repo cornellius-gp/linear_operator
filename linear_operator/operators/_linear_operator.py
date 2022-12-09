@@ -453,11 +453,11 @@ class LinearOperator(LinearOperatorBase):
     # Standard LinearOperator methods
     ####
     @property
-    def _args(self) -> Tuple[Union[torch.Tensor, "LinearOperator"], ...]:
+    def _args(self) -> Tuple[Union[torch.Tensor, "LinearOperator", int], ...]:
         return self._args_memo
 
     @_args.setter
-    def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator"], ...]) -> None:
+    def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator", int], ...]) -> None:
         self._args_memo = args
 
     def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
@@ -476,7 +476,7 @@ class LinearOperator(LinearOperatorBase):
 
     @cached(name="cholesky")
     def _cholesky(
-        self: Float[LinearOperator, "*batch N N"], upper: bool = False
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
     ) -> Float[LinearOperator, "*batch N N"]:
         """
         (Optional) Cholesky-factorizes the LinearOperator
@@ -505,7 +505,7 @@ class LinearOperator(LinearOperatorBase):
         cholesky = psd_safe_cholesky(evaluated_mat, upper=upper).contiguous()
         return TriangularLinearOperator(cholesky, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: bool = False) -> Union[LinearOperator, Tensor]:
+    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
         """
         (Optional) Assuming that `self` is a Cholesky factor, computes the cholesky solve.
 
@@ -564,10 +564,7 @@ class LinearOperator(LinearOperatorBase):
 
         return ConstantMulLinearOperator(self, other)
 
-    def _mul_matrix(
-        self: Float[LinearOperator, "..."],
-        other: Union[Float[torch.Tensor, "..."], Float[LinearOperator, "..."]],
-    ) -> Float[LinearOperator, "..."]:
+    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
         r"""
         Multiplies the LinearOperator by a (batch of) matrices.
 
@@ -1326,7 +1323,7 @@ class LinearOperator(LinearOperatorBase):
         return self.__class__(*new_args, **new_kwargs)
 
     @property
-    def device(self) -> torch.device:
+    def device(self) -> Optional[torch.device]:
         return self._args[0].device
 
     def detach(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
@@ -1456,7 +1453,7 @@ class LinearOperator(LinearOperatorBase):
         return self.type(torch.double)
 
     @property
-    def dtype(self) -> torch.dtype:
+    def dtype(self) -> Optional[torch.dtype]:
         return self._args[0].dtype
 
     @_implements(torch.linalg.eigh)
@@ -1629,7 +1626,8 @@ class LinearOperator(LinearOperatorBase):
         logdet: bool = False,
         reduce_inv_quad: bool = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, " *batch"]],
     ]:
         r"""
         Calls both :func:`inv_quad` and :func:`logdet` on a positive
@@ -2552,7 +2550,7 @@ class LinearOperator(LinearOperatorBase):
 
         return res
 
-    def type(self: Float[LinearOperator, "*batch M N"], dtype: torch.dtype) -> Float[LinearOperator, "*batch M N"]:
+    def type(self: LinearOperator, dtype: torch.dtype) -> LinearOperator:
         """
         A device-agnostic method of moving the LienarOperator to the specified dtype.
         This method operates similarly to :func:`torch.Tensor.dtype`.
