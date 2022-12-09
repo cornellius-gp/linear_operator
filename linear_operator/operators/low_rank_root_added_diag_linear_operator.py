@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+from typing import Optional, Tuple, Union
+
 import torch
+from torch import Tensor
 
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.memoize import cached
@@ -53,7 +56,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _preconditioner(self):
         return None, None, None
 
-    def _solve(self, rhs: torch.Tensor) -> torch.Tensor:
+    def _solve(self, rhs: Tensor) -> Tensor:
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._linear_op.root
         V = self._linear_op.root.mT
@@ -89,14 +92,14 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         else:
             return AddedDiagLinearOperator(self._linear_op + other, self._diag_tensor)
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         inv_quad_term, logdet_term = None, None
 
         if inv_quad_rhs is not None:
             self_inv_rhs = self._solve(inv_quad_rhs)
             inv_quad_term = (inv_quad_rhs * self_inv_rhs).sum(dim=-2)
-            if reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(dim=-1)
 
         if logdet:
             logdet_term = self._logdet()

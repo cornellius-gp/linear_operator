@@ -122,8 +122,8 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag.reciprocal())
 
     def _inv_quad_logdet(
-        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[Tensor, Tensor]:
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
             rhs_batch_shape = torch.Size()
@@ -137,8 +137,6 @@ class DiagLinearOperator(TriangularLinearOperator):
             for _ in rhs_batch_shape:
                 diag = diag.unsqueeze(-1)
             inv_quad_term = inv_quad_rhs.div(diag).mul(inv_quad_rhs).sum(-(1 + len(rhs_batch_shape)))
-            if reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(-1)
 
         if not logdet:
             logdet_term = torch.empty(0, dtype=self.dtype, device=self.device)

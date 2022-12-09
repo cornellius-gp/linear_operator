@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 
@@ -79,24 +79,22 @@ class CholLinearOperator(RootLinearOperator):
         Linv = self.root.inverse()  # this could be slow in some cases w/ structured lazies
         return CholLinearOperator(TriangularLinearOperator(Linv, upper=not self.upper), upper=not self.upper)
 
-    def inv_quad(self, tensor: torch.Tensor, reduce_inv_quad: bool = True) -> torch.Tensor:
+    def _inv_quad(self, tensor: Tensor) -> Tensor:
         if self.upper:
             R = self.root._transpose_nonbatch().solve(tensor)
         else:
             R = self.root.solve(tensor)
-        inv_quad_term = (R**2).sum(dim=-2)
-        if inv_quad_term.numel() and reduce_inv_quad:
-            inv_quad_term = inv_quad_term.sum(-1)
+        inv_quad_term = R.square().sum(dim=-2)
         return inv_quad_term
 
     def _inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         inv_quad_term = None
         logdet_term = None
 
         if inv_quad_rhs is not None:
-            inv_quad_term = self.inv_quad(inv_quad_rhs, reduce_inv_quad=reduce_inv_quad)
+            inv_quad_term = self._inv_quad(inv_quad_rhs)
 
         if logdet:
             logdet_term = self._chol_diag.pow(2).log().sum(-1)

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from typing import Optional, Tuple, Union
+
 from torch import Tensor
 
 from .kronecker_product_linear_operator import KroneckerProductLinearOperator
@@ -70,16 +72,15 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         inv_root = lt2_root_inv.matmul(inner_mat_root_inv)
         return inv_root
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         inv_quad_term = None
         logdet_term = None
 
         if inv_quad_rhs is not None:
             solve = self.solve(inv_quad_rhs)
             inv_quad_term = (inv_quad_rhs * solve).sum(-2)
-
-            if inv_quad_term.numel() and reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(-1)
 
         if logdet:
             logdet_term = self._logdet()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 
@@ -377,9 +377,11 @@ class CatLinearOperator(LinearOperator):
     def to_dense(self):
         return torch.cat([to_dense(L) for L in self.linear_ops], dim=self.cat_dim)
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
-        res = super()._inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
-        return tuple(r.to(self.device) for r in res)
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
+        res = super()._inv_quad_logdet(inv_quad_rhs, logdet)
+        return tuple(r.to(self.device) if r is not None else None for r in res)
 
     @property
     def device(self):

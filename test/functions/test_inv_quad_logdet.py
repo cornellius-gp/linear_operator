@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
+from linear_operator.linear_solvers import CGSolver
 from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 
@@ -43,9 +44,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
 
         # Compute values with LinearOperator
         _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
-        with linear_operator.settings.num_trace_samples(2000), linear_operator.settings.max_cholesky_size(
-            0
-        ), linear_operator.settings.cg_tolerance(1e-5), linear_operator.settings.skip_logdet_forward(
+        with linear_operator.settings.num_trace_samples(2000), linear_operator.settings.skip_logdet_forward(
             improper_logdet
         ), patch(
             "linear_operator.utils.linear_cg", new=_wrapped_cg
@@ -54,7 +53,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
         ), linear_operator.settings.max_preconditioner_size(
             30
         ):
-            linear_op = DenseLinearOperator(mat)
+            linear_op = DenseLinearOperator(mat, linear_solver=CGSolver(tol=1e-5))
 
             if add_diag:
                 linear_op = linear_op.add_jitter(1.0)

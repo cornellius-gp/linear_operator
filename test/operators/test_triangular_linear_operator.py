@@ -25,6 +25,11 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             return
         return super()._test_solve(rhs, lhs, iterative=False)
 
+    def _test_inv_quad(self, reduce_inv_quad=True, iterative=True, linear_op=None):
+        if iterative:
+            return
+        return super()._test_inv_quad(reduce_inv_quad=reduce_inv_quad, iterative=False, linear_op=linear_op)
+
     def _test_inv_quad_logdet(self, reduce_inv_quad=True, iterative=True, linear_op=None):
         if iterative:
             return

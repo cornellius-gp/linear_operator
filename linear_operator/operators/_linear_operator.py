@@ -534,8 +534,8 @@ class LinearOperator(ABC):
         return self[..., row_col_iter, row_col_iter]
 
     def _inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         r"""
         A private version of inv_quad_logdet that should be overwritten by specialty LinearOperator classes.
 
@@ -555,10 +555,9 @@ class LinearOperator(ABC):
                 will_need_cholesky = False
         if will_need_cholesky:
             cholesky = CholLinearOperator(TriangularLinearOperator(self.cholesky()))
-        return cholesky.inv_quad_logdet(
+        return cholesky._inv_quad_logdet(
             inv_quad_rhs=inv_quad_rhs,
             logdet=logdet,
-            reduce_inv_quad=reduce_inv_quad,
         )
 
     def _mul_constant(self, other: Union[float, torch.Tensor]) -> LinearOperator:
@@ -1573,17 +1572,20 @@ class LinearOperator(ABC):
                 )
             )
 
-        args = (inv_quad_rhs.expand(*result_shape[:-2], *inv_quad_rhs.shape[-2:]),) + self.representation()
-        func = InvQuad.apply
-        inv_quad_term = func(self.representation_tree(), *args)
+        # Special case: use Cholesky to compute these terms
+        if self.linear_solver is None:
+            inv_quad_term, _ = self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=False)
+        else:
+            args = (inv_quad_rhs.expand(*result_shape[:-2], *inv_quad_rhs.shape[-2:]),) + self.representation()
+            inv_quad_term = InvQuad.apply(self.representation_tree(), self.linear_solver, *args)
 
-        if reduce_inv_quad:
+        if inv_quad_term.numel() and reduce_inv_quad:
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         r"""
         Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive
         definite matrix (or batch) :math:`\mathbf A`.  However, calling this
@@ -1637,7 +1639,7 @@ class LinearOperator(ABC):
 
         # Special case: use Cholesky to compute these terms
         if self.linear_solver is None:
-            return self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet, reduce_inv_quad=reduce_inv_quad)
+            inv_quad_term, logdet_term = self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet)
 
         else:
             args = self.representation()
@@ -1674,9 +1676,9 @@ class LinearOperator(ABC):
             logdet_term = pinvk_logdet
             logdet_term = logdet_term + logdet_p
 
-            if inv_quad_term.numel() and reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(-1)
-            return inv_quad_term, logdet_term
+        if inv_quad_term is not None and inv_quad_term.numel() and reduce_inv_quad:
+            inv_quad_term = inv_quad_term.sum(-1)
+        return inv_quad_term, logdet_term
 
     @_implements(torch.inverse)
     def inverse(self) -> "LinearOperator":

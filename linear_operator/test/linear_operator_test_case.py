@@ -489,6 +489,39 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         res = torch.add(grad, grad.mT).mul(0.5)
         return res
 
+    def _test_inv_quad(self, reduce_inv_quad=True, iterative=True, linear_op=None):
+        if not self.__class__.skip_slq_tests:
+            # Forward
+            if linear_op is None:
+                linear_op = self.create_linear_op()
+            evaluated = self.evaluate_linear_op(linear_op)
+            flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
+
+            if iterative:
+                linear_op.linear_solver = CGSolver(tol=1e-5)
+
+            vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 3, requires_grad=True)
+            vecs_copy = vecs.clone().detach().requires_grad_(True)
+
+            _wrapped_cg = MagicMock(wraps=linear_operator.utils.linear_cg)
+            with patch("linear_operator.utils.linear_cg", new=_wrapped_cg) as linear_cg_mock:
+                with linear_operator.settings.min_preconditioning_size(
+                    4
+                ), linear_operator.settings.max_preconditioner_size(2):
+                    res_inv_quad = linear_op.inv_quad(
+                        inv_quad_rhs=vecs, reduce_inv_quad=reduce_inv_quad
+                    )
+
+            actual_inv_quad = evaluated.inverse().matmul(vecs_copy).mul(vecs_copy).sum(-2)
+            if reduce_inv_quad:
+                actual_inv_quad = actual_inv_quad.sum(-1)
+            self.assertAllClose(res_inv_quad, actual_inv_quad, **self.tolerances["inv_quad"])
+
+            if iterative:
+                self.assertTrue(linear_cg_mock.called)
+            else:
+                self.assertFalse(linear_cg_mock.called)
+
     def _test_inv_quad_logdet(self, reduce_inv_quad=True, iterative=True, linear_op=None):
         if not self.__class__.skip_slq_tests:
             # Forward
@@ -844,14 +877,29 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         linear_op = self.create_linear_op()
         self._test_half(linear_op)
 
+    def test_inv_quad(self):
+        return self._test_inv_quad(reduce_inv_quad=False, iterative=False)
+
+    def test_inv_quad_no_reduce(self):
+        return self._test_inv_quad(reduce_inv_quad=True, iterative=False)
+
+    def test_inv_quad_cg(self):
+        return self._test_inv_quad(reduce_inv_quad=False, iterative=True)
+
+    def test_inv_quad_no_reduce_cg(self):
+        return self._test_inv_quad(reduce_inv_quad=True, iterative=True)
+
     def test_inv_quad_logdet(self):
-        return self._test_inv_quad_logdet(reduce_inv_quad=False, iterative=True)
+        return self._test_inv_quad_logdet(reduce_inv_quad=False, iterative=False)
 
     def test_inv_quad_logdet_no_reduce(self):
-        return self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=True)
-
-    def test_inv_quad_logdet_no_reduce_cholesky(self):
         return self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=False)
+
+    def test_inv_quad_logdet_cg(self):
+        return self._test_inv_quad_logdet(reduce_inv_quad=False, iterative=True)
+
+    def test_inv_quad_logdet_no_reduce_cg(self):
+        return self._test_inv_quad_logdet(reduce_inv_quad=True, iterative=True)
 
     def test_is_close(self):
         linear_op = self.create_linear_op()

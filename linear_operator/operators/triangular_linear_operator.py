@@ -136,11 +136,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.__class__(self._tensor.exp(), upper=self.upper)
 
     def _inv_quad_logdet(
-        self,
-        inv_quad_rhs: Optional[Tensor] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
-    ) -> Tuple[Tensor, Tensor]:
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
@@ -153,8 +150,6 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 logdet_term = torch.full_like(logdet_term, float("nan"))
         else:
             logdet_term = torch.empty(0, dtype=self.dtype, device=self.device)
-        if inv_quad_term.numel() and reduce_inv_quad:
-            inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term, logdet_term
 
     @cached

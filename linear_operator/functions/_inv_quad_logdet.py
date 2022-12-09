@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import warnings
+from typing import Tuple
 
 import torch
+from torch import Tensor
 from torch.autograd import Function
 
 from .. import settings
@@ -31,11 +33,11 @@ class InvQuadLogdet(Function):
         precond_representation_tree: "LinearOperatorRepresentationTree",
         preconditioner: "LinearOperator",
         num_precond_args: int,
-        inv_quad,
-        probe_vectors,
-        probe_vector_norms,
+        inv_quad: Tensor,
+        probe_vectors: Tensor,
+        probe_vector_norms: Tensor,
         *args,
-    ):
+    ) -> Tuple[Tensor, Tensor]:
         """
         *args - The arguments representing the PSD matrix A (or batch of PSD matrices A)
         If self.inv_quad is true, the first entry in *args is inv_quad_rhs (Tensor)

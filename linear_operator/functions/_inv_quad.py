@@ -1,22 +1,12 @@
 #!/usr/bin/env python3
 
+from typing import Tuple
+
 import torch
+from torch import Tensor
 from torch.autograd import Function
 
 from .. import settings
-
-
-def _solve(linear_op, rhs):
-    if (
-        settings.fast_computations.solves.off()
-        or settings.fast_computations.log_prob.off()
-        or linear_op.size(-1) <= settings.max_cholesky_size.value()
-    ):
-        return linear_op.cholesky()._cholesky_solve(rhs)
-    else:
-        with torch.no_grad():
-            preconditioner = linear_op.detach()._solve_preconditioner()
-        return linear_op._solve(rhs, preconditioner)
 
 
 class InvQuad(Function):
@@ -26,7 +16,10 @@ class InvQuad(Function):
     """
 
     @staticmethod
-    def forward(ctx, representation_tree, *args):
+    def forward(
+        ctx, representation_tree: "LinearOperatorRepresentationTree",
+        linear_solver: "LinearSolver", *args
+    ) -> Tuple[Tensor, Tensor]:
         """
         *args - The arguments representing the PSD matrix A (or batch of PSD matrices A)
         If inv_quad is true, the first entry in *args is inv_quad_rhs (Tensor)
@@ -48,7 +41,8 @@ class InvQuad(Function):
             ctx.is_vector = True
 
         # Perform solves (for inv_quad) and tridiagonalization (for estimating logdet)
-        inv_quad_solves = _solve(linear_op, inv_quad_rhs)
+        preconditioner, _, _ = linear_op._preconditioner()
+        inv_quad_solves = linear_solver.solve(linear_op, inv_quad_rhs, preconditioner, num_tridiag=0)
         inv_quad_term = (inv_quad_solves * inv_quad_rhs).sum(-2)
 
         to_save = matrix_args + [inv_quad_solves]
@@ -75,18 +69,18 @@ class InvQuad(Function):
         matrix_arg_grads = [None] * len(matrix_args)
 
         # input_1 gradient
-        if any(ctx.needs_input_grad[2:]):
+        if any(ctx.needs_input_grad[3:]):
             left_factors = neg_inv_quad_solves_times_grad_out
             right_factors = inv_quad_solves
             matrix_arg_grads = linear_op._bilinear_derivative(left_factors, right_factors)
 
         # input_2 gradients
-        if ctx.needs_input_grad[1]:
+        if ctx.needs_input_grad[2]:
             inv_quad_rhs_grad = neg_inv_quad_solves_times_grad_out.mul(-2)
         else:
             inv_quad_rhs_grad = torch.zeros_like(inv_quad_solves)
         if ctx.is_vector:
             inv_quad_rhs_grad.squeeze_(-1)
 
-        res = tuple([None] + [inv_quad_rhs_grad] + list(matrix_arg_grads))
+        res = tuple([None, None] + [inv_quad_rhs_grad] + list(matrix_arg_grads))
         return tuple(res)

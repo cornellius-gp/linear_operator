@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -125,19 +125,15 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         res = self._remove_batch_dim(res)
         return res
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)
-        inv_quad_res, logdet_res = self.base_linear_op._inv_quad_logdet(
-            inv_quad_rhs, logdet, reduce_inv_quad=reduce_inv_quad
-        )
+        inv_quad_res, logdet_res = self.base_linear_op._inv_quad_logdet(inv_quad_rhs, logdet)
         if inv_quad_res is not None and inv_quad_res.numel():
-            if reduce_inv_quad:
-                inv_quad_res = inv_quad_res.view(*self.base_linear_op.batch_shape)
-                inv_quad_res = inv_quad_res.sum(-1)
-            else:
-                inv_quad_res = inv_quad_res.view(*self.base_linear_op.batch_shape, inv_quad_res.size(-1))
-                inv_quad_res = inv_quad_res.sum(-2)
+            inv_quad_res = inv_quad_res.view(*self.base_linear_op.batch_shape, inv_quad_res.size(-1))
+            inv_quad_res = inv_quad_res.sum(-2)
         if logdet_res is not None and logdet_res.numel():
             logdet_res = logdet_res.view(*logdet_res.shape).sum(-1)
         return inv_quad_res, logdet_res

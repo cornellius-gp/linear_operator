@@ -17,14 +17,14 @@ class DenseLinearOperator(LinearOperator):
                 tsr.shape
             )
 
-    def __init__(self, tsr):
+    def __init__(self, tsr, **kwargs):
         """
         Not a lazy tensor
 
         Args:
         - tsr (Tensor: matrix) a Tensor
         """
-        super().__init__(tsr)
+        super().__init__(tsr, **kwargs)
         self.tensor = tsr
 
     def _cholesky_solve(self, rhs, upper=False):

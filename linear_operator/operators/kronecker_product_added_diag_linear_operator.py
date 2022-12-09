@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -59,11 +59,11 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             )
         self._diag_is_constant = isinstance(self.diag_tensor, ConstantDiagLinearOperator)
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         if inv_quad_rhs is not None:
             inv_quad_term = (inv_quad_rhs * self._solve(inv_quad_rhs)).sum(dim=-2)
-            if inv_quad_term.numel() and reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(-1)
         else:
             inv_quad_term = None
         logdet_term = self._logdet() if logdet else None

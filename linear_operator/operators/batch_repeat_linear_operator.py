@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import itertools
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -231,20 +231,20 @@ class BatchRepeatLinearOperator(LinearOperator):
     def add_jitter(self, jitter_val=1e-3):
         return self.__class__(self.base_linear_op.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
 
-    def _inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def _inv_quad_logdet(
+        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False
+    ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         if inv_quad_rhs is not None:
             output_shape = _matmul_broadcast_shape(self.shape, inv_quad_rhs.shape)
             inv_quad_rhs = self._move_repeat_batches_to_columns(inv_quad_rhs, output_shape)
 
-        inv_quad_term, logdet_term = self.base_linear_op._inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=False)
+        inv_quad_term, logdet_term = self.base_linear_op._inv_quad_logdet(inv_quad_rhs, logdet)
 
         if inv_quad_term is not None and inv_quad_term.numel():
             inv_quad_term = inv_quad_term.view(*inv_quad_term.shape[:-1], -1, 1, self.batch_repeat.numel())
             output_shape = list(output_shape)
             output_shape[-2] = 1
             inv_quad_term = self._move_repeat_batches_back(inv_quad_term, output_shape).squeeze(-2)
-            if reduce_inv_quad:
-                inv_quad_term = inv_quad_term.sum(-1)
 
         if logdet_term is not None and logdet_term.numel():
             logdet_term = logdet_term.repeat(*self.batch_repeat)
