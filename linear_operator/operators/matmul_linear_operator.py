@@ -19,7 +19,7 @@ def _outer_repeat(tensor, amt):
 
 
 class MatmulLinearOperator(LinearOperator):
-    def __init__(self, left_linear_op, right_linear_op):
+    def __init__(self, left_linear_op: LinearOperator, right_linear_op: LinearOperator, **kwargs):
         left_linear_op = to_linear_operator(left_linear_op)
         right_linear_op = to_linear_operator(right_linear_op)
 
@@ -30,7 +30,7 @@ class MatmulLinearOperator(LinearOperator):
         if right_linear_op.batch_shape != batch_shape:
             right_linear_op = right_linear_op._expand_batch(batch_shape)
 
-        super().__init__(left_linear_op, right_linear_op)
+        super().__init__(left_linear_op, right_linear_op, **kwargs)
         batch_shape = torch.broadcast_shapes(left_linear_op.batch_shape, right_linear_op.batch_shape)
         if left_linear_op.batch_shape != batch_shape:
             self.left_linear_op = left_linear_op._expand_batch(batch_shape)

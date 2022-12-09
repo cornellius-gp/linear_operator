@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
+from torch import Tensor
 
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -60,11 +61,11 @@ class ConstantMulLinearOperator(LinearOperator):
         >>> #   [ 2, 1.5, 1 ]]]
     """
 
-    def __init__(self, base_linear_op, constant):
+    def __init__(self, base_linear_op: LinearOperator, constant: Union[float, Tensor], **kwargs):
         if not torch.is_tensor(constant):
             constant = torch.tensor(constant, device=base_linear_op.device, dtype=base_linear_op.dtype)
 
-        super(ConstantMulLinearOperator, self).__init__(base_linear_op, constant)
+        super(ConstantMulLinearOperator, self).__init__(base_linear_op, constant, **kwargs)
         self.base_linear_op = base_linear_op
         self._constant = constant
 

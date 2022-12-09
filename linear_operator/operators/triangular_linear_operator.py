@@ -30,7 +30,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     :param upper: If True, the tensor is considered to be upper-triangular, otherwise lower-triangular.
     """
 
-    def __init__(self, tensor: Allsor, upper: bool = False) -> None:
+    def __init__(self, tensor: Allsor, upper: bool = False, **kwargs) -> None:
         if isinstance(tensor, TriangularLinearOperator):
             # this is a null-op, we can just use underlying tensor directly.
             tensor = tensor._tensor
@@ -44,7 +44,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 )
         if torch.is_tensor(tensor):
             tensor = DenseLinearOperator(tensor)
-        super().__init__(tensor, upper=upper)
+        super().__init__(tensor, upper=upper, **kwargs)
         self.upper = upper
         self._tensor = tensor
 

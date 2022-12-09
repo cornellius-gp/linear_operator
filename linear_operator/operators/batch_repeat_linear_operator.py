@@ -13,7 +13,7 @@ from ._linear_operator import LinearOperator
 
 
 class BatchRepeatLinearOperator(LinearOperator):
-    def __init__(self, base_linear_op, batch_repeat=torch.Size((1,))):
+    def __init__(self, base_linear_op: LinearOperator, batch_repeat: torch.Size = torch.Size((1,)), **kwargs):
         if settings.debug.on():
             if not isinstance(batch_repeat, torch.Size):
                 raise RuntimeError(
@@ -32,7 +32,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         for _ in range(len(batch_repeat) + 2 - base_linear_op.dim()):
             base_linear_op = base_linear_op.unsqueeze(0)
 
-        super().__init__(base_linear_op, batch_repeat=batch_repeat)
+        super().__init__(base_linear_op, batch_repeat=batch_repeat, **kwargs)
         self.base_linear_op = base_linear_op
         self.batch_repeat = batch_repeat
 

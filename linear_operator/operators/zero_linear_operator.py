@@ -22,9 +22,10 @@ class ZeroLinearOperator(LinearOperator):
     """
 
     def __init__(
-        self, *sizes: Tuple[int, ...], dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None
+        self, *sizes: Tuple[int, ...], dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None,
+        **kwargs
     ):
-        super(ZeroLinearOperator, self).__init__(*sizes)
+        super(ZeroLinearOperator, self).__init__(*sizes, dtype=dtype, device=device, **kwargs)
         self.sizes = list(sizes)
 
         self._dtype = dtype or torch.get_default_dtype()

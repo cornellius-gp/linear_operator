@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
+from torch import LongTensor, Tensor
 
 from ..utils import sparse
 from ..utils.broadcasting import _pad_with_singletons
@@ -41,11 +42,11 @@ class InterpolatedLinearOperator(LinearOperator):
 
     def __init__(
         self,
-        base_linear_op,
-        left_interp_indices=None,
-        left_interp_values=None,
-        right_interp_indices=None,
-        right_interp_values=None,
+        base_linear_op: Union[LinearOperator, Tensor],
+        left_interp_indices: Optional[LongTensor] = None,
+        left_interp_values: Optional[Tensor] = None,
+        right_interp_indices: Optional[LongTensor] = None,
+        right_interp_values: Optional[Tensor] = None,
     ):
         base_linear_op = to_linear_operator(base_linear_op)
 

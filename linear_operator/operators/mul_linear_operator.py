@@ -17,7 +17,7 @@ class MulLinearOperator(LinearOperator):
                 left_linear_op, right_linear_op
             )
 
-    def __init__(self, left_linear_op, right_linear_op):
+    def __init__(self, left_linear_op: LinearOperator, right_linear_op: LinearOperator, **kwargs):
         """
         Args:
             - linear_ops (A list of LinearOperator) - A list of LinearOperator to multiplicate with.
@@ -29,7 +29,7 @@ class MulLinearOperator(LinearOperator):
             left_linear_op = left_linear_op.root_decomposition()
         if not isinstance(right_linear_op, RootLinearOperator):
             right_linear_op = right_linear_op.root_decomposition()
-        super().__init__(left_linear_op, right_linear_op)
+        super().__init__(left_linear_op, right_linear_op, **kwargs)
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 

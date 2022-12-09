@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -43,8 +43,10 @@ def _symmetrize_kpadlt_constructor(lt, dlt):
 
 
 class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
-    def __init__(self, *linear_ops, preconditioner_override=None):
-        super().__init__(*linear_ops, preconditioner_override=preconditioner_override)
+    def __init__(
+        self, *linear_ops: Tuple[LinearOperator, ...], preconditioner_override: Optional[Callable] = None, **kwargs
+    ):
+        super().__init__(*linear_ops, preconditioner_override=preconditioner_override, **kwargs)
         if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
         elif isinstance(linear_ops[0], DiagLinearOperator):

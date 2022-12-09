@@ -7,6 +7,7 @@ import unittest
 import torch
 
 import linear_operator
+from linear_operator.linear_solvers import CGSolver
 from linear_operator.operators import DenseLinearOperator
 
 
@@ -40,7 +41,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
         # Forward pass
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vec_clone).mul(self.vec_clone).sum()
         with linear_operator.settings.num_trace_samples(1000):
-            dense_linear_op = DenseLinearOperator(self.mat)
+            dense_linear_op = DenseLinearOperator(self.mat, linear_solver=CGSolver(tol=1e-5))
             res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vec)
 
         self.assertAlmostEqual(res_inv_quad.item(), actual_inv_quad.item(), places=1)
@@ -56,7 +57,7 @@ class TestInvQuadNonBatch(unittest.TestCase):
         # Forward pass
         actual_inv_quad = self.mat_clone.inverse().matmul(self.vecs_clone).mul(self.vecs_clone).sum()
         with linear_operator.settings.num_trace_samples(1000):
-            dense_linear_op = DenseLinearOperator(self.mat)
+            dense_linear_op = DenseLinearOperator(self.mat, linear_solver=CGSolver(tol=1e-5))
             res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vecs)
         self.assertAlmostEqual(res_inv_quad.item(), actual_inv_quad.item(), places=1)
 
@@ -100,7 +101,7 @@ class TestInvQuadBatch(unittest.TestCase):
             .sum(1)
         )
         with linear_operator.settings.num_trace_samples(2000):
-            dense_linear_op = DenseLinearOperator(self.mats)
+            dense_linear_op = DenseLinearOperator(self.mats, linear_solver=CGSolver(tol=1e-5))
             res_inv_quad = linear_operator.inv_quad(dense_linear_op, self.vecs)
 
         self.assertEqual(res_inv_quad.shape, actual_inv_quad.shape)
@@ -150,7 +151,7 @@ class TestInvQuadMultiBatch(unittest.TestCase):
         )
 
         with linear_operator.settings.num_trace_samples(2000):
-            dense_linear_op = DenseLinearOperator(self.mats)
+            dense_linear_op = DenseLinearOperator(self.mats, linear_solver=CGSolver(tol=1e-5))
             res_inv_quad = dense_linear_op.inv_quad(self.vecs)
 
         self.assertEqual(res_inv_quad.shape, actual_inv_quad.shape)

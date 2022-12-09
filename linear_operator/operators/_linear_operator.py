@@ -942,7 +942,7 @@ class LinearOperator(ABC):
                 )
             diag_tensor = ConstantDiagLinearOperator(expanded_diag, diag_shape=self.shape[-1])
 
-        return AddedDiagLinearOperator(self, diag_tensor)
+        return AddedDiagLinearOperator(self, diag_tensor, linear_solver=self.linear_solver)
 
     def add_jitter(self, jitter_val: float = 1e-3) -> LinearOperator:
         r"""
@@ -1572,6 +1572,27 @@ class LinearOperator(ABC):
                 )
             )
 
+        if self.dim() == 2 and inv_quad_rhs.dim() == 1:
+            if self.shape[-1] != inv_quad_rhs.numel():
+                raise RuntimeError(
+                    "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                        self.shape, inv_quad_rhs.shape
+                    )
+                )
+            inv_quad_rhs = inv_quad_rhs.unsqueeze(-1)
+            reduce_inv_quad = True
+        elif self.dim() != inv_quad_rhs.dim():
+            raise RuntimeError(
+                "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
+                "of dimensions.".format(self.shape, inv_quad_rhs.shape)
+            )
+        elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
+            raise RuntimeError(
+                "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
+                    self.shape, inv_quad_rhs.shape
+                )
+            )
+
         # Special case: use Cholesky to compute these terms
         if self.linear_solver is None:
             inv_quad_term, _ = self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=False)
@@ -1625,6 +1646,8 @@ class LinearOperator(ABC):
                             self.shape, inv_quad_rhs.shape
                         )
                     )
+                inv_quad_rhs = inv_quad_rhs.unsqueeze(-1)
+                reduce_inv_quad = True
             elif self.dim() != inv_quad_rhs.dim():
                 raise RuntimeError(
                     "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "

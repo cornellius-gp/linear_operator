@@ -20,8 +20,8 @@ class DiagLinearOperator(TriangularLinearOperator):
     :param diag: A `... x N` tensor, representing a (batch of) `N x N` diagonal matrices.
     """
 
-    def __init__(self, diag: Tensor):
-        super(TriangularLinearOperator, self).__init__(diag)
+    def __init__(self, diag: Tensor, **kwargs):
+        super(TriangularLinearOperator, self).__init__(diag, **kwargs)
         self._diag = diag
 
     def __add__(
@@ -237,14 +237,14 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
     :param diag_shape: The (non-batch) dimension of the (square) matrix
     """
 
-    def __init__(self, diag_values: torch.Tensor, diag_shape: int):
+    def __init__(self, diag_values: torch.Tensor, diag_shape: int, **kwargs):
         if settings.debug.on():
             if not (diag_values.dim() and diag_values.size(-1) == 1):
                 raise ValueError(
                     f"diag_values argument to ConstantDiagLinearOperator needs to have a final "
                     f"singleton dimension. Instead, got a value with shape {diag_values.shape}."
                 )
-        super(TriangularLinearOperator, self).__init__(diag_values, diag_shape=diag_shape)
+        super(TriangularLinearOperator, self).__init__(diag_values, diag_shape=diag_shape, **kwargs)
         self.diag_values = diag_values
         self.diag_shape = diag_shape
 

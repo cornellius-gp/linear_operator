@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -15,7 +15,10 @@ from .sum_batch_linear_operator import SumBatchLinearOperator
 
 
 class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
-    def __init__(self, *linear_ops, preconditioner_override=None):
+    def __init__(
+        self, *linear_ops: Tuple[LowRankRootLinearOperator, DiagLinearOperator],
+        preconditioner_override: Optional[Callable] = None, **kwargs
+    ):
         if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
 
@@ -28,7 +31,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
                 "A LowRankRootAddedDiagLinearOperator can only be created with a LowRankLinearOperator base!"
             )
 
-        super().__init__(*linear_ops, preconditioner_override=preconditioner_override)
+        super().__init__(*linear_ops, preconditioner_override=preconditioner_override, **kwargs)
 
     @property
     @cached(name="chol_cap_mat")

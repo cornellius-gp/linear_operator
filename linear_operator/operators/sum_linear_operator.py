@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from typing import Tuple
+
 import torch
 from torch import Tensor
 
@@ -12,7 +14,7 @@ from .zero_linear_operator import ZeroLinearOperator
 
 
 class SumLinearOperator(LinearOperator):
-    def __init__(self, *linear_ops, **kwargs):
+    def __init__(self, *linear_ops: Tuple[LinearOperator, ...], **kwargs):
         try:
             linear_ops = tuple(to_linear_operator(lt) for lt in linear_ops)
         except TypeError:

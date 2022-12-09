@@ -46,8 +46,8 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
             The dimension that specifies the blocks.
     """
 
-    def __init__(self, base_linear_op, block_dim=-3):
-        super().__init__(base_linear_op, block_dim)
+    def __init__(self, base_linear_op: LinearOperator, block_dim: int = -3, **kwargs):
+        super().__init__(base_linear_op, block_dim=block_dim, **kwargs)
         # block diagonal is restricted to have square diagonal blocks
         if self.base_linear_op.shape[-1] != self.base_linear_op.shape[-2]:
             raise RuntimeError(

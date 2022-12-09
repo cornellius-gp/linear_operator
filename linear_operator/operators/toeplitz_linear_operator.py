@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import torch
+from torch import Tensor
 
 from ..utils.toeplitz import sym_toeplitz_derivative_quadratic_form, sym_toeplitz_matmul
 from ._linear_operator import LinearOperator
 
 
 class ToeplitzLinearOperator(LinearOperator):
-    def __init__(self, column):
+    def __init__(self, column: Tensor, **kwargs):
         """
         Args:
             :attr: `column` (Tensor)
@@ -16,7 +17,7 @@ class ToeplitzLinearOperator(LinearOperator):
                 If `column` is `b_1 x b_2 x ... x b_k x n`, then this represents a batch
                 `b_1 x b_2 x ... x b_k` of Toeplitz matrices.
         """
-        super(ToeplitzLinearOperator, self).__init__(column)
+        super(ToeplitzLinearOperator, self).__init__(column, **kwargs)
         self.column = column
 
     def _diagonal(self):

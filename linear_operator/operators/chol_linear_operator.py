@@ -27,7 +27,7 @@ class CholLinearOperator(RootLinearOperator):
         (i.e. :math:`\mathbf L \mathbf L^\top`).
     """
 
-    def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False):
+    def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False, **kwargs):
         if not isinstance(chol, _TriangularLinearOperatorBase):
             warnings.warn(
                 "chol argument to CholLinearOperator should be a TriangularLinearOperator. "
@@ -40,7 +40,7 @@ class CholLinearOperator(RootLinearOperator):
                 chol = TriangularLinearOperator(chol, upper=True)
             else:
                 raise ValueError("chol must be either lower or upper triangular")
-        super().__init__(chol)
+        super().__init__(chol, upper=upper, **kwargs)
         self.upper = upper
 
     @property
@@ -81,9 +81,9 @@ class CholLinearOperator(RootLinearOperator):
 
     def _inv_quad(self, tensor: Tensor) -> Tensor:
         if self.upper:
-            R = self.root._transpose_nonbatch().solve(tensor)
+            R = self.root._transpose_nonbatch()._solve(tensor)
         else:
-            R = self.root.solve(tensor)
+            R = self.root._solve(tensor)
         inv_quad_term = R.square().sum(dim=-2)
         return inv_quad_term
 

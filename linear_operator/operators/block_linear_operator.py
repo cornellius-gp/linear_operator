@@ -28,7 +28,7 @@ class BlockLinearOperator(LinearOperator):
             The dimension that specifies blocks.
     """
 
-    def __init__(self, base_linear_op, block_dim=-3):
+    def __init__(self, base_linear_op: LinearOperator, block_dim: int = -3, **kwargs):
         if base_linear_op.dim() < 3:
             raise RuntimeError(
                 "base_linear_op must be a batch matrix (i.e. at least 3 dimensions - got "
@@ -48,7 +48,7 @@ class BlockLinearOperator(LinearOperator):
                 *range(positive_block_dim + 1, base_linear_op.dim() - 2),
                 positive_block_dim,
             )
-        super(BlockLinearOperator, self).__init__(to_linear_operator(base_linear_op))
+        super(BlockLinearOperator, self).__init__(to_linear_operator(base_linear_op), **kwargs)
         self.base_linear_op = base_linear_op
 
     @abstractmethod

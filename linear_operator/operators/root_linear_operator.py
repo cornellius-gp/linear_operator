@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+from typing import Union
+
 import torch
+from torch import Tensor
 
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _equal_indices, _noop_index
@@ -11,9 +14,9 @@ from .matmul_linear_operator import MatmulLinearOperator
 
 
 class RootLinearOperator(LinearOperator):
-    def __init__(self, root):
+    def __init__(self, root: Union[LinearOperator, Tensor], **kwargs):
         root = to_linear_operator(root)
-        super().__init__(root)
+        super().__init__(root, **kwargs)
         self.root = root
 
     def _diagonal(self):

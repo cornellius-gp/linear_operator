@@ -67,7 +67,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         :`linear_ops`: List of lazy tensors
     """
 
-    def __init__(self, *linear_ops):
+    def __init__(self, *linear_ops: Tuple[LinearOperator], **kwargs):
         try:
             linear_ops = tuple(to_linear_operator(linear_op) for linear_op in linear_ops)
         except TypeError:
@@ -78,7 +78,7 @@ class KroneckerProductLinearOperator(LinearOperator):
                     "KroneckerProductLinearOperator expects lazy tensors with the "
                     "same batch shapes. Got {}.".format([lv.batch_shape for lv in linear_ops])
                 )
-        super().__init__(*linear_ops)
+        super().__init__(*linear_ops, **kwargs)
         self.linear_ops = linear_ops
 
     def __add__(self, other):
@@ -291,12 +291,12 @@ class KroneckerProductLinearOperator(LinearOperator):
 
 
 class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _TriangularLinearOperatorBase):
-    def __init__(self, *linear_ops, upper=False):
+    def __init__(self, *linear_ops: Tuple[TriangularLinearOperator, ...], upper: bool = False, **kwargs):
         if not all(isinstance(lt, TriangularLinearOperator) for lt in linear_ops):
             raise RuntimeError(
                 "Components of KroneckerProductTriangularLinearOperator must be TriangularLinearOperator."
             )
-        super().__init__(*linear_ops)
+        super().__init__(*linear_ops, upper=upper, **kwargs)
         self.upper = upper
 
     @cached
@@ -333,10 +333,10 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
     :param linear_ops: Diagonal linear operators (:math:`\mathbf D_1, \mathbf D_2, \ldots \mathbf D_\ell`).
     """
 
-    def __init__(self, *linear_ops: Tuple[DiagLinearOperator, ...]):
+    def __init__(self, *linear_ops: Tuple[DiagLinearOperator, ...], **kwargs):
         if not all(isinstance(lt, DiagLinearOperator) for lt in linear_ops):
             raise RuntimeError("Components of KroneckerProductDiagLinearOperator must be DiagLinearOperator.")
-        super(KroneckerProductTriangularLinearOperator, self).__init__(*linear_ops)
+        super(KroneckerProductTriangularLinearOperator, self).__init__(*linear_ops, **kwargs)
         self.upper = False
 
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Tensor, ...]:

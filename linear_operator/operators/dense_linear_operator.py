@@ -17,7 +17,7 @@ class DenseLinearOperator(LinearOperator):
                 tsr.shape
             )
 
-    def __init__(self, tsr, **kwargs):
+    def __init__(self, tsr: Tensor, **kwargs):
         """
         Not a lazy tensor
 

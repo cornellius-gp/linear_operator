@@ -69,7 +69,9 @@ class CatLinearOperator(LinearOperator):
             if t_noncat_shape != rep_tensor_noncat_shape:
                 raise RuntimeError("All LinearOperators must have the same size in " "the non-concatenation dimension")
 
-    def __init__(self, *linear_ops, dim=0, output_device=None):
+    def __init__(
+        self, *linear_ops: Tuple[LinearOperator], dim: int = 0, output_device: Optional[torch.device] = None, **kwargs
+    ):
         # Make sure index is negative index
         rep_tensor = linear_ops[0]
         ndims = rep_tensor.ndimension()
@@ -80,7 +82,7 @@ class CatLinearOperator(LinearOperator):
             positive_dim = ndims + dim
 
         # Standard initialization
-        super().__init__(*linear_ops, dim=dim, output_device=output_device)
+        super().__init__(*linear_ops, dim=dim, output_device=output_device, **kwargs)
         self.linear_ops = linear_ops
         self.cat_dim = dim
         self.output_device = output_device

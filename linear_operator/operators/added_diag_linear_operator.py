@@ -33,11 +33,11 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def __init__(
         self,
-        *linear_ops: Union[Tuple[LinearOperator, DiagLinearOperator], Tuple[DiagLinearOperator, LinearOperator]],
-        preconditioner_override: Optional[Callable] = None,
+        *linear_ops: Tuple[LinearOperator, DiagLinearOperator],
+        preconditioner_override: Optional[Callable] = None, **kwargs
     ):
         linear_ops = list(linear_ops)
-        super(AddedDiagLinearOperator, self).__init__(*linear_ops, preconditioner_override=preconditioner_override)
+        super().__init__(*linear_ops, preconditioner_override=preconditioner_override, **kwargs)
         if len(linear_ops) > 2:
             raise RuntimeError("An AddedDiagLinearOperator can only have two components")
 

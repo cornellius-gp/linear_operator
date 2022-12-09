@@ -31,9 +31,12 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         batch_shape: Optional[torch.Size] = torch.Size([]),
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        **kwargs
     ):
         one = torch.tensor(1.0, dtype=dtype, device=device)
-        LinearOperator.__init__(self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device)
+        LinearOperator.__init__(
+            self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device, **kwargs
+        )
         self.diag_values = one.expand(torch.Size([*batch_shape, 1]))
         self.diag_shape = diag_shape
         self._batch_shape = batch_shape

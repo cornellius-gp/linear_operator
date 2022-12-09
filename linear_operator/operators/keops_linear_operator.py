@@ -1,4 +1,9 @@
+#!/usr/bin/env python3
+
+from typing import Callable
+
 import torch
+from torch import Tensor
 
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
@@ -6,7 +11,7 @@ from ._linear_operator import LinearOperator
 
 
 class KeOpsLinearOperator(LinearOperator):
-    def __init__(self, x1, x2, covar_func, **params):
+    def __init__(self, x1: Tensor, x2: Tensor, covar_func: Callable, **params):
         super().__init__(x1, x2, covar_func=covar_func, **params)
 
         self.x1 = x1.contiguous()
