@@ -97,16 +97,9 @@ class BlockLinearOperator(LinearOperator):
         return self.__class__(new_base_linear_op, block_dim=-3)
 
     def _matmul(self, rhs):
-        isvector = rhs.ndimension() == 1
-        if isvector:
-            rhs = rhs.unsqueeze(1)
-
         rhs = self._add_batch_dim(rhs)
         res = self.base_linear_op._matmul(rhs)
         res = self._remove_batch_dim(res)
-
-        if isvector:
-            res = res.squeeze(-1)
         return res
 
     def _bilinear_derivative(self, left_vecs, right_vecs):

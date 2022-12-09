@@ -528,14 +528,14 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             else:
                 self.assertFalse(linear_cg_mock.called)
 
-    def _test_solve(self, rhs, lhs=None, iterative=True):
+    def _test_solve(self, rhs, lhs=None, iterative=False):
         linear_op = self.create_linear_op().detach().requires_grad_(True)
         linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         evaluated.register_hook(self._ensure_symmetric_grad)
 
         if iterative:
-            linear_op.linear_solver = CGSolver(tol=1e-4)
+            linear_op.linear_solver = CGSolver(tol=1e-5)
 
         # Create a test right hand side and left hand side
         rhs.requires_grad_(True)
@@ -996,7 +996,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             sample_covar = samples.unsqueeze(-1).matmul(samples.unsqueeze(-2)).mean(0)
             self.assertAllClose(sample_covar, evaluated, **self.tolerances["sample"])
 
-    def test_solve_vector(self, iterative=True):
+    def test_solve_vector(self, iterative=False):
         linear_op = self.create_linear_op()
         rhs = torch.randn(linear_op.size(-1))
 
@@ -1005,9 +1005,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         if linear_op.ndimension() > 2:
             return
         else:
-            return self._test_solve(rhs)
+            return self._test_solve(rhs, iterative=iterative)
 
-    def test_solve_vector_with_left(self, iterative=True):
+    def test_solve_vector_with_left(self, iterative=False):
         linear_op = self.create_linear_op()
         rhs = torch.randn(linear_op.size(-1))
         lhs = torch.randn(6, linear_op.size(-1))
@@ -1017,35 +1017,35 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         if linear_op.ndimension() > 2:
             return
         else:
-            return self._test_solve(rhs, lhs=lhs)
+            return self._test_solve(rhs, lhs=lhs, iterative=iterative)
 
-    def test_solve_vector_with_left_cholesky(self):
-        linear_op = self.create_linear_op()
-        rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
-        lhs = torch.randn(*linear_op.batch_shape, 6, linear_op.size(-1))
-        return self._test_solve(rhs, lhs=lhs, iterative=False)
+    def test_solve_vector_with_cg(self):
+        return self.test_solve_vector(iterative=True)
 
-    def test_solve_matrix(self, iterative=True):
+    def test_solve_matrix(self, iterative=False):
         linear_op = self.create_linear_op()
         rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
         return self._test_solve(rhs, iterative=iterative)
 
-    def test_solve_matrix_cholesky(self):
-        return self.test_solve_matrix(iterative=False)
+    def test_solve_matrix_cg(self):
+        return self.test_solve_matrix(iterative=True)
 
-    def test_solve_matrix_with_left(self):
+    def test_solve_matrix_with_left(self, iterative=False):
         linear_op = self.create_linear_op()
         rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 5)
         lhs = torch.randn(*linear_op.batch_shape, 3, linear_op.size(-1))
-        return self._test_solve(rhs, lhs=lhs)
+        return self._test_solve(rhs, lhs=lhs, iterative=iterative)
 
-    def test_solve_matrix_broadcast(self):
+    def test_solve_matrix_with_left_cg(self):
+        return self.test_solve_matrix_with_left(iterative=True)
+
+    def test_solve_matrix_broadcast(self, iterative=False):
         linear_op = self.create_linear_op()
 
         # Right hand size has one more batch dimension
         batch_shape = torch.Size((3, *linear_op.batch_shape))
         rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
-        self._test_solve(rhs)
+        self._test_solve(rhs, iterative=iterative)
 
         if linear_op.ndimension() > 2:
             # Right hand size has one fewer batch dimension
@@ -1057,6 +1057,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
             rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
             self._test_solve(rhs)
+
+    def test_solve_matrix_broadcast_cg(self):
+        return self.test_solve_matrix_broadcast(iterative=True)
 
     def test_solve_triangular(self):
         linear_op = self.create_linear_op()
