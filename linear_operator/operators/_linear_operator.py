@@ -7,6 +7,7 @@ import math
 import numbers
 import warnings
 from abc import ABC, abstractmethod
+from collections import deque
 from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -339,8 +340,6 @@ class LinearOperator(ABC):
         :return: Derivative with respect to the arguments (:math:`\boldsymbol \theta`) that
             represent this this LinearOperator.
         """
-        from collections import deque
-
         args = tuple(self.representation())
         args_with_grads = tuple(arg for arg in args if arg.requires_grad)
 
@@ -349,10 +348,11 @@ class LinearOperator(ABC):
             return tuple(None for _ in args)
 
         # Normal case: we'll use the autograd to get us a derivative
-        with torch.autograd.enable_grad():
-            loss = (left_vecs * self._matmul(right_vecs)).sum()
-            loss.requires_grad_(True)
-            actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
+        def _matmul(*representation):
+            lin_op_copy = self.representation_tree()(*representation)
+            return (left_vecs * lin_op_copy._matmul(right_vecs)).sum()
+
+        actual_grads = deque(torch.autograd.functional.vjp(_matmul, self.representation())[1])
 
         # Now make sure that the object we return has one entry for every item in args
         grads = []

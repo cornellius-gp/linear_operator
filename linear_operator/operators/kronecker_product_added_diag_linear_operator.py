@@ -164,8 +164,8 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
             # (K + D)^{-1} = D^{-1} Q(\kron d_i^{-1} \Lambda_i + I)^{-1} Q^\top
             if all(isinstance(tdiag, ConstantDiagLinearOperator) for tdiag in dlt.linear_ops):
                 evals_p_i, evecs = _constant_kpadlt_constructor(lt, dlt)
-                res1 = evals_p_i.solve(evecs._transpose_nonbatch().matmul(rhs))
-                res = dlt.solve(evecs.matmul(res1))
+                res1 = evals_p_i._solve(evecs._transpose_nonbatch().matmul(rhs))
+                res = dlt._solve(evecs.matmul(res1))
                 return res.to(rhs_dtype)
 
             # If the diagonals are not constant, we have to do some more work
