@@ -87,6 +87,9 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
         rhs = torch.randn(linear_op.shape)
         # Test operator functionality
+        a = (linear_op + rhs).to_dense()
+        b = evaluated + rhs
+        self.assertAllClose(a, b)
         self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
         self.assertAllClose((rhs + linear_op).to_dense(), evaluated + rhs)
         # Test __torch_function__ functionality

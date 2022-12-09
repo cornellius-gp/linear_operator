@@ -8,7 +8,9 @@ from jaxtyping import install_import_hook
 with install_import_hook("linear_operator", ("typeguard", "typechecked")):
     import linear_operator
     from linear_operator.operators import DenseLinearOperator
-    from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
+
+
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
 class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):

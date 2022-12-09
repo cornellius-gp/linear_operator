@@ -19,7 +19,6 @@ from torch import Tensor
 import linear_operator
 
 from .. import settings, utils
-from ..functions import LinearOperatorBase
 from ..functions._diagonalization import Diagonalization
 from ..functions._inv_quad import InvQuad
 from ..functions._inv_quad_logdet import InvQuadLogdet
@@ -108,7 +107,7 @@ class LinopLayout:
 linop_diagonal: LinopLayout
 
 
-class LinearOperator(LinearOperatorBase):
+class LinearOperator:
     r"""
     Base class for LinearOperators.
 
@@ -1480,7 +1479,11 @@ class LinearOperator(LinearOperatorBase):
         return self._symeig(eigenvectors=True)
 
     @_implements(torch.linalg.eigvalsh)
-    def eigvalsh(self: Float[LinearOperator, "*batch N N"]) -> Float[Tensor, "*batch N"]:
+    def eigvalsh(
+        self: Float[LinearOperator, "*batch N N"]
+    ) -> Union[
+        Float[Tensor, "*batch N"], Tuple[Float[Tensor, "*batch N"], Optional[Float[LinearOperator, "*batch N N"]]]
+    ]:
         """
         Compute the eigenvalues of symmetric linear operator.
         This can be very slow for large tensors.

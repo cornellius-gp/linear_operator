@@ -3,8 +3,13 @@
 import unittest
 
 import torch
+from jaxtyping import install_import_hook
 
-from linear_operator.operators import DenseLinearOperator, InterpolatedLinearOperator
+from linear_operator.operators import DenseLinearOperator  # Run time type checker has problems when this is annotated
+
+with install_import_hook("linear_operator", ("typeguard", "typechecked")):
+    from linear_operator.operators import InterpolatedLinearOperator
+
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
