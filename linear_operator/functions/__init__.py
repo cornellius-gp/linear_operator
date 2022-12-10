@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, TypeAlias, Union
+from typing import Any, Optional, Tuple, TypeAlias, Union
 
 import torch
 
 from ._dsmm import DSMM
 
-LinearOperatorType: TypeAlias = "Any"  # Want this to be "LinearOperator" but runtime type checker can't handle
+LinearOperatorType: TypeAlias = Any  # Want this to be "LinearOperator" but runtime type checker can't handle
 
 
 Anysor = Union[LinearOperatorType, torch.Tensor]
