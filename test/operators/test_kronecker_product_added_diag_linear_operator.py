@@ -4,16 +4,19 @@ import unittest
 from unittest import mock
 
 import torch
+from jaxtyping import install_import_hook
 
 from linear_operator import settings
-from linear_operator.operators import (
-    ConstantDiagLinearOperator,
-    DenseLinearOperator,
-    DiagLinearOperator,
-    KroneckerProductAddedDiagLinearOperator,
-    KroneckerProductDiagLinearOperator,
-    KroneckerProductLinearOperator,
-)
+
+with install_import_hook("linear_operator", ("typeguard", "typechecked")):
+    from linear_operator.operators import (
+        ConstantDiagLinearOperator,
+        DenseLinearOperator,
+        DiagLinearOperator,
+        KroneckerProductAddedDiagLinearOperator,
+        KroneckerProductDiagLinearOperator,
+        KroneckerProductLinearOperator,
+    )
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
