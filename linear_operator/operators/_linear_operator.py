@@ -978,7 +978,7 @@ class LinearOperator:
 
     def add_low_rank(
         self: Float[LinearOperator, "*batch N N"],
-        low_rank_mat: Union[Float[Tensor, "... N _"], Float[LinearOperator, "... N N"]],
+        low_rank_mat: Union[Float[Tensor, "... N _"], Float[LinearOperator, "... N _"]],
         root_decomp_method: Optional[str] = None,
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
