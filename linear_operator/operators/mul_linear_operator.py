@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+from typing import Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
+from .linear_operator_representation_tree import LinearOperatorRepresentationTree
 from .root_linear_operator import RootLinearOperator
 
 
@@ -33,16 +37,19 @@ class MulLinearOperator(LinearOperator):
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         res = self.left_linear_op._diagonal() * self.right_linear_op._diagonal()
         return res
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         left_res = self.left_linear_op._get_indices(row_index, col_index, *batch_indices)
         right_res = self.right_linear_op._get_indices(row_index, col_index, *batch_indices)
         return left_res * right_res
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
         output_batch_shape = output_shape[:-2]
 
@@ -70,7 +77,9 @@ class MulLinearOperator(LinearOperator):
         res = res.squeeze(-1) if is_vector else res
         return res
 
-    def _mul_constant(self, constant):
+    def _mul_constant(
+        self: Float[LinearOperator, "*batch M N"], constant: Union[float, torch.Tensor]
+    ) -> Float[LinearOperator, "*batch M N"]:
         if constant > 0:
             res = self.__class__(self.left_linear_op._mul_constant(constant), self.right_linear_op)
         else:
@@ -79,7 +88,7 @@ class MulLinearOperator(LinearOperator):
             res = super()._mul_constant(constant)
         return res
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)
@@ -118,7 +127,9 @@ class MulLinearOperator(LinearOperator):
 
         return tuple(list(left_deriv_args) + list(right_deriv_args))
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
         )
@@ -127,19 +138,19 @@ class MulLinearOperator(LinearOperator):
     def to_dense(self):
         return self.left_linear_op.to_dense() * self.right_linear_op.to_dense()
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return self.left_linear_op.size()
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         # mul.linear_op only works with symmetric matrices
         return self
 
-    def representation(self):
+    def representation(self) -> Tuple[torch.Tensor, ...]:
         """
         Returns the Tensors that are used to define the LinearOperator
         """
         res = super(MulLinearOperator, self).representation()
         return res
 
-    def representation_tree(self):
+    def representation_tree(self) -> LinearOperatorRepresentationTree:
         return super(MulLinearOperator, self).representation_tree()
