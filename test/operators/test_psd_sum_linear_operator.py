@@ -3,8 +3,10 @@
 import unittest
 
 import torch
+from jaxtyping import install_import_hook
 
-from linear_operator.operators import DenseLinearOperator, PsdSumLinearOperator, ToeplitzLinearOperator
+with install_import_hook("linear_operator", ("typeguard", "typechecked")):
+    from linear_operator.operators import DenseLinearOperator, PsdSumLinearOperator, ToeplitzLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
