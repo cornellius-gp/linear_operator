@@ -9,7 +9,7 @@ import warnings
 from abc import abstractmethod
 from copy import deepcopy
 from types import EllipsisType
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ _HANDLED_SECOND_ARG_FUNCTIONS = {}
 _TYPES_DICT = {torch.float: "float", torch.half: "half", torch.double: "double"}
 
 
-IndexType = Union[EllipsisType, slice, torch.LongTensor, int]
+IndexType = Union[EllipsisType, slice, List[int], torch.LongTensor, int]
 
 
 def _implements(torch_function: Callable) -> Callable:
@@ -2645,10 +2645,16 @@ class LinearOperator:
 
         return samples
 
+    def __sub__(
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
+        return self + other.mul(-1)
+
     def __add__(
         self: Float[LinearOperator, "... M #N"],
         other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator
         from .diag_linear_operator import DiagLinearOperator
@@ -2781,9 +2787,6 @@ class LinearOperator:
     @_implements_second_arg(torch.Tensor.sub)
     def __rsub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
         return self.mul(-1) + other
-
-    def __sub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
-        return self + other.mul(-1)
 
     @classmethod
     def __torch_function__(
