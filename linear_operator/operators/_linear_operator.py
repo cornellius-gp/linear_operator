@@ -236,12 +236,7 @@ class LinearOperator:
         res = self.__class__(*components, **self._kwargs)
         return res
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         """
         Supports subindexing of the matrix this LinearOperator represents.
 
@@ -2651,8 +2646,8 @@ class LinearOperator:
         return samples
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
     ) -> Float[LinearOperator, "... M N"]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator

@@ -88,8 +88,8 @@ class DenseLinearOperator(LinearOperator):
         return self.tensor
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
     ) -> Float[LinearOperator, "... M N"]:
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.tensor + other.tensor)

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+from typing import Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import to_linear_operator
 from .zero_linear_operator import ZeroLinearOperator
 
@@ -23,43 +25,53 @@ class SumLinearOperator(LinearOperator):
 
         self.linear_ops = linear_ops
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         expanded_tensors = [linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops]
         return self.__class__(*expanded_tensors)
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         results = [linear_op._get_indices(row_index, col_index, *batch_indices) for linear_op in self.linear_ops]
         return sum(results)
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         results = [linear_op._getitem(row_index, col_index, *batch_indices) for linear_op in self.linear_ops]
         return SumLinearOperator(*results)
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         return sum(linear_op._matmul(rhs) for linear_op in self.linear_ops)
 
-    def _mul_constant(self, other):
+    def _mul_constant(
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
+    ) -> Float[LinearOperator, "*batch M N"]:
         # We're using a custom method here - the constant mul is applied to the base_linear_ops
         return self.__class__(*[lt._mul_constant(other) for lt in self.linear_ops])
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         return tuple(
             var for linear_op in self.linear_ops for var in linear_op._bilinear_derivative(left_vecs, right_vecs)
         )
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return torch.broadcast_shapes(*[lt.shape for lt in self.linear_ops])
 
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(*(linear_op._sum_batch(dim) for linear_op in self.linear_ops))
 
-    def _t_matmul(self, rhs):
+    def _t_matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
+    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         return sum(linear_op._t_matmul(rhs) for linear_op in self.linear_ops)
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         linear_ops_t = [linear_op.mT for linear_op in self.linear_ops]
         return self.__class__(*linear_ops_t)
 
@@ -67,7 +79,10 @@ class SumLinearOperator(LinearOperator):
     def to_dense(self):
         return (sum(linear_op.to_dense() for linear_op in self.linear_ops)).contiguous()
 
-    def __add__(self, other):
+    def __add__(
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
+    ) -> Float[LinearOperator, "... M N"]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .diag_linear_operator import DiagLinearOperator
 
