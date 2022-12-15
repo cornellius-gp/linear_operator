@@ -692,7 +692,7 @@ class LinearOperator:
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
         """
         Returns the (usually low-rank) inverse root of a LinearOperator of a PSD matrix.
 
