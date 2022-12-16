@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from .. import settings, utils
-from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, ZeroLinearOperator
+from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator
 from .linear_solver import LinearSolver, SolverState
 
 
@@ -59,7 +59,8 @@ class IterGPCGSolver(LinearSolver):
         if x is None:
             x = torch.zeros_like(rhs)
 
-        inv_approx = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype)
+        inv_approx = None
+        search_dir_sqnorm_list = []
 
         for i in range(self.max_iter):
 
@@ -79,19 +80,33 @@ class IterGPCGSolver(LinearSolver):
             observ = action.T @ residual
 
             # Search direction
-            search_dir = action - inv_approx @ linear_op_action
+            if i == 0:
+                search_dir = action
+            else:
+                search_dir = action - inv_approx @ linear_op_action
 
             # Normalization constant
-            searchdir_norm = linear_op_action.T @ search_dir
-            normalized_searchdir = search_dir / searchdir_norm
+            search_dir_sqnorm = linear_op_action.T @ search_dir
+            search_dir_sqnorm_list.append(search_dir_sqnorm)
 
             # Solution update
-            x = x + observ * normalized_searchdir
+            x = x + observ / search_dir_sqnorm * search_dir
 
             # Inverse approximation
-            inv_approx = LowRankRootLinearOperator(torch.concat((inv_approx.root, normalized_searchdir), dim=1))
+            if i == 0:
+                inv_approx = LowRankRootLinearOperator((search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1))
+            else:
+                inv_approx = LowRankRootLinearOperator(
+                    torch.concat(
+                        (
+                            inv_approx.root.to_dense(),
+                            (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1),
+                        ),
+                        dim=1,
+                    )
+                )
 
-        return x, inv_approx
+        return x, inv_approx, torch.as_tensor(search_dir_sqnorm_list)
 
 
 class CGSolver(LinearSolver):

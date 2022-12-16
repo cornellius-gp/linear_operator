@@ -68,12 +68,15 @@ setup(
         "Source": "https://github.com/cornellius-gp/linear_operator/",
     },
     license="MIT",
-    classifiers=["Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3"],
+    classifiers=[
+        "Development Status :: 2 - Pre-Alpha",
+        "Programming Language :: Python :: 3",
+    ],
     packages=find_packages(exclude=["test", "test.*"]),
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
-        "dev": ["black", "twine", "pre-commit"],
+        "dev": ["black==22.3.0", "twine", "pre-commit"],
         "test": ["flake8==4.0.1", "flake8-print==4.0.0"],
     },
     test_suite="test",
