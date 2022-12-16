@@ -66,6 +66,22 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             torch.log(linear_op).diagonal(dim1=-1, dim2=-2), torch.log(evaluated.diagonal(dim1=-1, dim2=-2))
         )
 
+    def test_solve_triangular(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        res = torch.linalg.solve_triangular(linear_op, rhs, upper=False)
+        res_actual = rhs / linear_op.diagonal()
+        self.assertAllClose(res, res_actual)
+        res = torch.linalg.solve_triangular(linear_op, rhs, upper=True)
+        res_actual = rhs / linear_op.diagonal()
+        self.assertAllClose(res, res_actual)
+        # unittriangular case
+        with self.assertRaisesRegex(RuntimeError, "Received `unitriangular=True`"):
+            torch.linalg.solve_triangular(linear_op, rhs, upper=False, unitriangular=True)
+        linear_op = DiagLinearOperator(torch.ones(4))  # TODO: Test gradients
+        res = torch.linalg.solve_triangular(linear_op, rhs, upper=False, unitriangular=True)
+        self.assertAllClose(res, rhs)
+
     def test_sqrt(self):
         linear_op = self.create_linear_op()
         linear_op_copy = linear_op.detach().clone()

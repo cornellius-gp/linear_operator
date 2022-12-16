@@ -31,11 +31,17 @@ from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.deprecation import _deprecate_renamed_methods
 from ..utils.errors import CachingError
-from ..utils.getitem import _compute_getitem_size, _convert_indices_to_tensors, _is_noop_index, _noop_index
+from ..utils.getitem import (
+    _compute_getitem_size,
+    _convert_indices_to_tensors,
+    _is_noop_index,
+    _is_tensor_index_moved_to_start,
+    _noop_index,
+)
 from ..utils.lanczos import _postprocess_lanczos_root_inv_decomp
 from ..utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache
 from ..utils.pinverse import stable_pinverse
-from ..utils.warnings import NumericalWarning
+from ..utils.warnings import NumericalWarning, PerformanceWarning
 from .linear_operator_representation_tree import LinearOperatorRepresentationTree
 
 _HANDLED_FUNCTIONS = {}
@@ -1746,6 +1752,10 @@ class LinearOperator:
     def is_square(self) -> bool:
         return self.matrix_shape[0] == self.matrix_shape[1]
 
+    @_implements_symmetric(torch.isclose)
+    def isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+        return self._isclose(other, rtol=rtol, atol=atol, equal_nan=equal_nan)
+
     @_implements(torch.log)
     def log(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         # Only implemented by some LinearOperator subclasses
@@ -1819,7 +1829,7 @@ class LinearOperator:
             other = torch.tensor(other, dtype=self.dtype, device=self.device)
 
         try:
-            torch.broadcast_shapes(self.shape, other.shape)
+            broadcast_shape = torch.broadcast_shapes(self.shape, other.shape)
         except RuntimeError:
             raise RuntimeError(
                 "Cannot multiply LinearOperator of size {} by an object of size {}".format(self.shape, other.shape)
@@ -1828,7 +1838,7 @@ class LinearOperator:
         if torch.is_tensor(other):
             if other.numel() == 1:
                 return self._mul_constant(other.squeeze())
-            elif other.shape[-2:] == torch.Size((1, 1)):
+            elif other.shape[-2:] == torch.Size((1, 1)) and self.batch_shape == broadcast_shape[:-2]:
                 return self._mul_constant(other.view(*other.shape[:-2]))
 
         return self._mul_matrix(to_linear_operator(other))
@@ -2037,6 +2047,16 @@ class LinearOperator:
         """
         self._set_requires_grad(val)
         return self
+
+    def reshape(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+        """
+        Alias for expand
+        """
+        # While for regular tensors expand doesn't handle a leading non-existing -1 dimension,
+        # reshape does. So we handle this conversion here.
+        if len(sizes) == len(self.shape) + 1 and sizes[0] == -1:
+            sizes = (1,) + sizes[1:]
+        return self.expand(*sizes)
 
     @_implements_second_arg(torch.matmul)
     def rmatmul(
@@ -2281,6 +2301,39 @@ class LinearOperator:
                 *self.representation(),
             )
 
+    @_implements(torch.linalg.solve_triangular)
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
+        r"""
+        Computes a triangular linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
+        If left=True, computes the soluton :math:`\mathbf X` to
+
+        .. math::
+           \begin{equation}
+               \mathbf A \mathbf X = \mathbf R,
+           \end{equation}
+
+        If left=False, computes the soluton :math:`\mathbf X` to
+
+        .. math::
+           \begin{equation}
+               \mathbf X \mathbf A = \mathbf R,
+           \end{equation}
+
+        where :math:`\mathbf R` is :attr:`rhs` and :math:`\mathbf A` is the (triangular) LinearOperator.
+
+        :param rhs: :math:`\mathbf R` - the right hand side
+        :param upper: If True (False), consider :math:`\mathbf A` to be upper (lower) triangular.
+        :param left: If True (False), solve for :math:`\mathbf A \mathbf X = \mathbf R`
+            (:math:`\mathbf X \mathbf A = \mathbf R`).
+        :param unitriangular: Unsupported (must be False),
+        :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
+        """
+        # This function is only implemented by TriangularLinearOperator subclasses. We define it here so
+        # that we can map the torch function torch.linalg.solve_triangular to the LinearOperator method.
+        raise NotImplementedError(f"torch.linalg.solve_triangular({self.__class__.__name__}) is not implemented.")
+
     @_implements(torch.sqrt)
     def sqrt(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         # Only implemented by some LinearOperator subclasses
@@ -2490,7 +2543,6 @@ class LinearOperator:
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
 
-    # TODO: rename to_dense
     @cached
     def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         """
@@ -2733,13 +2785,26 @@ class LinearOperator:
         # Call self._getitem - now that the index has been processed
         # Alternatively, if we're using tensor indices and losing dimensions, use self._get_indices
         if row_col_are_absorbed:
+            # Get broadcasted size of existing tensor indices
+            orig_indices = [*batch_indices, row_index, col_index]
+            tensor_index_shape = torch.broadcast_shapes(*[idx.shape for idx in orig_indices if torch.is_tensor(idx)])
+            # Flatten existing tensor indices
+            flattened_orig_indices = [
+                idx.expand(tensor_index_shape).reshape(-1) if torch.is_tensor(idx) else idx for idx in orig_indices
+            ]
             # Convert all indices into tensor indices
             (
-                *batch_indices,
-                row_index,
-                col_index,
-            ) = _convert_indices_to_tensors(self, (*batch_indices, row_index, col_index))
-            res = self._get_indices(row_index, col_index, *batch_indices)
+                *new_batch_indices,
+                new_row_index,
+                new_col_index,
+            ) = _convert_indices_to_tensors(self, flattened_orig_indices)
+            res = self._get_indices(new_row_index, new_col_index, *new_batch_indices)
+            # Now un-flatten tensor indices
+            if len(tensor_index_shape) > 1:  # Do we need to unflatten?
+                if _is_tensor_index_moved_to_start(orig_indices):
+                    res = res.view(*tensor_index_shape, *res.shape[1:])
+                else:
+                    res = res.view(*res.shape[:-1], *tensor_index_shape)
         else:
             res = self._getitem(row_index, col_index, *batch_indices)
 
@@ -2764,6 +2829,18 @@ class LinearOperator:
 
         # We're done!
         return res
+
+    def _isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+        # As the default we can fall back to just calling isclose on the dense tensors. This is problematic
+        # if the represented tensor is massive (in which case using this method may not make a lot of sense.
+        # Regardless, if possible it would make sense to overwrite this method on the subclasses if that can
+        # be done without instantiating the full tensor.
+        warnings.warn(
+            f"Converting {self.__class__.__name__} into a dense torch.Tensor due to a torch.isclose call. "
+            "This may incur substantial performance and memory penalties.",
+            PerformanceWarning,
+        )
+        return torch.isclose(to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
 
     def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
         return self.matmul(other)
@@ -2802,7 +2879,7 @@ class LinearOperator:
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
                 kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}{kwarg_classes}) is not implemented.")
+                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_SECOND_ARG_FUNCTIONS[func])
@@ -2812,7 +2889,7 @@ class LinearOperator:
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
                 kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}{kwarg_classes}) is not implemented.")
+                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_FUNCTIONS[func])

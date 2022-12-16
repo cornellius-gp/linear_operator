@@ -24,6 +24,7 @@ from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinear
 from .low_rank_root_linear_operator import LowRankRootLinearOperator
 from .matmul_linear_operator import MatmulLinearOperator
 from .mul_linear_operator import MulLinearOperator
+from .permutation_linear_operator import PermutationLinearOperator, TransposePermutationLinearOperator
 from .psd_sum_linear_operator import PsdSumLinearOperator
 from .root_linear_operator import RootLinearOperator
 from .sum_batch_linear_operator import SumBatchLinearOperator
@@ -47,6 +48,7 @@ __all__ = [
     "CholLinearOperator",
     "ConstantDiagLinearOperator",
     "ConstantMulLinearOperator",
+    "DenseLinearOperator",
     "DiagLinearOperator",
     "IdentityLinearOperator",
     "InterpolatedLinearOperator",
@@ -60,12 +62,13 @@ __all__ = [
     "LowRankRootLinearOperator",
     "MatmulLinearOperator",
     "MulLinearOperator",
-    "DenseLinearOperator",
+    "PermutationLinearOperator",
     "PsdSumLinearOperator",
     "RootLinearOperator",
     "SumLinearOperator",
     "SumBatchLinearOperator",
     "ToeplitzLinearOperator",
+    "TransposePermutationLinearOperator",
     "TriangularLinearOperator",
     "ZeroLinearOperator",
 ]

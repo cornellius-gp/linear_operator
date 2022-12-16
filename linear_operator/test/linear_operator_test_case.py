@@ -10,9 +10,11 @@ from unittest.mock import MagicMock, patch
 import torch
 from jaxtyping import install_import_hook
 
+from ..utils.warnings import PerformanceWarning
+
 with install_import_hook("linear_operator", ("typeguard", "typechecked")):
     import linear_operator
-    from linear_operator.operators import DiagLinearOperator, to_dense
+    from linear_operator.operators import DiagLinearOperator, to_dense, DenseLinearOperator
     from linear_operator.settings import linalg_dtypes
     from linear_operator.utils.errors import CachingError
     from linear_operator.utils.memoize import get_from_cache
@@ -276,6 +278,56 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
                 linear_op.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
             )
             actual = evaluated.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
+            self.assertAllClose(res, actual)
+
+    def test_getitem_broadcasted_tensor_index(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+
+        # Non-batch case
+        if linear_op.ndimension() == 2:
+            index = (torch.tensor([0, 0, 1, 2]).unsqueeze(-1), torch.tensor([0, 1, 0, 2]).unsqueeze(-2))
+            res, actual = linear_op[index], evaluated[index]
+            self.assertAllClose(res, actual)
+            index = (Ellipsis, torch.tensor([0, 0, 1, 2]).unsqueeze(-2), torch.tensor([0, 1, 0, 2]).unsqueeze(-1))
+            res, actual = linear_op[index], evaluated[index]
+            self.assertAllClose(res, actual)
+
+        # Batch case
+        else:
+            for batch_index in product(
+                [torch.tensor([0, 1, 1]).view(-1, 1, 1), slice(None, None, None)],
+                repeat=(linear_op.dim() - 2),
+            ):
+                index = (
+                    *batch_index,
+                    torch.tensor([0, 1]).view(-1, 1),
+                    torch.tensor([1, 2, 0, 1]).view(1, -1),
+                )
+                res, actual = linear_op[index], evaluated[index]
+                self.assertAllClose(res, actual)
+                res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
+                self.assertAllClose(res, actual)
+                index = (*batch_index, slice(None, None, None), slice(None, None, None))
+                res, actual = linear_op[index].to_dense(), evaluated[index]
+                self.assertAllClose(res, actual)
+
+            # Ellipsis
+            res = linear_op.__getitem__(
+                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+            )
+            actual = evaluated.__getitem__(
+                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+            )
+            self.assertAllClose(res, actual)
+            res = linear_operator.to_dense(
+                linear_op.__getitem__(
+                    (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+                )
+            )
+            actual = evaluated.__getitem__(
+                (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+            )
             self.assertAllClose(res, actual)
 
     def test_permute(self):
@@ -785,6 +837,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         with self.assertRaisesRegex((TypeError, RuntimeError), expected_msg):
             linear_op.expand(*expand_args)
 
+    def test_reshape(self):
+        # reshape is mostly an alias for expand, we just need to check the handling of a leading -1 dim
+        linear_op = self.create_linear_op()
+        expanded_op = linear_op.reshape(-1, *linear_op.shape)
+        self.assertEqual(expanded_op.shape, torch.Size([1]) + linear_op.shape)
+
     def test_float(self):
         linear_op = self.create_linear_op().double()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -812,6 +870,19 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_inv_quad_logdet_no_reduce_cholesky(self):
         return self._test_inv_quad_logdet(reduce_inv_quad=True, cholesky=True)
+
+    def test_is_close(self):
+        linear_op = self.create_linear_op()
+        other = linear_op.to_dense().detach().clone()
+        other[..., 0, 0] += 1.0
+        if not isinstance(linear_op, DenseLinearOperator):
+            with self.assertWarnsRegex(PerformanceWarning, "dense torch.Tensor due to a torch.isclose call"):
+                is_close = torch.isclose(linear_op, other)
+        else:
+            is_close = torch.isclose(linear_op, other)
+        self.assertFalse(torch.any(is_close[..., 0, 0]))
+        is_close[..., 0, 0] = True
+        self.assertTrue(torch.all(is_close))
 
     def test_logdet(self):
         tolerances = self.tolerances["logdet"]
@@ -1008,6 +1079,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
             rhs = torch.randn(*batch_shape, linear_op.size(-1), 5)
             self._test_solve(rhs)
+
+    def test_solve_triangular(self):
+        linear_op = self.create_linear_op()
+        rhs = torch.randn(linear_op.size(-1))
+        with self.assertRaisesRegex(NotImplementedError, "torch.linalg.solve_triangular"):
+            torch.linalg.solve_triangular(linear_op, rhs, upper=True)
 
     def test_sqrt_inv_matmul(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)

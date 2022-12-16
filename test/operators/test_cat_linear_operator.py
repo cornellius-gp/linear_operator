@@ -118,6 +118,12 @@ class TestCatLinearOperatorBatchCat(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         return self.psd_mat.detach().clone().requires_grad_()
 
+    def test_getitem_broadcasted_tensor_index(self):
+        linear_op = self.create_linear_op()
+
+        with self.assertRaises(RuntimeError):
+            linear_op[torch.tensor([0, 1, 1]).view(-1, 1), ...]
+
 
 if __name__ == "__main__":
     unittest.main()

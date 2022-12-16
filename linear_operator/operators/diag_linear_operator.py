@@ -177,36 +177,39 @@ class DiagLinearOperator(TriangularLinearOperator):
         """
         return self.__class__(self._diag.log())
 
+    # this needs to be the public "matmul", instead of "_matmul", to hit the special cases before
+    # a MatmulLinearOperator is created.
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
         other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
+        if isinstance(other, Tensor):
+            diag = self._diag if other.ndim == 1 else self._diag.unsqueeze(-1)
+            return diag * other
+
+        if isinstance(other, DenseLinearOperator):
+            return DenseLinearOperator(self @ other.tensor)
+
         if isinstance(other, DiagLinearOperator):
             return DiagLinearOperator(self._diag * other._diag)
-        elif isinstance(other, BlockDiagLinearOperator):
+
+        if isinstance(other, TriangularLinearOperator):
+            return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
+
+        if isinstance(other, BlockDiagLinearOperator):
             diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1])
             diag = DiagLinearOperator(diag_reshape)
             # using matmul here avoids having to implement special case of elementwise multiplication
             # with block diagonal operator, which itself has special cases for vectors and matrices
             return BlockDiagLinearOperator(diag @ other.base_linear_op)
-        # special case if we have a TriangularLinearOperator
-        elif isinstance(other, TriangularLinearOperator):
-            return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
-        elif isinstance(other, DenseLinearOperator):
-            return DenseLinearOperator(self @ other.tensor)
-        else:
-            return super().matmul(other)
+
+        return super().matmul(other)  # happens with other structured linear operators
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
-        # to perform matrix multiplication with diagonal matrices we can just
-        # multiply element-wise with the diagonal (using proper broadcasting)
-        diag = self._diag
-        if rhs.ndimension() > 1:
-            diag = diag.unsqueeze(-1)
-        return diag * rhs
+        return self.matmul(rhs)
 
     def solve(
         self: Float[LinearOperator, "... N N"],
@@ -217,6 +220,16 @@ class DiagLinearOperator(TriangularLinearOperator):
         if left_tensor is not None:
             res = left_tensor @ res
         return res
+
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
+        # upper or lower doesn't matter here, it's all the same
+        if unitriangular:
+            if not torch.all(self.diagonal() == 1):
+                raise RuntimeError("Received `unitriangular=True` but `LinearOperator` does not have a unit diagonal.")
+            return rhs
+        return self.solve(right_tensor=rhs)
 
     def sqrt(self) -> DiagLinearOperator:
         """
@@ -369,6 +382,11 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         if isinstance(other, ConstantDiagLinearOperator):
             return self._mul_matrix(other)
         return super().matmul(other)
+
+    def solve_triangular(
+        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+    ) -> torch.Tensor:
+        return rhs / self.diag_values
 
     def sqrt(self) -> ConstantDiagLinearOperator:
         """

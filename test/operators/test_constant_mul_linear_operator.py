@@ -6,7 +6,7 @@ import torch
 from jaxtyping import install_import_hook
 
 with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    from linear_operator.operators import ToeplitzLinearOperator
+    from linear_operator.operators import DenseLinearOperator, ToeplitzLinearOperator
     from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
     from linear_operator.utils.toeplitz import sym_toeplitz
 
@@ -44,7 +44,7 @@ class TestConstantMulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCa
 
 class TestConstantMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
-    # Because these LTs are large, we'll skil the big tests
+    # Because these LTs are large, we'll skip the big tests
     should_test_sample = False
     skip_slq_tests = True
 
@@ -62,7 +62,7 @@ class TestConstantMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.T
 
 class TestConstantMulLinearOperatorMultiBatchBroadcastConstant(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
-    # Because these LTs are large, we'll skil the big tests
+    # Because these LTs are large, we'll skip the big tests
     should_test_sample = False
     skip_slq_tests = True
 
@@ -76,6 +76,23 @@ class TestConstantMulLinearOperatorMultiBatchBroadcastConstant(LinearOperatorTes
         constant = linear_op.expanded_constant
         toeplitz = linear_op.base_linear_op
         return toeplitz.to_dense() * constant
+
+
+class TestConstantMulLinearOperatorBatchBroadcastOperator(LinearOperatorTestCase, unittest.TestCase):
+    """Test which broadcasts the operator to match the constant tensor's batch size, see Github issue #33"""
+
+    seed = 0
+    should_test_sample = False
+    skip_slq_tests = True
+
+    def create_linear_op(self):
+        mat = torch.randn(5, 6)
+        mat = mat.matmul(mat.mT).reshape(1, 5, 5)
+        constant = torch.randn(2, 1, 1).abs()
+        return DenseLinearOperator(mat) * constant
+
+    def evaluate_linear_op(self, linear_op):
+        return linear_op.to_dense()
 
 
 if __name__ == "__main__":

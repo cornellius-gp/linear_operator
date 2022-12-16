@@ -23,7 +23,7 @@ class BatchRepeatLinearOperator(LinearOperator):
                 )
             if isinstance(base_linear_op, BatchRepeatLinearOperator):
                 raise RuntimeError(
-                    "BatchRepeatLinearOperator recieved the following args:\n"
+                    "BatchRepeatLinearOperator received the following args:\n"
                     "base_linear_op: {} (size: {}), batch_repeat: {}.".format(
                         base_linear_op, base_linear_op.shape, batch_repeat
                     )
