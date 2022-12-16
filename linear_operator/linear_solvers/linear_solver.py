@@ -3,16 +3,17 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
 from torch import Tensor
 
 from ..operators import LinearOperator
 
+__all__ = ["LinearSolver", "SolverState"]
+
 
 @dataclass
 class SolverState:
-    """
-    TODO
-    """
+    """State of a linear solver."""
 
     solution: Tensor
     forward_op: LinearOperator
@@ -23,13 +24,11 @@ class SolverState:
 
 
 class LinearSolver(ABC):
-    """
+    """Linear solver.
+
     TODO
     """
 
     @abstractmethod
     def solve(self, linear_op: LinearOperator, rhs: Tensor) -> SolverState:
         raise NotImplementedError
-
-
-__all__ = ["LinearSolver", "SolverState"]
