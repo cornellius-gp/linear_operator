@@ -4,6 +4,9 @@
 .. currentmodule:: linear_operator
 
 
+Functions
+==============================
+
 LinearOperator objects are designed to work seamlessly with the torch API.
 For example:
 
@@ -22,9 +25,6 @@ The :attr:`linear_operator` module also includes some functions taht are not imp
 These functions are designed to work on :class:`~linear_operator.operators.LinearOperator` and :class:`~torch.Tensor`
 objects alike.
 
-
-linear_operator
-----------------
 
 .. automodule:: linear_operator
 

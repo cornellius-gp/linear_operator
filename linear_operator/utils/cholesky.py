@@ -18,7 +18,7 @@ def _psd_safe_cholesky(A, out=None, jitter=None, max_tries=None):
         out = (out, torch.empty(A.shape[:-2], dtype=torch.int32, device=out.device))
 
     L, info = torch.linalg.cholesky_ex(A, out=out)
-    if not torch.any(info):
+    if settings.trace_mode.on() or not torch.any(info):
         return L
 
     isnan = torch.isnan(A)
