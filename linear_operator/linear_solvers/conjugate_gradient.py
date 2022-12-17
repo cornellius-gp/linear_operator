@@ -46,19 +46,19 @@ class CG(LinearSolver):
         /,
         *,
         x: Optional[Tensor] = None,
-        preconditioner: Optional[Callable] = None,
+        precond: Optional[Callable] = None,
     ) -> LinearSolverState:
         r"""Solve linear system :math:`Ax_*=b`.
 
         :param linear_op: Linear operator :math:`A`.
         :param rhs: Right-hand-side :math:`b`.
         :param x: Initial guess :math:`x \approx x_*`.
-        :param preconditioner: Preconditioner.
+        :param precond: Preconditioner :math:`P\approx A^{-1}`.
         """
 
         # Setup
-        if preconditioner is None:
-            preconditioner = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
+        if precond is None:
+            precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
 
         if x is None:
             x = torch.zeros_like(rhs)
@@ -79,7 +79,7 @@ class CG(LinearSolver):
                 break
 
             # Select action
-            action = preconditioner @ residual
+            action = precond @ residual
             linear_op_action = linear_op @ action
 
             # Observation

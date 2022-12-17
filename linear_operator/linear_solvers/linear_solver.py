@@ -30,5 +30,5 @@ class LinearSolver(ABC):
     """
 
     @abstractmethod
-    def solve(self, linear_op: LinearOperator, rhs: Tensor) -> LinearSolverState:
+    def solve(self, linear_op: LinearOperator, rhs: Tensor, /, **kwargs) -> LinearSolverState:
         raise NotImplementedError
