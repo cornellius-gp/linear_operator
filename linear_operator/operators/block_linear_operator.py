@@ -65,12 +65,7 @@ class BlockLinearOperator(LinearOperator):
         res = self.__class__(self.base_linear_op._expand_batch(batch_shape))
         return res
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # First the easy case: just batch indexing
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             return self.__class__(self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index))
@@ -122,7 +117,7 @@ class BlockLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor]]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         if left_vecs.ndim == 1:
             left_vecs = left_vecs.unsqueeze(-1)
             right_vecs = right_vecs.unsqueeze(-1)

@@ -63,8 +63,8 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
         Optional[Float[Tensor, " *batch"]],
@@ -122,9 +122,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return super().inv_quad_logdet(logdet=True)[1]
 
-    def _preconditioner(
-        self: Float[AddedDiagLinearOperator, "*batch N N"]
-    ) -> Tuple[Optional[Callable], Optional[Float[LinearOperator, "*batch N N"]], Optional[Float[Tensor, " *batch"]]]:
+    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
         # solves don't use CG so don't waste time computing it
         return None, None, None
 
@@ -251,7 +249,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
             inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(-0.5))
@@ -283,7 +281,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._root_inv_decomposition(initial_vectors=initial_vectors)
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
@@ -296,9 +296,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._symeig(eigenvectors=eigenvectors)
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, ConstantDiagLinearOperator) and self._diag_is_constant:
             # the other cases have only partial implementations
             return KroneckerProductAddedDiagLinearOperator(self.linear_op, self.diag_tensor + other)

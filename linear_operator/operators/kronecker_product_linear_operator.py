@@ -83,9 +83,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         self.linear_ops = linear_ops
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, (KroneckerProductDiagLinearOperator, ConstantDiagLinearOperator)):
             from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 
@@ -311,7 +311,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         return U, S, V
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False, return_evals_as_lazy: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
@@ -371,7 +373,7 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
     ) -> Float[LinearOperator, "*batch N N"]:
         raise NotImplementedError("_cholesky not applicable to triangular lazy tensors")
 
-    def _cholesky_solve(self, rhs, upper=False):
+    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
         if upper:
             # res = (U.T @ U)^-1 @ v = U^-1 @ U^-T @ v
             w = self._transpose_nonbatch().solve(rhs)
@@ -383,7 +385,9 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
         return res
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         raise NotImplementedError("_symeig not applicable to triangular lazy tensors")
 
@@ -436,7 +440,9 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
         return DiagLinearOperator(self._diag * other.unsqueeze(-1))
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False, return_evals_as_lazy: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
@@ -457,17 +463,17 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
             evecs = None
         return evals, evecs
 
-    def abs(self) -> "KroneckerProductDiagLinearOperator":
+    def abs(self) -> LinearOperator:
         """
         Returns a DiagLinearOperator with the absolute value of all diagonal entries.
         """
         return self.__class__(*[lt.abs() for lt in self.linear_ops])
 
-    def exp(self) -> "KroneckerProductDiagLinearOperator":
+    def exp(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         raise NotImplementedError(f"torch.exp({self.__class__.__name__}) is not implemented.")
 
     @cached
-    def inverse(self) -> "KroneckerProductDiagLinearOperator":
+    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
         """
         Returns the inverse of the DiagLinearOperator.
         """
@@ -475,10 +481,10 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
         inverses = [lt.inverse() for lt in self.linear_ops]
         return self.__class__(*inverses)
 
-    def log(self) -> "KroneckerProductDiagLinearOperator":
+    def log(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         raise NotImplementedError(f"torch.log({self.__class__.__name__}) is not implemented.")
 
-    def sqrt(self) -> "KroneckerProductDiagLinearOperator":
+    def sqrt(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         """
         Returns a DiagLinearOperator with the square root of all diagonal entries.
         """

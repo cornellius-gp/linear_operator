@@ -49,9 +49,9 @@ class LowRankRootLinearOperator(RootLinearOperator):
         return LowRankRootAddedDiagLinearOperator(self, diag_tensor)
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
         from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 

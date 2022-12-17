@@ -40,14 +40,14 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     @cached(name="cholesky")
     def _cholesky(
-        self: Float[LinearOperator, "*batch N N"], upper: bool = False
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
     ) -> Float[LinearOperator, "*batch N N"]:
         from .triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_linear_op.cholesky(upper=upper))
         return TriangularLinearOperator(chol, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: bool = False):
+    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
         rhs = self._add_batch_dim(rhs)
         res = self.base_linear_op._cholesky_solve(rhs, upper=upper)
         res = self._remove_batch_dim(res)
@@ -89,7 +89,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
         return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
     def _size(self) -> torch.Size:
@@ -102,7 +102,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
     def _solve(
         self: Float[LinearOperator, "... N N"],
         rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable],
+        preconditioner: Optional[Callable] = None,
         num_tridiag: Optional[int] = 0,
     ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         if num_tridiag:
@@ -116,10 +116,11 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, " *batch"]],
     ]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)

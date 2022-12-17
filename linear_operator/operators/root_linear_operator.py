@@ -47,12 +47,7 @@ class RootLinearOperator(LinearOperator):
             res = (left_tensor * right_tensor).sum(-1)
         return res
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Make sure we're not generating more memory with our "efficient" method
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
             num_indices = row_index.numel()
@@ -75,12 +70,12 @@ class RootLinearOperator(LinearOperator):
         return self.root._matmul(self.root._t_matmul(rhs))
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], constant: Union[float, torch.Tensor]
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
     ) -> Float[LinearOperator, "*batch M N"]:
-        if (constant > 0).all():
-            res = self.__class__(self.root._mul_constant(constant.sqrt()))
+        if (other > 0).all():
+            res = self.__class__(self.root._mul_constant(other.sqrt()))
         else:
-            res = super()._mul_constant(constant)
+            res = super()._mul_constant(other)
         return res
 
     def _t_matmul(
@@ -100,13 +95,17 @@ class RootLinearOperator(LinearOperator):
     ) -> Float[LinearOperator, "*batch N N"]:
         return super().add_low_rank(low_rank_mat, root_inv_decomp_method=root_inv_decomp_method)
 
-    def root_decomposition(self, method=None):
+    def root_decomposition(
+        self: Float[LinearOperator, "*batch N N"], method: Optional[str] = None
+    ) -> Float[LinearOperator, "*batch N N"]:
         return self
 
-    def _root_decomposition(self):
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         return self.root
 
-    def _root_decomposition_size(self):
+    def _root_decomposition_size(self) -> int:
         return self.root.size(-1)
 
     def _size(self) -> torch.Size:
@@ -116,6 +115,6 @@ class RootLinearOperator(LinearOperator):
         return self
 
     @cached
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         eval_root = self.root.to_dense()
         return torch.matmul(eval_root, eval_root.mT)

@@ -79,8 +79,8 @@ class ConstantMulLinearOperator(LinearOperator):
         return res * self._constant.unsqueeze(-1)
 
     def _expand_batch(
-        self: Float[ConstantMulLinearOperator, "... M N"], batch_shape: torch.Size
-    ) -> Float[ConstantMulLinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+    ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self._constant.expand(*batch_shape) if len(batch_shape) else self._constant,
@@ -96,12 +96,7 @@ class ConstantMulLinearOperator(LinearOperator):
         constant = self._constant.expand(self.batch_shape)[batch_indices]
         return base_linear_op * constant
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # NOTE TO FUTURE SELF:
         # This custom __getitem__ is actually very important!
         # It prevents constructing an InterpolatedLinearOperator when one isn't needed
@@ -119,7 +114,7 @@ class ConstantMulLinearOperator(LinearOperator):
         res = res * self.expanded_constant
         return res
 
-    def _permute_batch(self, *dims: int) -> ConstantMulLinearOperator:
+    def _permute_batch(self, *dims: int) -> LinearOperator:
         return self.__class__(
             self.base_linear_op._permute_batch(*dims), self._constant.expand(self.batch_shape).permute(*dims)
         )
@@ -154,7 +149,7 @@ class ConstantMulLinearOperator(LinearOperator):
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return ConstantMulLinearOperator(self.base_linear_op._transpose_nonbatch(), self._constant)
 
-    def _unsqueeze_batch(self, dim: int) -> ConstantMulLinearOperator:
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         broadcasted_shape = self.batch_shape
         base_linear_op = self.base_linear_op._expand_batch(broadcasted_shape)._unsqueeze_batch(dim)
         constant = self._constant.expand(broadcasted_shape).unsqueeze(dim)
@@ -175,7 +170,7 @@ class ConstantMulLinearOperator(LinearOperator):
         return constant
 
     @cached
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         res = self.base_linear_op.to_dense()
         return res * self.expanded_constant
 

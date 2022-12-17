@@ -32,11 +32,11 @@ class ZeroLinearOperator(LinearOperator):
         self._device = device or torch.device("cpu")
 
     @property
-    def dtype(self) -> torch.dtype:
+    def dtype(self) -> Optional[torch.dtype]:
         return self._dtype
 
     @property
-    def device(self) -> torch.device:
+    def device(self) -> Optional[torch.device]:
         return self._device
 
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
@@ -51,7 +51,7 @@ class ZeroLinearOperator(LinearOperator):
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(*batch_shape, *self.sizes[-2:], dtype=self._dtype, device=self._device)
 
-    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> ZeroLinearOperator:
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
         return ZeroLinearOperator(*new_size)
 
@@ -80,7 +80,9 @@ class ZeroLinearOperator(LinearOperator):
         del sizes[dim]
         return self.__class__(*sizes, dtype=self._dtype, device=self._device)
 
-    def _root_decomposition(self) -> Union[torch.Tensor, "LinearOperator"]:
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _root_decomposition_size(self) -> int:
@@ -220,7 +222,7 @@ class ZeroLinearOperator(LinearOperator):
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     @cached
-    def to_dense(self) -> torch.Tensor:
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return torch.zeros(*self.sizes)
 
     def transpose(self, dim1: int, dim2: int) -> LinearOperator:

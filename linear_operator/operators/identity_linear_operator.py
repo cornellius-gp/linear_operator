@@ -12,7 +12,6 @@ from ..utils.getitem import _compute_getitem_size, _is_noop_index
 from ..utils.memoize import cached
 from ._linear_operator import IndexType, LinearOperator
 from .diag_linear_operator import ConstantDiagLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
 
 
@@ -62,8 +61,8 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     @cached(name="cholesky", ignore_args=True)
     def _cholesky(
-        self: Float[TriangularLinearOperator, "*batch N N"], upper: bool = False
-    ) -> Float[TriangularLinearOperator, "*batch N N"]:
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
+    ) -> Float[LinearOperator, "*batch N N"]:
         return self
 
     def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
@@ -76,12 +75,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
         )
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Special case: if both row and col are not indexed, then we are done
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             if len(batch_indices):
@@ -106,7 +100,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     ) -> Float[LinearOperator, "*batch M N"]:
         return ConstantDiagLinearOperator(self.diag_values * other, diag_shape=self.diag_shape)
 
-    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
         return other
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
@@ -131,7 +125,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
@@ -144,7 +138,9 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return self, self._diag, self
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         return self._diag, self
 
@@ -157,7 +153,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return self
 
-    def _unsqueeze_batch(self, dim: int) -> IdentityLinearOperator:
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         batch_shape = list(self._batch_shape)
         batch_shape.insert(dim, 1)
         batch_shape = torch.Size(batch_shape)
@@ -165,20 +161,20 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
         )
 
-    def abs(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def abs(self) -> LinearOperator:
         return self
 
     def exp(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         return self
 
-    def inverse(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
         return self
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
         Optional[Float[Tensor, " *batch"]],
@@ -242,7 +238,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
             inv_quad = lhs.pow(2).sum(dim=-1)
             return sqrt_inv_matmul, inv_quad
 
-    def type(self, dtype: torch.dtype) -> LinearOperator:
+    def type(self: LinearOperator, dtype: torch.dtype) -> LinearOperator:
         return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=self.batch_shape, dtype=dtype, device=self.device
         )

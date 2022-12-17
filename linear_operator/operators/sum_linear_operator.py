@@ -76,13 +76,13 @@ class SumLinearOperator(LinearOperator):
         return self.__class__(*linear_ops_t)
 
     @cached
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return (sum(linear_op.to_dense() for linear_op in self.linear_ops)).contiguous()
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .diag_linear_operator import DiagLinearOperator
 

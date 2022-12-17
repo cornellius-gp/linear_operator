@@ -45,18 +45,16 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         return chol_cap_mat
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], constant: Union[float, torch.Tensor]
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
     ) -> Float[LinearOperator, "*batch M N"]:
         # We have to over-ride this here for the case where the constant is negative
-        if constant > 0:
-            res = super()._mul_constant(constant)
+        if other > 0:
+            res = super()._mul_constant(other)
         else:
-            res = AddedDiagLinearOperator(
-                self._linear_op._mul_constant(constant), self._diag_tensor._mul_constant(constant)
-            )
+            res = AddedDiagLinearOperator(self._linear_op._mul_constant(other), self._diag_tensor._mul_constant(other))
         return res
 
-    def _preconditioner(self):
+    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
         return None, None, None
 
     def _solve(
@@ -78,7 +76,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return solve
 
-    def _solve_preconditioner(self):
+    def _solve_preconditioner(self) -> Optional[Callable]:
         return None
 
     def _sum_batch(self, dim: int) -> LinearOperator:
@@ -93,9 +91,9 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         return logdet_term
 
     def __add__(
-        self: Float[LinearOperator, "... M N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... M N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):

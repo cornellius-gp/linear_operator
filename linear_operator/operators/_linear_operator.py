@@ -839,7 +839,9 @@ class LinearOperator:
         return U, S, V
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         r"""
         Method that allows implementing special-cased symeig computation. Should not be called directly

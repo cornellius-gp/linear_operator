@@ -218,12 +218,7 @@ class CatLinearOperator(LinearOperator):
             res_list = [linear_op.to(self.device) for linear_op in res_list]
             return torch.cat(res_list).view(target_shape)
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         indices = [*batch_indices, row_index, col_index]
         cat_dim_indices = indices[self.cat_dim]
 
@@ -381,16 +376,17 @@ class CatLinearOperator(LinearOperator):
         )
         return res
 
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return torch.cat([to_dense(L) for L in self.linear_ops], dim=self.cat_dim)
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, " *batch"]],
     ]:
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
         return tuple(r.to(self.device) for r in res)
@@ -407,7 +403,7 @@ class CatLinearOperator(LinearOperator):
     def device_count(self) -> int:
         return len(set(self.devices))
 
-    def to(self, *args, **kwargs):
+    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
         """
         Returns a new CatLinearOperator with device as the output_device and dtype
         as the dtype.

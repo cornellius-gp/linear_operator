@@ -78,14 +78,14 @@ class MulLinearOperator(LinearOperator):
         return res
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], constant: Union[float, torch.Tensor]
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
     ) -> Float[LinearOperator, "*batch M N"]:
-        if constant > 0:
-            res = self.__class__(self.left_linear_op._mul_constant(constant), self.right_linear_op)
+        if other > 0:
+            res = self.__class__(self.left_linear_op._mul_constant(other), self.right_linear_op)
         else:
             # Negative constants can screw up the root_decomposition
             # So we'll do a standard _mul_constant
-            res = super()._mul_constant(constant)
+            res = super()._mul_constant(other)
         return res
 
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
@@ -135,7 +135,7 @@ class MulLinearOperator(LinearOperator):
         )
 
     @cached
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self.left_linear_op.to_dense() * self.right_linear_op.to_dense()
 
     def _size(self) -> torch.Size:

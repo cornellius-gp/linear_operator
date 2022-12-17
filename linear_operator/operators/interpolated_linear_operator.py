@@ -141,12 +141,7 @@ class InterpolatedLinearOperator(LinearOperator):
         res = (base_vals * interp_values).sum([-2, -1])
         return res
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Handle batch dimensions
         # Construt a new LinearOperator
         base_linear_op = self.base_linear_op
@@ -192,7 +187,10 @@ class InterpolatedLinearOperator(LinearOperator):
         )
         return res
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -408,14 +406,19 @@ class InterpolatedLinearOperator(LinearOperator):
             block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def double(self, device_id=None):
+    def double(
+        self: Float[LinearOperator, "*batch M N"], device_id: Optional[str] = None
+    ) -> Float[LinearOperator, "*batch M N"]:
         # We need to ensure that the indices remain integers.
         new_lt = super().double(device_id=device_id)
         new_lt.left_interp_indices = new_lt.left_interp_indices.type(torch.int64)
         new_lt.right_interp_indices = new_lt.right_interp_indices.type(torch.int64)
         return new_lt
 
-    def matmul(self, other):
+    def matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.
         # The _matmul_closure is optimized for repeated calls, such as for _solve

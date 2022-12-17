@@ -2,6 +2,7 @@
 
 import torch
 from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
@@ -59,5 +60,5 @@ class SumBatchLinearOperator(BlockLinearOperator):
         del shape[-3]
         return torch.Size(shape)
 
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self.base_linear_op.to_dense().sum(dim=-3)  # BlockLinearOperators always use dim3 for the block_dim

@@ -71,20 +71,21 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._r_cache = None
 
     def _matmul(
-        self: Float[AddedDiagLinearOperator, "*batch N N"], rhs: Float[torch.Tensor, "*batch2 N C"]
-    ) -> Float[torch.Tensor, "... N C"]:
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
     def add_diagonal(
-        self: Float[AddedDiagLinearOperator, "*batch N N"],
+        self: Float[LinearOperator, "*batch N N"],
         diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
         return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(diag))
 
     def __add__(
-        self: Float[AddedDiagLinearOperator, "... N N"],
-        other: Union[Float[Tensor, "... N"], Float[LinearOperator, "... N N"]],
-    ) -> Float[AddedDiagLinearOperator, "... N N"]:
+        self: Float[LinearOperator, "... M #N"],
+        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -92,9 +93,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         else:
             return self.__class__(self._linear_op + other, self._diag_tensor)
 
-    def _preconditioner(
-        self: Float[AddedDiagLinearOperator, "*batch N N"]
-    ) -> Tuple[Optional[Callable], Optional[Float[LinearOperator, "*batch N N"]], Optional[Float[Tensor, " *batch"]]]:
+    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 
@@ -187,7 +186,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     @cached(name="svd")
     def _svd(
-        self: Float[AddedDiagLinearOperator, "*batch N N"]
+        self: Float[LinearOperator, "*batch N N"]
     ) -> Tuple[Float[LinearOperator, "*batch N N"], Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             U, S_, V = self._linear_op.svd()
@@ -196,7 +195,9 @@ class AddedDiagLinearOperator(SumLinearOperator):
         return super()._svd()
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"], eigenvectors: bool = False
+        self: Float[LinearOperator, "*batch N N"],
+        eigenvectors: bool = False,
+        return_evals_as_lazy: Optional[bool] = False,
     ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
@@ -204,6 +205,6 @@ class AddedDiagLinearOperator(SumLinearOperator):
             return evals, evecs
         return super()._symeig(eigenvectors=eigenvectors)
 
-    def evaluate_kernel(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
+    def evaluate_kernel(self):
         added_diag_linear_op = self.representation_tree()(*self.representation())
         return added_diag_linear_op._linear_op + added_diag_linear_op._diag_tensor

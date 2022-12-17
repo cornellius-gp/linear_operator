@@ -63,6 +63,11 @@ class TypingTransformer(cst.CSTTransformer):
         key = tuple(self.stack)
         if key[-1] in TypingTransformer.excluded_functions:
             return updated_node
+        try:
+            if original_node.params.params[0].name.value != "self":  # Assume this is not a class method
+                return updated_node
+        except Exception:
+            return updated_node
         key = ("LinearOperator", key[-1])
         self.stack.pop()
         if key in self.annotations:
@@ -95,7 +100,8 @@ def main():
         if path.name[0] == "_":
             continue
         target = path
-        target_out = Path(str(path) + "2")
+        # target_out = Path(str(path) + "2")
+        target_out = target
         print(f"Processing {(target.name, target_out.name)}")
         modified_tree = copy_base_type_hints_to_derived(target, base_visitor)
         with open(target_out, "w") as f:

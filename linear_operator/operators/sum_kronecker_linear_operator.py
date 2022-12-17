@@ -75,8 +75,10 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         return root
 
     def _root_inv_decomposition(
-        self: Float[LinearOperator, "*batch N N"], initial_vectors: Optional[torch.Tensor] = None
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: Float[LinearOperator, "*batch N N"],
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
         inner_mat = self._sum_formulation
         lt2_root_inv = self.linear_ops[1].root_inv_decomposition().root
         inner_mat_root_inv = inner_mat.root_inv_decomposition().root

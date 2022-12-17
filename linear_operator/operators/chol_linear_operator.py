@@ -51,8 +51,8 @@ class CholLinearOperator(RootLinearOperator):
 
     @cached(name="cholesky")
     def _cholesky(
-        self: Float[LinearOperator, "*batch N N"], upper: bool = False
-    ) -> Float[TriangularLinearOperator, "*batch N N"]:
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
+    ) -> Float[LinearOperator, "*batch N N"]:
         if upper == self.upper:
             return self.root
         else:
@@ -66,7 +66,7 @@ class CholLinearOperator(RootLinearOperator):
     def _solve(
         self: Float[LinearOperator, "... N N"],
         rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable],
+        preconditioner: Optional[Callable] = None,
         num_tridiag: Optional[int] = 0,
     ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         if num_tridiag:
@@ -83,7 +83,7 @@ class CholLinearOperator(RootLinearOperator):
         return res.to_dense()
 
     @cached
-    def inverse(self: Float[CholLinearOperator, "*batch M N"]) -> Float[CholLinearOperator, "*batch N M"]:
+    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
         """
         Returns the inverse of the CholLinearOperator.
         """
@@ -107,10 +107,11 @@ class CholLinearOperator(RootLinearOperator):
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
         inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]], Optional[Float[Tensor, " *batch"]]
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, " *batch"]],
     ]:
         if not self.is_square:
             raise RuntimeError(

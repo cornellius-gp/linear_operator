@@ -49,12 +49,7 @@ class KeOpsLinearOperator(LinearOperator):
         x2_ = self.x2[(*batch_indices, col_index)]
         return self.covar_func(x1_, x2_, diag=True, **self.params)
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         x1 = self.x1
         x2 = self.x2
         dim_index = _noop_index

@@ -80,12 +80,7 @@ class MatmulLinearOperator(LinearOperator):
         else:
             return super()._diagonal()
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Make sure we're not generating more memory with our "efficient" method
         if torch.is_tensor(row_index) and torch.is_tensor(col_index):
             num_indices = row_index.numel()
@@ -133,5 +128,5 @@ class MatmulLinearOperator(LinearOperator):
         return self.__class__(self.right_linear_op._transpose_nonbatch(), self.left_linear_op._transpose_nonbatch())
 
     @cached
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return torch.matmul(self.left_linear_op.to_dense(), self.right_linear_op.to_dense())

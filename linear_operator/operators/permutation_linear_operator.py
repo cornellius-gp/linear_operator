@@ -1,6 +1,7 @@
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from ._linear_operator import LinearOperator
@@ -12,10 +13,15 @@ class AbstractPermutationLinearOperator(LinearOperator):
     3) the fact that permutation matrices' transposes are their inverses.
     """
 
-    def inverse(self):
+    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
         return self._transpose_nonbatch()
 
-    def _solve(self, rhs: Tensor):
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable] = None,
+        num_tridiag: Optional[int] = 0,
+    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         self._matmul_check_shape(rhs)
         return self.inverse() @ rhs
 
@@ -78,7 +84,10 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
         self.inv_perm = inv_perm
         super().__init__(perm, inv_perm, validate_args=validate_args)
 
-    def _matmul(self, rhs: Tensor) -> Tensor:
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         # input rhs is guaranteed to be at least two-dimensional due to matmul implementation
         self._matmul_check_shape(rhs)
 
@@ -111,7 +120,7 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
     def _size(self) -> torch.Size:
         return torch.Size((*self.perm.shape, self.perm.shape[-1]))
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return PermutationLinearOperator(perm=self.inv_perm, inv_perm=self.perm, validate_args=False)
 
     def to_sparse(self) -> Tensor:
@@ -145,24 +154,27 @@ class TransposePermutationLinearOperator(AbstractPermutationLinearOperator):
         self.m = m  # (m, m) is size of the reshaped input which is transposed
         self._dtype = type(m)
 
-    def _matmul(self, rhs: Tensor) -> Tensor:
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         self._matmul_check_shape(rhs)
         return rhs.unflatten(dim=-2, sizes=(self.m, self.m)).transpose(-3, -2).flatten(start_dim=-3, end_dim=-2)
 
     def _size(self) -> torch.Size:
         return torch.Size((self.n, self.n))
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return self
 
     @property
-    def dtype(self):
+    def dtype(self) -> Optional[torch.dtype]:
         return self._dtype
 
-    def type(self, dtype: torch.dtype) -> LinearOperator:
+    def type(self: LinearOperator, dtype: torch.dtype) -> LinearOperator:
         self._dtype = dtype
         return self
 
     @property
-    def device(self):
+    def device(self) -> Optional[torch.device]:
         return None

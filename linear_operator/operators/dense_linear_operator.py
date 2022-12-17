@@ -30,10 +30,10 @@ class DenseLinearOperator(LinearOperator):
         super().__init__(tsr)
         self.tensor = tsr
 
-    def _cholesky_solve(self, rhs, upper: bool = False) -> Union[LinearOperator, Tensor]:
+    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "*batch M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         return self.tensor.diagonal(dim1=-1, dim2=-2)
 
     def _expand_batch(
@@ -46,12 +46,7 @@ class DenseLinearOperator(LinearOperator):
         res = self.tensor[(*batch_indices, row_index, col_index)]
         return res
 
-    def _getitem(
-        self,
-        row_index: IndexType,
-        col_index: IndexType,
-        *batch_indices: IndexType,
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Perform the __getitem__
         res = self.tensor[(*batch_indices, row_index, col_index)]
         return self.__class__(res)
@@ -87,13 +82,13 @@ class DenseLinearOperator(LinearOperator):
     ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         return torch.matmul(self.tensor.mT, rhs)
 
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self.tensor
 
     def __add__(
         self: Float[LinearOperator, "... M #N"],
         other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.tensor + other.tensor)
         elif isinstance(other, torch.Tensor):

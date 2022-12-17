@@ -52,7 +52,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def __add__(
         self: Float[LinearOperator, "... M #N"],
         other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
-    ) -> Float[LinearOperator, "... M N"]:
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -137,7 +137,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return self.__class__(self._tensor._transpose_nonbatch(), upper=not self.upper)
 
-    def abs(self) -> "TriangularLinearOperator":
+    def abs(self) -> LinearOperator:
         """
         Returns a TriangleLinearOperator with the absolute value of all diagonal entries.
         """
@@ -151,10 +151,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.__class__(added_diag_lt, upper=self.upper)
 
     @cached
-    def to_dense(self) -> Tensor:
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self._tensor.to_dense()
 
-    def exp(self) -> "TriangularLinearOperator":
+    def exp(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         """
         Returns a TriangleLinearOperator with all diagonal entries exponentiated.
         """
