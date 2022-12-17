@@ -8,11 +8,11 @@ from torch import Tensor
 
 from ..operators import LinearOperator
 
-__all__ = ["LinearSolver", "SolverState"]
+__all__ = ["LinearSolver", "LinearSolverState"]
 
 
 @dataclass
-class SolverState:
+class LinearSolverState:
     """State of a linear solver."""
 
     solution: Tensor
@@ -24,11 +24,11 @@ class SolverState:
 
 
 class LinearSolver(ABC):
-    """Linear solver.
+    """Abstract base class for linear solvers.
 
     TODO
     """
 
     @abstractmethod
-    def solve(self, linear_op: LinearOperator, rhs: Tensor) -> SolverState:
+    def solve(self, linear_op: LinearOperator, rhs: Tensor) -> LinearSolverState:
         raise NotImplementedError

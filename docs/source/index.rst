@@ -67,6 +67,7 @@ Use Cases
    :maxdepth: 1
    :caption: Advanced Package Reference
 
+   linear_solvers
    settings
    namespace
    utils

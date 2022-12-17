@@ -7,11 +7,15 @@ import torch
 from torch import Tensor
 
 from .. import settings, utils
-from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator
-from .linear_solver import LinearSolver, SolverState
+from ..operators import (
+    IdentityLinearOperator,
+    LinearOperator,
+    LowRankRootLinearOperator,
+)
+from .linear_solver import LinearSolver, LinearSolverState
 
 
-class IterGPCGSolver(LinearSolver):
+class CG(LinearSolver):
     r"""Conjugate gradient method.
 
     Iteratively solve linear systems of the form
@@ -43,7 +47,7 @@ class IterGPCGSolver(LinearSolver):
         *,
         x: Optional[Tensor] = None,
         preconditioner: Optional[Callable] = None,
-    ) -> SolverState:
+    ) -> LinearSolverState:
         r"""Solve linear system :math:`Ax_*=b`.
 
         :param linear_op: Linear operator :math:`A`.
@@ -65,7 +69,9 @@ class IterGPCGSolver(LinearSolver):
         for i in range(self.max_iter):
 
             # Compute residual
-            residual = rhs - linear_op @ x
+            residual = (
+                rhs - linear_op @ x
+            )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
 
             # Check convergence
             residual_norm = torch.linalg.norm(residual, ord=2)
@@ -83,7 +89,9 @@ class IterGPCGSolver(LinearSolver):
             if i == 0:
                 search_dir = action
             else:
-                search_dir = action - inv_approx @ linear_op_action
+                search_dir = (
+                    action - inv_approx @ linear_op_action
+                )  # TODO: can be optimized for CG actions, at the cost of reorthogonalization
 
             # Normalization constant
             search_dir_sqnorm = linear_op_action.T @ search_dir
@@ -109,7 +117,7 @@ class IterGPCGSolver(LinearSolver):
         return x, inv_approx, torch.as_tensor(search_dir_sqnorm_list)
 
 
-class CGSolver(LinearSolver):
+class CGGpytorch(LinearSolver):
     """Conjugate gradient method.
     TODO
     """
@@ -124,7 +132,7 @@ class CGSolver(LinearSolver):
         rhs: Tensor,
         preconditioner: Optional[Callable] = None,
         num_tridiag: int = 0,
-    ) -> SolverState:
+    ) -> LinearSolverState:
         return utils.linear_cg(
             linear_op._matmul,
             rhs,

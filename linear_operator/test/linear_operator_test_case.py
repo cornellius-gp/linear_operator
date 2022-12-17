@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-import math
 from abc import abstractmethod
 from itertools import combinations, product
+import math
 from unittest.mock import MagicMock, patch
 
 import torch
 
 import linear_operator
-from linear_operator.linear_solvers import CGSolver
+from linear_operator.linear_solvers import CGGpytorch
 from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
 from linear_operator.settings import linalg_dtypes
 from linear_operator.utils.errors import CachingError
@@ -495,10 +495,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             if linear_op is None:
                 linear_op = self.create_linear_op()
             evaluated = self.evaluate_linear_op(linear_op)
-            flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
 
             if iterative:
-                linear_op.linear_solver = CGSolver(tol=1e-5)
+                linear_op.linear_solver = CGGpytorch(tol=1e-5)
 
             vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 3, requires_grad=True)
             vecs_copy = vecs.clone().detach().requires_grad_(True)
@@ -508,9 +507,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 with linear_operator.settings.min_preconditioning_size(
                     4
                 ), linear_operator.settings.max_preconditioner_size(2):
-                    res_inv_quad = linear_op.inv_quad(
-                        inv_quad_rhs=vecs, reduce_inv_quad=reduce_inv_quad
-                    )
+                    res_inv_quad = linear_op.inv_quad(inv_quad_rhs=vecs, reduce_inv_quad=reduce_inv_quad)
 
             actual_inv_quad = evaluated.inverse().matmul(vecs_copy).mul(vecs_copy).sum(-2)
             if reduce_inv_quad:
@@ -531,7 +528,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             flattened_evaluated = evaluated.view(-1, *linear_op.matrix_shape)
 
             if iterative:
-                linear_op.linear_solver = CGSolver(tol=1e-5)
+                linear_op.linear_solver = CGGpytorch(tol=1e-5)
 
             vecs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 3, requires_grad=True)
             vecs_copy = vecs.clone().detach().requires_grad_(True)
@@ -568,7 +565,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         evaluated.register_hook(self._ensure_symmetric_grad)
 
         if iterative:
-            linear_op.linear_solver = CGSolver(tol=1e-5)
+            linear_op.linear_solver = CGGpytorch(tol=1e-5)
 
         # Create a test right hand side and left hand side
         rhs.requires_grad_(True)

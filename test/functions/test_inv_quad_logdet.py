@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 import linear_operator
-from linear_operator.linear_solvers import CGSolver
+from linear_operator.linear_solvers import CGGpytorch
 from linear_operator.operators import DenseLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 
@@ -53,7 +53,7 @@ class TestInvQuadLogDetNonBatch(BaseTestCase, unittest.TestCase):
         ), linear_operator.settings.max_preconditioner_size(
             30
         ):
-            linear_op = DenseLinearOperator(mat, linear_solver=CGSolver(tol=1e-5))
+            linear_op = DenseLinearOperator(mat, linear_solver=CGGpytorch(tol=1e-5))
 
             if add_diag:
                 linear_op = linear_op.add_jitter(1.0)

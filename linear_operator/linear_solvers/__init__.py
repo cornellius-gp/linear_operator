@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
 
-from .cg_solver import CGSolver, IterGPCGSolver
-from .linear_solver import LinearSolver
+from .conjugate_gradient import CG, CGGpytorch
+from .linear_solver import LinearSolver, LinearSolverState
 
-__all__ = ["CGSolver", "IterGPCGSolver", "LinearSolver"]
+__all__ = [
+    "LinearSolver",
+    "LinearSolverState",
+    "CG",
+    "CGGpytorch",
+]
