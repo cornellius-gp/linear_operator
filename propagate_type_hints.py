@@ -10,7 +10,7 @@ import libcst as cst
 
 
 class TypingCollector(cst.CSTVisitor):
-    def __init__(self):
+    def __init__(self) -> None:
         # stack for storing the canonical name of the current function
         self.stack: List[Tuple[str, ...]] = []
         # store the annotations
