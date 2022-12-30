@@ -201,7 +201,7 @@ class KroneckerProductLinearOperator(LinearOperator):
     def _solve(
         self: Float[LinearOperator, "... N N"],
         rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable] = None,
+        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
     ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         # Computes solve by exploiting the identity (A \kron B)^-1 = A^-1 \kron B^-1

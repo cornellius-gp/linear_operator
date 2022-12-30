@@ -66,7 +66,7 @@ class CholLinearOperator(RootLinearOperator):
     def _solve(
         self: Float[LinearOperator, "... N N"],
         rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable] = None,
+        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
     ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
         if num_tridiag:
