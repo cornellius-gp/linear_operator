@@ -48,7 +48,11 @@ class BatchRepeatLinearOperator(LinearOperator):
         res = res.repeat(*self.batch_repeat, 1, 1)
         return TriangularLinearOperator(res, upper=upper)
 
-    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
+    def _cholesky_solve(
+        self: Float[LinearOperator, "*batch N N"],
+        rhs: Float[LinearOperator, "batch N M"],
+        upper: Optional[bool] = False,
+    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
         # TODO: Figure out how to deal with this with TriangularLinearOperator if returned by _cholesky
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
         if rhs.shape != output_shape:

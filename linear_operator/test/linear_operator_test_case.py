@@ -614,12 +614,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_add_jitter(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
-
-        try:
-            res = linear_operator.add_jitter(linear_op, 0.4).to_dense()
-        except Exception:
-            msg = traceback.format_exc()
-            logging.warning(msg)
+        res = linear_operator.add_jitter(linear_op, 0.4).to_dense()
         actual = evaluated + torch.eye(evaluated.size(-1)).mul_(0.4)
         self.assertAllClose(res, actual)
 

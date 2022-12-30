@@ -373,7 +373,11 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
     ) -> Float[LinearOperator, "*batch N N"]:
         raise NotImplementedError("_cholesky not applicable to triangular lazy tensors")
 
-    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
+    def _cholesky_solve(
+        self: Float[LinearOperator, "*batch N N"],
+        rhs: Float[LinearOperator, "batch N M"],
+        upper: Optional[bool] = False,
+    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
         if upper:
             # res = (U.T @ U)^-1 @ v = U^-1 @ U^-T @ v
             w = self._transpose_nonbatch().solve(rhs)

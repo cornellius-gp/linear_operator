@@ -40,10 +40,24 @@ We use [standard sphinx docstrings](https://sphinx-rtd-tutorial.readthedocs.io/e
 LinearOperator aims to be fully typed using Python 3.8+
 [type hints](https://www.python.org/dev/peps/pep-0484/).
 We expect any contributions to also use proper type annotations.
-While we currently do not enforce full consistency of these in our continuous integration
-test, you should strive to type check your code locally.
-For this we recommend using [pyre](https://pyre-check.org/).
+We are using [jaxtyping](https://github.com/google/jaxtyping) to help us be declarative about the dimension sizes used
+in the LinearOperator methods.
+The use of [jaxtyping](https://github.com/google/jaxtyping)  makes it clearer what the functions are doing algebraically
+and where broadcasting is happening.
 
+These type hints are checked in the unit tests by using
+[typeguard](https://github.com/agronholm/typeguard) to perform run-time
+checking of the signatures to make sure they are accurate.
+The signatures are written into the base linear operator class in `_linear_oparator.py`.
+These signatures are then copied to the derived classes by running the script
+`propagate_type_hints.py`. This is done for:
+1. Consistency. Make sure the derived implementations are following the promised interface.
+2. Visibility. Make it easy to see what the expected signature is, along with dimensions. Repeating the signature in the derived classes enhances readability.
+3. Necessity. The way that jaxtyping and typeguard are written, they won't run type checks unless type annotations are present in the derived method signature.
+
+In short, if you want to update the type hints, update the code in the LinearOperator class in
+`_linear_oparator.py` then run `propagate_type_hints.py` to copy the new signature to the derived
+classes.
 
 ### Unit Tests
 

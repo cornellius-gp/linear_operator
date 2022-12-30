@@ -4,9 +4,14 @@
 # This way we can enforce consistency between the base class signature and derived signatures.
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple, TypedDict
 
 import libcst as cst
+
+
+class Annotations(TypedDict):
+    key: Tuple[str, ...]  # key: tuple of canonical class/function name
+    value: Tuple[cst.Parameters, Optional[cst.Annotation]]  # value: (params, returns)
 
 
 class TypingCollector(cst.CSTVisitor):
@@ -14,10 +19,7 @@ class TypingCollector(cst.CSTVisitor):
         # stack for storing the canonical name of the current function
         self.stack: List[Tuple[str, ...]] = []
         # store the annotations
-        self.annotations: Dict[
-            Tuple[str, ...],  # key: tuple of canonical class/function name
-            Tuple[cst.Parameters, Optional[cst.Annotation]],  # value: (params, returns)
-        ] = {}
+        self.annotations: Annotations = {}
 
     def visit_ClassDef(self, node: cst.ClassDef) -> Optional[bool]:
         self.stack.append(node.name.value)
@@ -39,14 +41,11 @@ class TypingTransformer(cst.CSTTransformer):
     # List of LinearOperator functions we do not want to propagate the signature from
     excluded_functions = ["__init__", "_check_args", "__torch_function__"]
 
-    def __init__(self, annotations):
+    def __init__(self, annotations: Annotations):
         # stack for storing the canonical name of the current function
         self.stack: List[Tuple[str, ...]] = []
         # store the annotations
-        self.annotations: Dict[
-            Tuple[str, ...],  # key: tuple of canonical class/function name
-            Tuple[cst.Parameters, Optional[cst.Annotation]],  # value: (params, returns)
-        ] = annotations
+        self.annotations: Annotations = annotations
 
     def visit_ClassDef(self, node: cst.ClassDef) -> Optional[bool]:
         self.stack.append(node.name.value)

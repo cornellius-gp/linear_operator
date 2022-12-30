@@ -65,7 +65,11 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     ) -> Float[LinearOperator, "*batch N N"]:
         return self
 
-    def _cholesky_solve(self, rhs, upper: Optional[bool] = False) -> Union[LinearOperator, Tensor]:
+    def _cholesky_solve(
+        self: Float[LinearOperator, "*batch N N"],
+        rhs: Float[LinearOperator, "batch N M"],
+        upper: Optional[bool] = False,
+    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
         return self._maybe_reshape_rhs(rhs)
 
     def _expand_batch(
