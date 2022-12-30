@@ -16,7 +16,7 @@ from .block_linear_operator import BlockLinearOperator
 # _MetaBlockDiagLinearOperator(base_linear_op, block_dim=-3) to return a DiagLinearOperator
 # if base_linear_op is a DiagLinearOperator itself
 class _MetaBlockDiagLinearOperator(ABCMeta):
-    def __call__(cls, base_linear_op: Union[LinearOperator, Tensor], block_dim=-3):
+    def __call__(cls, base_linear_op: Union[LinearOperator, Tensor], block_dim: int = -3):
         from .diag_linear_operator import DiagLinearOperator
 
         if cls is BlockDiagLinearOperator and isinstance(base_linear_op, DiagLinearOperator):
