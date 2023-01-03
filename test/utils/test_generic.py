@@ -26,9 +26,19 @@ class TestGenericUtils(BaseTestCase, unittest.TestCase):
         self.assertEqual(dtype, torch.double)
         self.assertIsNone(device)
 
-        device, dtype = _to_helper(torch.rand(1, dtype=torch.double))
+        t = torch.rand(1, dtype=torch.double)
+        device, dtype = _to_helper(t)
         self.assertEqual(dtype, torch.double)
         self.assertEqual(device, torch.device("cpu"))
+
+        with unittest.mock.patch(
+            'torch.Tensor.device',
+            new_callable=unittest.mock.PropertyMock,
+            return_value=torch.device("cuda"),
+        ):
+            device, dtype = _to_helper(t.to(torch.float))
+        self.assertEqual(dtype, torch.float)
+        self.assertEqual(device, torch.device("cuda"))
 
         with self.assertRaisesRegex(RuntimeError, "Attempted to cast"):
             _to_helper(torch.rand(1, dtype=torch.double), dtype=torch.float)

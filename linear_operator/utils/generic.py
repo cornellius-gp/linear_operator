@@ -44,7 +44,7 @@ def _to_helper(*args, **kwargs) -> Tuple[Optional[torch.device], Optional[torch.
     if len(device_args) > 1:
         raise RuntimeError(f"{base_error_message} devices ({device_args}.")
 
-    dtype = next(iter(dtype_args)) if dtype_args else None
-    device = next(iter(device_args)) if device_args else None
+    dtype = dtype_args.pop() if dtype_args else None
+    device = device_args.pop() if device_args else None
 
     return device, dtype
