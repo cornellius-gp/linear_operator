@@ -32,7 +32,7 @@ class TestGenericUtils(BaseTestCase, unittest.TestCase):
         self.assertEqual(device, torch.device("cpu"))
 
         with unittest.mock.patch(
-            'torch.Tensor.device',
+            "torch.Tensor.device",
             new_callable=unittest.mock.PropertyMock,
             return_value=torch.device("cuda"),
         ):
