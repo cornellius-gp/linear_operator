@@ -7,11 +7,7 @@ import torch
 from torch import Tensor
 
 from .. import settings, utils
-from ..operators import (
-    IdentityLinearOperator,
-    LinearOperator,
-    LowRankRootLinearOperator,
-)
+from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, to_linear_operator
 from .linear_solver import LinearSolver, LinearSolverState
 
 
@@ -55,26 +51,26 @@ class CG(LinearSolver):
         :param x: Initial guess :math:`x \approx x_*`.
         :param precond: Preconditioner :math:`P\approx A^{-1}`.
         """
-
         # Setup
+        linear_op = to_linear_operator(linear_op)
+
         if precond is None:
             precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
 
         if x is None:
             x = torch.zeros_like(rhs)
+            residual = rhs
+        else:
+            residual = rhs - linear_op @ x
 
+        residual_norm = torch.linalg.norm(residual, ord=2)
         inv_approx = None
         search_dir_sqnorm_list = []
+        i = 0
 
         for i in range(self.max_iter):
 
-            # Compute residual
-            residual = (
-                rhs - linear_op @ x
-            )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
-
             # Check convergence
-            residual_norm = torch.linalg.norm(residual, ord=2)
             if residual_norm < max(self.abstol, self.reltol * torch.linalg.norm(rhs, ord=2)) or i > self.max_iter:
                 break
 
@@ -83,7 +79,7 @@ class CG(LinearSolver):
             linear_op_action = linear_op @ action
 
             # Observation
-            observ = action.T @ residual
+            observ = action @ residual
 
             # Search direction
             if i == 0:
@@ -94,7 +90,7 @@ class CG(LinearSolver):
                 )  # TODO: can be optimized for CG actions, at the cost of reorthogonalization
 
             # Normalization constant
-            search_dir_sqnorm = linear_op_action.T @ search_dir
+            search_dir_sqnorm = linear_op_action @ search_dir
             search_dir_sqnorm_list.append(search_dir_sqnorm)
 
             # Solution update
@@ -114,12 +110,33 @@ class CG(LinearSolver):
                     )
                 )
 
-        return x, inv_approx, torch.as_tensor(search_dir_sqnorm_list)
+            # Compute residual
+            residual = (
+                rhs - linear_op @ x
+            )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
+            residual_norm = torch.linalg.norm(residual, ord=2)
+
+        # Output
+        search_dir_sq_Anorms = torch.as_tensor(search_dir_sqnorm_list)
+
+        return LinearSolverState(
+            solution=x,
+            forward_op=linear_op @ inv_approx @ linear_op if inv_approx is not None else None,
+            inverse_op=inv_approx,
+            residual=residual,
+            residual_norm=residual_norm,
+            logdet=torch.sum(torch.log(search_dir_sq_Anorms)),
+            iteration=i,
+            cache={
+                "search_dir_sq_Anorms": search_dir_sq_Anorms,
+            },
+        )
 
 
 class CGGpytorch(LinearSolver):
     """Conjugate gradient method.
-    TODO
+
+    Legacy implementation of the linear conjugate gradient method as originally used in GPyTorch.
     """
 
     def __init__(self, tol: float = 1e-4, max_iter: int = None):
