@@ -3,7 +3,7 @@ from typing import Callable, Optional
 import torch
 from torch import Tensor
 
-from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, to_linear_operator
+from ..operators import LinearOperator, LowRankRootLinearOperator, to_linear_operator
 from .linear_solver import LinearSolver, LinearSolverState
 
 
@@ -14,7 +14,7 @@ class PLS(LinearSolver):
 
     .. math:: Ax_* = b
 
-    where :math:`A` is a symmetric positive-definite linear operator. A probabilistic
+    where :math:`A` is a (symmetric positive-definite) linear operator. A probabilistic
     linear solver chooses actions :math:`s_i` in each iteration to observe the residual
     by computing :math:`\\alpha_i = s_i^\\top (b - Ax_i)`.
 
