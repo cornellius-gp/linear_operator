@@ -3,20 +3,22 @@ from typing import Callable, Optional
 import torch
 from torch import Tensor
 
-from .. import settings, utils
 from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, to_linear_operator
 from .linear_solver import LinearSolver, LinearSolverState
 
 
-class CG(LinearSolver):
-    r"""Conjugate gradient method.
+class PLS(LinearSolver):
+    """Probabilistic linear solver.
 
     Iteratively solve linear systems of the form
 
     .. math:: Ax_* = b
 
-    where :math:`A` is a symmetric positive-definite linear operator.
+    where :math:`A` is a symmetric positive-definite linear operator. A probabilistic
+    linear solver chooses actions :math:`s_i` in each iteration to observe the residual
+    by computing :math:`\\alpha_i = s_i^\\top (b - Ax_i)`.
 
+    :param policy: Policy selecting actions :math:`s_i` to probe the residual with.
     :param abstol: Absolute residual tolerance.
     :param reltol: Relative residual tolerance.
     :max_iter: Maximum number of iterations.
@@ -24,35 +26,31 @@ class CG(LinearSolver):
 
     def __init__(
         self,
+        policy: Callable,
         abstol: float = 1e-5,
         reltol: float = 1e-5,
         max_iter: int = None,
     ):
+        self.policy = policy
         self.abstol = abstol
         self.reltol = reltol
-        self.max_iter = max_iter if max_iter is not None else settings.max_cg_iterations.value()
+        self.max_iter = max_iter
 
     def solve(
         self,
         linear_op: LinearOperator,
         rhs: Tensor,
         /,
-        *,
         x: Optional[Tensor] = None,
-        precond: Optional[Callable] = None,
     ) -> LinearSolverState:
         r"""Solve linear system :math:`Ax_*=b`.
 
         :param linear_op: Linear operator :math:`A`.
         :param rhs: Right-hand-side :math:`b`.
         :param x: Initial guess :math:`x \approx x_*`.
-        :param precond: Preconditioner :math:`P\approx A^{-1}`.
         """
         # Setup
         linear_op = to_linear_operator(linear_op)
-
-        if precond is None:
-            precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
 
         if x is None:
             x = torch.zeros_like(rhs)
@@ -75,7 +73,10 @@ class CG(LinearSolver):
                 break
 
             # Select action
-            action = precond @ residual
+            action = self.policy(
+                x, linear_op, rhs, residual
+            )  # TODO: should this operate on the state? -> allows caching, or use its own cache: action, policy_cache = self.policy(..., policy_cache)
+            # TODO: policy cache / state is probably good design since it lets us keep it stateless
             linear_op_action = linear_op @ action
 
             # Observation
@@ -85,9 +86,7 @@ class CG(LinearSolver):
             if i == 0:
                 search_dir = action
             else:
-                search_dir = (
-                    action - inv_approx @ linear_op_action
-                )  # TODO: can be optimized for CG actions, at the cost of reorthogonalization
+                search_dir = action - inv_approx @ linear_op_action
 
             # Normalization constant
             search_dir_sqnorm = linear_op_action.T @ search_dir
@@ -111,9 +110,7 @@ class CG(LinearSolver):
                 )
 
             # Compute residual
-            residual = (
-                rhs - linear_op @ x
-            )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
+            residual = rhs - linear_op @ x
             residual_norm = torch.linalg.vector_norm(residual, ord=2)
 
         # Output
@@ -130,32 +127,4 @@ class CG(LinearSolver):
             cache={
                 "search_dir_sq_Anorms": search_dir_sq_Anorms,
             },
-        )
-
-
-class CGGpytorch(LinearSolver):
-    """Conjugate gradient method.
-
-    Legacy implementation of the linear conjugate gradient method as originally used in GPyTorch.
-    """
-
-    def __init__(self, tol: float = 1e-4, max_iter: int = None):
-        self.tol = tol
-        self.max_iter = max_iter if max_iter is not None else settings.max_cg_iterations.value()
-
-    def solve(
-        self,
-        linear_op: LinearOperator,
-        rhs: Tensor,
-        preconditioner: Optional[Callable] = None,
-        num_tridiag: int = 0,
-    ) -> LinearSolverState:
-        return utils.linear_cg(
-            linear_op._matmul,
-            rhs,
-            tolerance=self.tol,
-            n_tridiag=num_tridiag,
-            max_iter=self.max_iter,
-            max_tridiag_iter=min(settings.max_lanczos_quadrature_iterations.value(), self.max_iter),
-            preconditioner=preconditioner,
         )

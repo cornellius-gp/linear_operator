@@ -15,3 +15,6 @@ Linear Solvers
 
 .. autoclass:: linear_operator.linear_solvers.CGGpytorch
    :members:
+
+.. autoclass:: linear_operator.linear_solvers.PLS
+   :members:
