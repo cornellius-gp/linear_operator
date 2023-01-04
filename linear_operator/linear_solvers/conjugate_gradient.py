@@ -63,7 +63,7 @@ class CG(LinearSolver):
         else:
             residual = rhs - linear_op @ x
 
-        residual_norm = torch.linalg.norm(residual, ord=2)
+        residual_norm = torch.linalg.vector_norm(residual, ord=2)
         inv_approx = None
         search_dir_sqnorm_list = []
         i = 0
@@ -71,7 +71,10 @@ class CG(LinearSolver):
         for i in range(self.max_iter):
 
             # Check convergence
-            if residual_norm < max(self.abstol, self.reltol * torch.linalg.norm(rhs, ord=2)) or i > self.max_iter:
+            if (
+                residual_norm < max(self.abstol, self.reltol * torch.linalg.vector_norm(rhs, ord=2))
+                or i > self.max_iter
+            ):
                 break
 
             # Select action
@@ -114,7 +117,7 @@ class CG(LinearSolver):
             residual = (
                 rhs - linear_op @ x
             )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
-            residual_norm = torch.linalg.norm(residual, ord=2)
+            residual_norm = torch.linalg.vector_norm(residual, ord=2)
 
         # Output
         search_dir_sq_Anorms = torch.as_tensor(search_dir_sqnorm_list)
