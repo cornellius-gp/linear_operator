@@ -19,7 +19,7 @@ class LinearSolverPolicy(ABC):
     """
 
     @abstractmethod
-    def __call__(self, solver_state: LinearSolverState) -> Tuple[torch.Tensor, LinearSolverState]:
+    def __call__(self, solver_state: "LinearSolverState") -> Tuple[torch.Tensor, "LinearSolverState"]:
         """Generate an action.
 
         :param solver_state:
