@@ -79,7 +79,7 @@ class CG(LinearSolver):
             linear_op_action = linear_op @ action
 
             # Observation
-            observ = action @ residual
+            observ = action.T @ residual
 
             # Search direction
             if i == 0:
@@ -90,7 +90,7 @@ class CG(LinearSolver):
                 )  # TODO: can be optimized for CG actions, at the cost of reorthogonalization
 
             # Normalization constant
-            search_dir_sqnorm = linear_op_action @ search_dir
+            search_dir_sqnorm = linear_op_action.T @ search_dir
             search_dir_sqnorm_list.append(search_dir_sqnorm)
 
             # Solution update
