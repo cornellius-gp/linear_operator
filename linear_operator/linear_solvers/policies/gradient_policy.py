@@ -8,7 +8,7 @@ from .linear_solver_policy import LinearSolverPolicy
 
 
 class GradientPolicy(LinearSolverPolicy):
-    """Policy choosing gradients :math:`b - Ax_i` as actions.
+    """Policy choosing (preconditioned) gradients / residuals :math:`Pr_i = P(b - Ax_i)` as actions.
 
     :param precond: Preconditioner :math:`P \\approx A^{-1}`.
     """

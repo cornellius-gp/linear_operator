@@ -27,3 +27,6 @@ Policies
 
 .. autoclass:: linear_operator.linear_solvers.policies.GradientPolicy
    :members:
+
+.. autoclass:: linear_operator.linear_solvers.policies.UnitVectorPolicy
+   :members:
