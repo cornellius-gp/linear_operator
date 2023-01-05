@@ -18,3 +18,12 @@ Linear Solvers
 
 .. autoclass:: linear_operator.linear_solvers.PLS
    :members:
+
+Policies
+********
+
+.. autoclass:: linear_operator.linear_solvers.policies.LinearSolverPolicy
+   :members:
+
+.. autoclass:: linear_operator.linear_solvers.policies.GradientPolicy
+   :members:
