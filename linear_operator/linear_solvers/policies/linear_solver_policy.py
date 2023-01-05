@@ -1,15 +1,8 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Tuple
 
 import torch
 
-
-@dataclass
-class LinearSolverPolicyState:
-    """State of the policy of a linear solver."""
-
-    iteration: int
+from ..linear_solver import LinearSolverState
 
 
 class LinearSolverPolicy(ABC):
@@ -19,7 +12,7 @@ class LinearSolverPolicy(ABC):
     """
 
     @abstractmethod
-    def __call__(self, solver_state: "LinearSolverState") -> Tuple[torch.Tensor, "LinearSolverState"]:
+    def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
         """Generate an action.
 
         :param solver_state:

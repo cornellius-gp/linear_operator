@@ -2,7 +2,7 @@
 
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from torch import Tensor
 
@@ -15,7 +15,7 @@ __all__ = ["LinearSolver", "LinearSolverState"]
 class LinearSolverState:
     """State of a linear solver applied to :math:`Ax_*=b`.
 
-    :param solution: Solution of the linear solve.
+    :param solution: Approximate solution of the linear system :math:`x_i \\approx A^{-1}b`.
     :param forward_op: Estimate of the forward operation :math:`A`.
     :param inverse_op: Estimate of the inverse operation :math:`A^{-1}`.
     :param residual: Residual :math:`r_i = b - Ax_i`.
@@ -32,7 +32,7 @@ class LinearSolverState:
     residual_norm: Tensor
     logdet: Tensor
     iteration: int
-    cache: dict = None
+    cache: dict = field(default_factory=dict)
 
 
 class LinearSolver(ABC):

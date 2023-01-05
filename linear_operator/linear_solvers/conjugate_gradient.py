@@ -19,7 +19,7 @@ class CG(LinearSolver):
 
     :param abstol: Absolute residual tolerance.
     :param reltol: Relative residual tolerance.
-    :max_iter: Maximum number of iterations.
+    :max_iter: Maximum number of iterations. Defaults to `10 * rhs.shape[0]`.
     """
 
     def __init__(
@@ -30,7 +30,7 @@ class CG(LinearSolver):
     ):
         self.abstol = abstol
         self.reltol = reltol
-        self.max_iter = max_iter if max_iter is not None else settings.max_cg_iterations.value()
+        self.max_iter = max_iter
 
     def solve(
         self,
@@ -48,89 +48,97 @@ class CG(LinearSolver):
         :param x: Initial guess :math:`x \approx x_*`.
         :param precond: Preconditioner :math:`P\approx A^{-1}`.
         """
-        # Setup
+        # Initialize solver state
         linear_op = to_linear_operator(linear_op)
-
-        if precond is None:
-            precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
+        if self.max_iter is None:
+            max_iter = 10 * rhs.shape[0]
+        else:
+            max_iter = self.max_iter
 
         if x is None:
-            x = torch.zeros_like(rhs)
+            x = torch.zeros_like(rhs, requires_grad=True)
             residual = rhs
         else:
             residual = rhs - linear_op @ x
 
-        residual_norm = torch.linalg.vector_norm(residual, ord=2)
-        inv_approx = None
-        search_dir_sqnorm_list = []
-        i = 0
+        if precond is None:
+            precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
 
-        for i in range(self.max_iter):
+        solver_state = LinearSolverState(
+            solution=x,
+            forward_op=None,
+            inverse_op=None,
+            residual=residual,
+            residual_norm=torch.linalg.vector_norm(residual, ord=2),
+            logdet=torch.zeros((), requires_grad=True),
+            iteration=0,
+            cache={
+                "search_dir_sq_Anorms": [],
+                "rhs_norm": torch.linalg.vector_norm(rhs, ord=2),
+            },
+        )
 
-            # Check convergence
-            if (
-                residual_norm < max(self.abstol, self.reltol * torch.linalg.vector_norm(rhs, ord=2))
-                or i > self.max_iter
-            ):
-                break
+        while (  # Check convergence
+            solver_state.residual_norm > max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
+            and solver_state.iteration < max_iter
+        ):
 
             # Select action
-            action = precond @ residual
+            action = precond @ solver_state.residual
             linear_op_action = linear_op @ action
 
             # Observation
-            observ = action.T @ residual
+            observ = action.T @ solver_state.residual
 
             # Search direction
-            if i == 0:
+            if solver_state.iteration == 0:
                 search_dir = action
             else:
                 search_dir = (
-                    action - inv_approx @ linear_op_action
+                    action - solver_state.inverse_op @ linear_op_action
                 )  # TODO: can be optimized for CG actions, at the cost of reorthogonalization
 
             # Normalization constant
             search_dir_sqnorm = linear_op_action.T @ search_dir
-            search_dir_sqnorm_list.append(search_dir_sqnorm)
+            solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
 
-            # Solution update
-            x = x + observ / search_dir_sqnorm * search_dir
+            # Update solution estimate
+            solver_state.solution = solver_state.solution + observ / search_dir_sqnorm * search_dir
 
-            # Inverse approximation
-            if i == 0:
-                inv_approx = LowRankRootLinearOperator((search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1))
+            # Update inverse approximation
+            if solver_state.iteration == 0:
+                solver_state.inverse_op = LowRankRootLinearOperator(
+                    (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1)
+                )
             else:
-                inv_approx = LowRankRootLinearOperator(
+                solver_state.inverse_op = LowRankRootLinearOperator(
                     torch.concat(
                         (
-                            inv_approx.root.to_dense(),
+                            solver_state.inverse_op.root.to_dense(),
                             (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1),
                         ),
                         dim=1,
                     )
                 )
 
-            # Compute residual
-            residual = (
-                rhs - linear_op @ x
+            # Update residual
+            solver_state.residual = (
+                rhs - linear_op @ solver_state.solution
             )  # TODO: can be optimized for CG actions at the cost of potentially worsening residual approximation
-            residual_norm = torch.linalg.vector_norm(residual, ord=2)
+            solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
 
-        # Output
-        search_dir_sq_Anorms = torch.as_tensor(search_dir_sqnorm_list)
+            # Update log-determinant
+            solver_state.logdet = solver_state.logdet + torch.log(search_dir_sqnorm)
 
-        return LinearSolverState(
-            solution=x,
-            forward_op=linear_op @ inv_approx @ linear_op if inv_approx is not None else None,
-            inverse_op=inv_approx,
-            residual=residual,
-            residual_norm=residual_norm,
-            logdet=torch.sum(torch.log(search_dir_sq_Anorms)),
-            iteration=i,
-            cache={
-                "search_dir_sq_Anorms": search_dir_sq_Anorms,
-            },
+            # Update iteration
+            solver_state.iteration += 1
+
+        # Finalize solver state
+        solver_state.forward_op = (
+            linear_op @ solver_state.inverse_op @ linear_op if solver_state.inverse_op is not None else None
         )
+
+        return solver_state
 
 
 class CGGpytorch(LinearSolver):

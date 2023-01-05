@@ -1,4 +1,6 @@
-from typing import Callable, Optional
+from __future__ import annotations
+
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -21,12 +23,12 @@ class PLS(LinearSolver):
     :param policy: Policy selecting actions :math:`s_i` to probe the residual with.
     :param abstol: Absolute residual tolerance.
     :param reltol: Relative residual tolerance.
-    :max_iter: Maximum number of iterations.
+    :max_iter: Maximum number of iterations. Defaults to `10 * rhs.shape[0]`.
     """
 
     def __init__(
         self,
-        policy: Callable,
+        policy: "LinearSolverPolicy",
         abstol: float = 1e-5,
         reltol: float = 1e-5,
         max_iter: int = None,
@@ -49,82 +51,87 @@ class PLS(LinearSolver):
         :param rhs: Right-hand-side :math:`b`.
         :param x: Initial guess :math:`x \approx x_*`.
         """
-        # Setup
+        # Initialize solver state
         linear_op = to_linear_operator(linear_op)
+        if self.max_iter is None:
+            max_iter = 10 * rhs.shape[0]
+        else:
+            max_iter = self.max_iter
 
         if x is None:
-            x = torch.zeros_like(rhs)
+            x = torch.zeros_like(rhs, requires_grad=True)
             residual = rhs
         else:
             residual = rhs - linear_op @ x
 
-        residual_norm = torch.linalg.vector_norm(residual, ord=2)
-        inv_approx = None
-        search_dir_sqnorm_list = []
-        i = 0
+        solver_state = LinearSolverState(
+            solution=x,
+            forward_op=None,
+            inverse_op=None,
+            residual=residual,
+            residual_norm=torch.linalg.vector_norm(residual, ord=2),
+            logdet=torch.zeros((), requires_grad=True),
+            iteration=0,
+            cache={
+                "search_dir_sq_Anorms": [],
+                "rhs_norm": torch.linalg.vector_norm(rhs, ord=2),
+            },
+        )
 
-        for i in range(self.max_iter):
-
-            # Check convergence
-            if (
-                residual_norm < max(self.abstol, self.reltol * torch.linalg.vector_norm(rhs, ord=2))
-                or i > self.max_iter
-            ):
-                break
+        while (  # Check convergence
+            solver_state.residual_norm > max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
+            and solver_state.iteration < max_iter
+        ):
 
             # Select action
-            action = self.policy(
-                x, linear_op, rhs, residual
-            )  # TODO: should this operate on the state? -> allows caching, or use its own cache: action, policy_cache = self.policy(..., policy_cache)
-            # TODO: policy cache / state is probably good design since it lets us keep it stateless
+            action = self.policy(solver_state)
             linear_op_action = linear_op @ action
 
             # Observation
-            observ = action.T @ residual
+            observ = action.T @ solver_state.residual
 
             # Search direction
-            if i == 0:
+            if solver_state.iteration == 0:
                 search_dir = action
             else:
-                search_dir = action - inv_approx @ linear_op_action
+                search_dir = action - solver_state.inverse_op @ linear_op_action
 
             # Normalization constant
             search_dir_sqnorm = linear_op_action.T @ search_dir
-            search_dir_sqnorm_list.append(search_dir_sqnorm)
+            solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
 
-            # Solution update
-            x = x + observ / search_dir_sqnorm * search_dir
+            # Update solution estimate
+            solver_state.solution = solver_state.solution + observ / search_dir_sqnorm * search_dir
 
-            # Inverse approximation
-            if i == 0:
-                inv_approx = LowRankRootLinearOperator((search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1))
+            # Update inverse approximation
+            if solver_state.iteration == 0:
+                solver_state.inverse_op = LowRankRootLinearOperator(
+                    (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1)
+                )
             else:
-                inv_approx = LowRankRootLinearOperator(
+                solver_state.inverse_op = LowRankRootLinearOperator(
                     torch.concat(
                         (
-                            inv_approx.root.to_dense(),
+                            solver_state.inverse_op.root.to_dense(),
                             (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1),
                         ),
                         dim=1,
                     )
                 )
 
-            # Compute residual
-            residual = rhs - linear_op @ x
-            residual_norm = torch.linalg.vector_norm(residual, ord=2)
+            # Update residual
+            solver_state.residual = rhs - linear_op @ solver_state.solution
+            solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
 
-        # Output
-        search_dir_sq_Anorms = torch.as_tensor(search_dir_sqnorm_list)
+            # Update log-determinant
+            solver_state.logdet = solver_state.logdet + torch.log(search_dir_sqnorm)
 
-        return LinearSolverState(
-            solution=x,
-            forward_op=linear_op @ inv_approx @ linear_op if inv_approx is not None else None,
-            inverse_op=inv_approx,
-            residual=residual,
-            residual_norm=residual_norm,
-            logdet=torch.sum(torch.log(search_dir_sq_Anorms)),
-            iteration=i,
-            cache={
-                "search_dir_sq_Anorms": search_dir_sq_Anorms,
-            },
+            # Update iteration
+            solver_state.iteration += 1
+
+        # Finalize solver state
+        solver_state.forward_op = (
+            linear_op @ solver_state.inverse_op @ linear_op if solver_state.inverse_op is not None else None
         )
+
+        return solver_state
