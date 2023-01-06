@@ -26,7 +26,7 @@ def lanczos_tridiag(
             "by a vector. Got a {} instead.".format(matmul_closure.__class__.__name__)
         )
 
-    # Get initial probe ectors - and define if not available
+    # Get initial probe vectors - and define if not available
     if init_vecs is None:
         init_vecs = torch.randn(matrix_shape[-1], num_init_vecs, dtype=dtype, device=device)
         init_vecs = init_vecs.expand(*batch_shape, matrix_shape[-1], num_init_vecs)

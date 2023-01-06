@@ -12,9 +12,18 @@ __all__ = ["LinearSolver", "LinearSolverState"]
 
 
 @dataclass
+class LinearSystem:
+    """Linear system :math:`Ax_* = b`."""
+
+    A: LinearOperator
+    b: LinearOperator
+
+
+@dataclass
 class LinearSolverState:
     """State of a linear solver applied to :math:`Ax_*=b`.
 
+    :param problem: Linear system to solve.
     :param solution: Approximate solution of the linear system :math:`x_i \\approx A^{-1}b`.
     :param forward_op: Estimate of the forward operation :math:`A`.
     :param inverse_op: Estimate of the inverse operation :math:`A^{-1}`.
@@ -25,6 +34,7 @@ class LinearSolverState:
     :param cache: Miscellaneous quantities cached by the solver.
     """
 
+    problem: LinearSystem
     solution: Tensor
     forward_op: LinearOperator
     inverse_op: LinearOperator

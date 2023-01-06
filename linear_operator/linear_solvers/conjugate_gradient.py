@@ -5,7 +5,7 @@ from torch import Tensor
 
 from .. import settings, utils
 from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, to_linear_operator
-from .linear_solver import LinearSolver, LinearSolverState
+from .linear_solver import LinearSolver, LinearSolverState, LinearSystem
 
 
 class CG(LinearSolver):
@@ -65,6 +65,7 @@ class CG(LinearSolver):
             precond = IdentityLinearOperator(diag_shape=linear_op.shape[1], dtype=linear_op.dtype)
 
         solver_state = LinearSolverState(
+            problem=LinearSystem(A=linear_op, b=rhs),
             solution=x,
             forward_op=None,
             inverse_op=None,

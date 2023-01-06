@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from ..operators import LinearOperator, LowRankRootLinearOperator, to_linear_operator
-from .linear_solver import LinearSolver, LinearSolverState
+from .linear_solver import LinearSolver, LinearSolverState, LinearSystem
 
 
 class PLS(LinearSolver):
@@ -65,6 +65,7 @@ class PLS(LinearSolver):
             residual = rhs - linear_op @ x
 
         solver_state = LinearSolverState(
+            problem=LinearSystem(A=linear_op, b=rhs),
             solution=x,
             forward_op=None,
             inverse_op=None,
