@@ -33,11 +33,11 @@ class _dtype_value_context:
             cls._global_half_value = half_value
 
     def __init__(self, float_value=None, double_value=None, half_value=None):
-        self._orig_float_value = self.__class__.value()
+        self._orig_float_value = self.__class__.value(dtype=torch.float)
         self._instance_float_value = float_value
-        self._orig_double_value = self.__class__.value()
+        self._orig_double_value = self.__class__.value(dtype=torch.double)
         self._instance_double_value = double_value
-        self._orig_half_value = self.__class__.value()
+        self._orig_half_value = self.__class__.value(dtype=torch.half)
         self._instance_half_value = half_value
 
     def __enter__(
