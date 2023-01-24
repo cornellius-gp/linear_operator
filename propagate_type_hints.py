@@ -101,7 +101,7 @@ def main():
         target = path
         # target_out = Path(str(path) + "2")
         target_out = target
-        print(f"Processing {(target.name, target_out.name)}")
+        print(f"Processing {(target.name, target_out.name)}"). # noqa: T001
         modified_tree = copy_base_type_hints_to_derived(target, base_visitor)
         with open(target_out, "w") as f:
             f.write(modified_tree.code)
