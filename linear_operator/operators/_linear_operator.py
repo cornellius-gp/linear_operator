@@ -167,7 +167,7 @@ class LinearOperator(ABC):
 
     @abstractmethod
     def _size(self) -> torch.Size:
-        """
+        r"""
         Returns the size of the resulting Tensor that the linear operator represents.
 
         ..note::
@@ -569,7 +569,7 @@ class LinearOperator(ABC):
             return MulLinearOperator(self, other)
 
     def _preconditioner(self) -> Tuple[Callable, "LinearOperator", torch.Tensor]:
-        """
+        r"""
         (Optional) define a preconditioner (:math:`\mathbf P`) for linear conjugate gradients
 
         :return:
@@ -676,7 +676,7 @@ class LinearOperator(ABC):
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
     ) -> LinearOperator:
-        """
+        r"""
         Returns the (usually low-rank) inverse root of a LinearOperator of a PSD matrix.
 
         ..note::
