@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
@@ -46,7 +45,7 @@ class LinearSolverState:
 
 
 class LinearSolver(ABC):
-    """Abstract base class for linear solvers.
+    r"""Abstract base class for linear solvers.
 
     Method which solves a linear system of the form
 
@@ -55,4 +54,10 @@ class LinearSolver(ABC):
 
     @abstractmethod
     def solve(self, linear_op: LinearOperator, rhs: Tensor, /, **kwargs) -> LinearSolverState:
+        r"""Solve linear system :math:`Ax_*=b`.
+
+        :param linear_op: Linear operator :math:`A`.
+        :param rhs: Right-hand-side :math:`b`.
+        :param x: Initial guess :math:`x \approx x_*`.
+        """
         raise NotImplementedError

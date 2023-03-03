@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Generator, Optional
 
 import torch
 from torch import Tensor
@@ -28,7 +28,7 @@ class PLS(LinearSolver):
 
     def __init__(
         self,
-        policy: "LinearSolverPolicy",
+        policy: "linear_operator.linear_solvers.policies.LinearSolverPolicy",
         abstol: float = 1e-5,
         reltol: float = 1e-5,
         max_iter: int = None,
@@ -38,20 +38,22 @@ class PLS(LinearSolver):
         self.reltol = reltol
         self.max_iter = max_iter
 
-    def solve(
+    def solve_iterator(
         self,
         linear_op: LinearOperator,
         rhs: Tensor,
         /,
         x: Optional[Tensor] = None,
-    ) -> LinearSolverState:
-        r"""Solve linear system :math:`Ax_*=b`.
+    ) -> Generator[LinearSolverState, None, None]:
+        r"""Generator implementing the linear solver iteration.
+
+        This function allows stepping through the solver iteration one step at a time and thus exposes internal quantities in the solver state cache.
 
         :param linear_op: Linear operator :math:`A`.
         :param rhs: Right-hand-side :math:`b`.
         :param x: Initial guess :math:`x \approx x_*`.
         """
-        # Initialize solver state
+        # Setup
         linear_op = to_linear_operator(linear_op)
         if self.max_iter is None:
             max_iter = 10 * rhs.shape[0]
@@ -64,6 +66,7 @@ class PLS(LinearSolver):
         else:
             residual = rhs - linear_op @ x
 
+        # Initialize solver state
         solver_state = LinearSolverState(
             problem=LinearSystem(A=linear_op, b=rhs),
             solution=x,
@@ -76,13 +79,23 @@ class PLS(LinearSolver):
             cache={
                 "search_dir_sq_Anorms": [],
                 "rhs_norm": torch.linalg.vector_norm(rhs, ord=2),
+                "action": None,
+                "observation": None,
+                "search_dir": None,
+                "step_size": None,
             },
         )
 
-        while (  # Check convergence
-            solver_state.residual_norm > max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
-            and solver_state.iteration < max_iter
-        ):
+        yield solver_state
+
+        while True:
+
+            # Check convergence
+            if (
+                solver_state.residual_norm < max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
+                or solver_state.iteration >= max_iter
+            ):
+                break
 
             # Select action
             action = self.policy(solver_state)
@@ -102,7 +115,8 @@ class PLS(LinearSolver):
             solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
 
             # Update solution estimate
-            solver_state.solution = solver_state.solution + observ / search_dir_sqnorm * search_dir
+            step_size = observ / search_dir_sqnorm
+            solver_state.solution = solver_state.solution + step_size * search_dir
 
             # Update inverse approximation
             if solver_state.iteration == 0:
@@ -129,6 +143,33 @@ class PLS(LinearSolver):
 
             # Update iteration
             solver_state.iteration += 1
+
+            # Update solver state cache
+            solver_state.cache["action"] = action
+            solver_state.cache["observation"] = observ
+            solver_state.cache["search_dir"] = search_dir
+            solver_state.cache["step_size"] = step_size
+
+            yield solver_state
+
+    def solve(
+        self,
+        linear_op: LinearOperator,
+        rhs: Tensor,
+        /,
+        x: Optional[Tensor] = None,
+    ) -> LinearSolverState:
+        r"""Solve linear system :math:`Ax_*=b`.
+
+        :param linear_op: Linear operator :math:`A`.
+        :param rhs: Right-hand-side :math:`b`.
+        :param x: Initial guess :math:`x \approx x_*`.
+        """
+
+        solver_state = None
+
+        for solver_state in self.solve_iterator(linear_op, rhs, x=x):
+            pass
 
         # Finalize solver state
         solver_state.forward_op = (
