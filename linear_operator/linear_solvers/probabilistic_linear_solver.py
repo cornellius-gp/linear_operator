@@ -28,7 +28,7 @@ class PLS(LinearSolver):
 
     def __init__(
         self,
-        policy: "linear_operator.linear_solvers.policies.LinearSolverPolicy",
+        policy: "LinearSolverPolicy",
         abstol: float = 1e-5,
         reltol: float = 1e-5,
         max_iter: int = None,
