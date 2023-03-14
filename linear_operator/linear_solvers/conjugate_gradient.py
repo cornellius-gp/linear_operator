@@ -4,7 +4,13 @@ import torch
 from torch import Tensor
 
 from .. import settings, utils
-from ..operators import IdentityLinearOperator, LinearOperator, LowRankRootLinearOperator, to_linear_operator
+from ..operators import (
+    IdentityLinearOperator,
+    LinearOperator,
+    LowRankRootLinearOperator,
+    ZeroLinearOperator,
+    to_linear_operator,
+)
 from .linear_solver import LinearSolver, LinearSolverState, LinearSystem
 
 
@@ -57,6 +63,7 @@ class CG(LinearSolver):
 
         if x is None:
             x = torch.zeros_like(rhs, requires_grad=True)
+            inverse_op = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype, device=linear_op.device)
             residual = rhs
         else:
             residual = rhs - linear_op @ x
@@ -68,7 +75,7 @@ class CG(LinearSolver):
             problem=LinearSystem(A=linear_op, b=rhs),
             solution=x,
             forward_op=None,
-            inverse_op=None,
+            inverse_op=inverse_op,
             residual=residual,
             residual_norm=torch.linalg.vector_norm(residual, ord=2),
             logdet=torch.zeros((), requires_grad=True),
@@ -133,11 +140,6 @@ class CG(LinearSolver):
 
             # Update iteration
             solver_state.iteration += 1
-
-        # Finalize solver state
-        solver_state.forward_op = (
-            linear_op @ solver_state.inverse_op @ linear_op if solver_state.inverse_op is not None else None
-        )
 
         return solver_state
 
