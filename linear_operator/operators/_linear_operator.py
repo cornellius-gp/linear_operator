@@ -12,7 +12,12 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from jaxtyping import Float
+
+try:
+    # optional library for advanced type signatures
+    from jaxtyping import Float
+except ImportError:
+    pass
 from torch import Tensor
 
 import linear_operator

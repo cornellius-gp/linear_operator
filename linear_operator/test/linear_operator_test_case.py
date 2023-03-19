@@ -625,11 +625,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         new_rows = torch.randn(*linear_op.shape[:-1], 3)
 
         summed_lt = evaluated + new_rows.matmul(new_rows.mT)
-        try:
-            new_lt = linear_op.add_low_rank(new_rows)
-        except Exception:
-            msg = traceback.format_exc()
-            logging.warning(msg)
+        new_lt = linear_op.add_low_rank(new_rows)
 
         # check that the concatenation is okay
         self.assertAllClose(new_lt.to_dense(), summed_lt)
