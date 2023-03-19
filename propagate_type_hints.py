@@ -99,8 +99,7 @@ def main():
         if path.name[0] == "_":
             continue
         target = path
-        # target_out = Path(str(path) + "2")
-        target_out = target
+        target_out = path
         print(f"Processing {(target.name, target_out.name)}")  # noqa: T001
         modified_tree = copy_base_type_hints_to_derived(target, base_visitor)
         with open(target_out, "w") as f:
