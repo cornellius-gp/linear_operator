@@ -8,8 +8,9 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
+from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.deprecation import bool_compat
+from ..utils.generic import _to_helper
 from ..utils.getitem import _noop_index
 from ._linear_operator import IndexType, LinearOperator, to_dense
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator

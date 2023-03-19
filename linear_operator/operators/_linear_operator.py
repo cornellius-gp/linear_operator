@@ -31,10 +31,11 @@ from ..functions._pivoted_cholesky import PivotedCholesky
 from ..functions._root_decomposition import RootDecomposition
 from ..functions._solve import Solve
 from ..functions._sqrt_inv_matmul import SqrtInvMatmul
-from ..utils.broadcasting import _matmul_broadcast_shape, _to_helper
+from ..utils.broadcasting import _matmul_broadcast_shape
 from ..utils.cholesky import psd_safe_cholesky
 from ..utils.deprecation import _deprecate_renamed_methods
 from ..utils.errors import CachingError
+from ..utils.generic import _to_helper
 from ..utils.getitem import (
     _compute_getitem_size,
     _convert_indices_to_tensors,
@@ -188,7 +189,7 @@ class LinearOperator:
 
     @abstractmethod
     def _size(self) -> torch.Size:
-        """
+        r"""
         Returns the size of the resulting Tensor that the linear operator represents.
 
         ..note::

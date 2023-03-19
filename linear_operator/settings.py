@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-import warnings
 
 import torch
 
@@ -33,13 +32,13 @@ class _dtype_value_context:
         if half_value is not None:
             cls._global_half_value = half_value
 
-    def __init__(self, float=None, double=None, half=None):
-        self._orig_float_value = self.__class__.value()
-        self._instance_float_value = float
-        self._orig_double_value = self.__class__.value()
-        self._instance_double_value = double
-        self._orig_half_value = self.__class__.value()
-        self._instance_half_value = half
+    def __init__(self, float_value=None, double_value=None, half_value=None):
+        self._orig_float_value = self.__class__.value(dtype=torch.float)
+        self._instance_float_value = float_value
+        self._orig_double_value = self.__class__.value(dtype=torch.double)
+        self._instance_double_value = double_value
+        self._orig_half_value = self.__class__.value(dtype=torch.half)
+        self._instance_half_value = half_value
 
     def __enter__(
         self,
@@ -201,17 +200,6 @@ class cholesky_jitter(_dtype_value_context):
 
     _global_float_value = 1e-6
     _global_double_value = 1e-8
-
-    @classmethod
-    def value(cls, dtype=None):
-        if dtype is None:
-            # Deprecated in 1.4: remove in 1.5
-            warnings.warn(
-                "cholesky_jitter is now a _dtype_value_context and should be called with a dtype argument",
-                DeprecationWarning,
-            )
-            return cls._global_float_value
-        return super().value(dtype=dtype)
 
 
 class cholesky_max_tries(_value_context):
