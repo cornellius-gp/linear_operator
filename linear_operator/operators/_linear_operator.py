@@ -110,14 +110,6 @@ def _implements_symmetric(torch_function: Callable) -> Callable:
     return decorator
 
 
-# Linear operator storage layout types
-class LinopLayout:
-    pass
-
-
-linop_diagonal: LinopLayout
-
-
 class LinearOperator:
     r"""
     Base class for LinearOperators.
