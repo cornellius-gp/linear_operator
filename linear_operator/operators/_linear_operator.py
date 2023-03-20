@@ -8,7 +8,7 @@ import numbers
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -54,7 +54,7 @@ _HANDLED_SECOND_ARG_FUNCTIONS = {}
 _TYPES_DICT = {torch.float: "float", torch.half: "half", torch.double: "double"}
 
 # EllipsisType is only available in Python 3.10+
-IndexType = Union[type("..."), slice, list[int], torch.LongTensor, int]
+IndexType = Union[type(Ellipsis), slice, Iterable[int], torch.LongTensor, int]
 
 
 def _implements(torch_function: Callable) -> Callable:
