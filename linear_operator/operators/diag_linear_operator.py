@@ -18,12 +18,12 @@ from .triangular_linear_operator import TriangularLinearOperator
 
 class DiagLinearOperator(TriangularLinearOperator):
     """
-    Diagonal linear operator. Supports arbitrary batch sizes.
+    Diagonal linear operator (... x N x N).
 
-    :param diag: A `... x N` tensor, representing a (batch of) `N x N` diagonal matrices.
+    :param diag: Diagonal elements of LinearOperator.
     """
 
-    def __init__(self, diag: Tensor):
+    def __init__(self, diag: Float[Tensor, "*#batch N"]):
         super(TriangularLinearOperator, self).__init__(diag)
         self._diag = diag
 

@@ -110,9 +110,11 @@ def _implements_symmetric(torch_function: Callable) -> Callable:
     return decorator
 
 
-class LinearOperator:
+class LinearOperator(object):
     r"""
     Base class for LinearOperators.
+    Unless otherwise stated, we assume that the LinearOperator represents a matrix
+    (or batch of matrices) of size (... x M x N).
 
     :ivar int batch_dim: The number of batch dimensions defined by the
         :obj:`~linear_operator.LinearOperator`.

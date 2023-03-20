@@ -17,19 +17,19 @@ from .triangular_linear_operator import TriangularLinearOperator, _TriangularLin
 
 class CholLinearOperator(RootLinearOperator):
     r"""
-    A LinearOperator that represents a positive definite matrix given
+    A LinearOperator (... x N x N) that represents a positive definite matrix given
     a lower trinagular Cholesky factor :math:`\mathbf L`
     (or upper triangular Cholesky factor :math:`\mathbf R`).
 
     :param chol: The Cholesky factor :math:`\mathbf L` (or :math:`\mathbf R`).
-    :type chol: TriangularLinearOperator
+    :type chol: TriangularLinearOperator (... x N x N)
     :param upper: If the orientation of the cholesky factor is an upper triangular matrix
         (i.e. :math:`\mathbf R^\top \mathbf R`).
         If false, then the orientation is assumed to be a lower triangular matrix
         (i.e. :math:`\mathbf L \mathbf L^\top`).
     """
 
-    def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False):
+    def __init__(self, chol: Float[_TriangularLinearOperatorBase, "*#batch N N"], upper: bool = False):
         if not isinstance(chol, _TriangularLinearOperatorBase):
             warnings.warn(
                 "chol argument to CholLinearOperator should be a TriangularLinearOperator. "
