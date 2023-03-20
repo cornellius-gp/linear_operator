@@ -38,10 +38,6 @@ except ImportError:
 
 # Other requirements
 install_requires += ["scipy", "jaxtyping>=0.2.9"]
-extras_require = {
-    # advanced type checking
-    "type-checking": ["jaxtyping>=0.2.9"],
-}
 
 
 # Get version
