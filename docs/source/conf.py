@@ -96,7 +96,6 @@ intersphinx_mapping = {
 
 autodoc_inherit_docstrings = False
 
-#### Function to format type hints
 
 # Helper function
 # Convert any class (i.e. torch.Tensor, LinearOperator, etc.) into appropriate strings
@@ -115,7 +114,7 @@ def _convert_internal_and_external_class_to_strings(annotation):
 # Convert jaxtyping dimensions into strings
 def _dim_to_str(dim):
     if isinstance(dim, jaxtyping.array_types._NamedVariadicDim):
-        return f"..."
+        return "..."
     elif isinstance(dim, jaxtyping.array_types._FixedDim):
         return str(dim.size)
     elif isinstance(dim, jaxtyping.array_types._SymbolicDim):
@@ -127,7 +126,7 @@ def _dim_to_str(dim):
         return str(dim.name)
 
 
-# Actual function to formal type hints
+# Function to format type hints
 def _process(annotation, config):
     """
     A function to convert a type/rtype typehint annotation into a :type:/:rtype: string.
