@@ -4,3 +4,4 @@ sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
 six
+uncompyle6

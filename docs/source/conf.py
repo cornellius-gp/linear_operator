@@ -17,8 +17,11 @@
 import os
 import sys
 import warnings
-import sphinx_rtd_theme  # noqa
 from typing import ForwardRef
+
+import jaxtyping
+import sphinx_rtd_theme  # noqa
+from uncompyle6.semantics.fragments import code_deparse
 
 
 sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))
@@ -93,9 +96,38 @@ intersphinx_mapping = {
 
 autodoc_inherit_docstrings = False
 
-# Function to format type hints
+#### Function to format type hints
+
+# Helper function
+# Convert any class (i.e. torch.Tensor, LinearOperator, etc.) into appropriate strings
+# For external classes, the format will be e.g. "torch.Tensor"
+# For any internal class, the format will be e.g. "~linear_operator.operators.TriangularLinearOperator"
+def _convert_internal_and_external_class_to_strings(annotation):
+    module = annotation.__module__ + "."
+    if module.split(".")[0] == "linear_operator":
+        module = "~" + module
+    elif module == "builtins.":
+        module = ""
+    res = f"{module}{annotation.__name__}"
+    return res
 
 
+# Convert jaxtyping dimensions into strings
+def _dim_to_str(dim):
+    if isinstance(dim, jaxtyping.array_types._NamedVariadicDim):
+        return f"..."
+    elif isinstance(dim, jaxtyping.array_types._FixedDim):
+        return str(dim.size)
+    elif isinstance(dim, jaxtyping.array_types._SymbolicDim):
+        expr = code_deparse(dim.expr).text.strip().split("return ")[1]
+        return f"({expr})"
+    elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
+        return "..."
+    else:
+        return str(dim.name)
+
+
+# Actual function to formal type hints
 def _process(annotation, config):
     """
     A function to convert a type/rtype typehint annotation into a :type:/:rtype: string.
@@ -107,20 +139,19 @@ def _process(annotation, config):
     if type(annotation) == str:
         return annotation
 
+    # Jaxtyping: shaped tensors or linear operator
+    elif hasattr(annotation, "__module__") and "jaxtyping" == annotation.__module__:
+        cls_annotation = _convert_internal_and_external_class_to_strings(annotation.array_type)
+        shape = " x ".join([_dim_to_str(dim) for dim in annotation.dims])
+        return f"{cls_annotation} ({shape})"
+
     # Convert Ellipsis into "..."
     elif annotation == Ellipsis:
         return "..."
 
     # Convert any class (i.e. torch.Tensor, LinearOperator, etc.) into appropriate strings
-    # For external classes, the format will be e.g. "torch.Tensor"
-    # For any internal class, the format will be e.g. "~linear_operator.operators.TriangularLinearOperator"
     elif hasattr(annotation, "__name__"):
-        module = annotation.__module__ + "."
-        if module.split(".")[0] == "linear_operator":
-            module = "~" + module
-        elif module == "builtins.":
-            module = ""
-        res = f"{module}{annotation.__name__}"
+        res = _convert_internal_and_external_class_to_strings(annotation)
 
     # Convert any Union[*A*, *B*, *C*] into "*A* or *B* or *C*"
     # Also, convert any Optional[*A*] into "*A*, optional"
@@ -164,7 +195,7 @@ def _process(annotation, config):
 
 # Options for typehints
 
-always_document_param_types = True
+always_document_param_types = False
 # typehints_use_rtype = False
 typehints_defaults = None  # or "comma"
 simplify_optional_unions = False
