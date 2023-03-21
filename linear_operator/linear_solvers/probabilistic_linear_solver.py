@@ -64,8 +64,26 @@ class PLS(LinearSolver):
             x = torch.zeros_like(rhs, requires_grad=True)
             inverse_op = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype, device=linear_op.device)
             residual = rhs
+            logdet = torch.zeros((), requires_grad=True)
         else:
-            residual = rhs - linear_op @ x
+            # Construct a better initial guess with a consistent inverse approximation such that x = inverse_op @ rhs
+            action = x
+            linear_op_action = linear_op @ action
+            action_linear_op_action = linear_op_action.T @ action
+
+            # Potentially improved initial guess x derived from initial guess
+            step_size = action.T @ rhs / action_linear_op_action
+            x = step_size * action
+
+            # Initial residual
+            linear_op_x = step_size * linear_op_action
+            residual = rhs - linear_op_x
+
+            # Consistent inverse approximation for new initial guess
+            inverse_op = LowRankRootLinearOperator((action / torch.sqrt(action_linear_op_action)).reshape(-1, 1))
+
+            # Log determinant
+            logdet = torch.log(action_linear_op_action)
 
         # Initialize solver state
         solver_state = LinearSolverState(
@@ -75,7 +93,7 @@ class PLS(LinearSolver):
             inverse_op=inverse_op,
             residual=residual,
             residual_norm=torch.linalg.vector_norm(residual, ord=2),
-            logdet=torch.zeros((), requires_grad=True),
+            logdet=logdet,
             iteration=0,
             cache={
                 "search_dir_sq_Anorms": [],
@@ -106,7 +124,7 @@ class PLS(LinearSolver):
             observ = action.T @ solver_state.residual
 
             # Search direction
-            if solver_state.iteration == 0:
+            if isinstance(solver_state.inverse_op, ZeroLinearOperator):
                 search_dir = action
             else:
                 search_dir = action - solver_state.inverse_op @ linear_op_action
@@ -120,7 +138,7 @@ class PLS(LinearSolver):
             solver_state.solution = solver_state.solution + step_size * search_dir
 
             # Update inverse approximation
-            if solver_state.iteration == 0:
+            if isinstance(solver_state.inverse_op, ZeroLinearOperator):
                 solver_state.inverse_op = LowRankRootLinearOperator(
                     (search_dir / torch.sqrt(search_dir_sqnorm)).reshape(-1, 1)
                 )
