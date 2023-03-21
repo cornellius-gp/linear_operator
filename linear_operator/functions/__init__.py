@@ -47,7 +47,9 @@ def add_jitter(input: Anysor, jitter_val: float = 1e-3) -> Anysor:
         return input + diag
 
 
-def diagonalization(input: Anysor, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+def diagonalization(
+    input: Anysor, method: Optional[str] = None
+) -> Tuple[torch.Tensor, Union[torch.Tensor, LinearOperatorType]]:
     r"""
     Returns a (usually partial) diagonalization of a symmetric positive definite matrix (or batch of matrices).
     :math:`\mathbf A`.
