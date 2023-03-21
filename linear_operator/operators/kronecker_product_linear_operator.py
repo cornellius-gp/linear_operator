@@ -2,7 +2,7 @@
 
 import operator
 from functools import reduce
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -147,12 +147,12 @@ class KroneckerProductLinearOperator(LinearOperator):
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         if inv_quad_rhs is not None:
             inv_quad_term, _ = super().inv_quad_logdet(
@@ -170,11 +170,11 @@ class KroneckerProductLinearOperator(LinearOperator):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.linear_ops]
         return KroneckerProductTriangularLinearOperator(*chol_factors, upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         return _kron_diag(*self.linear_ops)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(*[linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops])
 
@@ -203,7 +203,13 @@ class KroneckerProductLinearOperator(LinearOperator):
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         # Computes solve by exploiting the identity (A \kron B)^-1 = A^-1 \kron B^-1
         # we perform the solve first before worrying about any tridiagonal matrices
 
@@ -278,7 +284,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
         method: Optional[str] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         from linear_operator.operators import RootLinearOperator
 
         # return a dense root decomposition if the matrix is small
@@ -375,9 +381,9 @@ class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _
 
     def _cholesky_solve(
         self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[LinearOperator, "batch N M"],
+        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
+    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         if upper:
             # res = (U.T @ U)^-1 @ v = U^-1 @ U^-T @ v
             w = self._transpose_nonbatch().solve(rhs)
@@ -434,7 +440,7 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
         return _kron_diag(*self.linear_ops)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return KroneckerProductTriangularLinearOperator._expand_batch(self, batch_shape)
 

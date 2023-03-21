@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -32,16 +32,16 @@ class DenseLinearOperator(LinearOperator):
 
     def _cholesky_solve(
         self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[LinearOperator, "batch N M"],
+        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
+    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         return self.tensor.diagonal(dim1=-1, dim2=-2)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
 

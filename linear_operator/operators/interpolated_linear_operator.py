@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from ctypes import Union
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -100,7 +99,7 @@ class InterpolatedLinearOperator(LinearOperator):
         res = left_res * right_res
         return res.squeeze(-1)
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
             self.base_linear_op.root, DenseLinearOperator
         ):
@@ -115,7 +114,7 @@ class InterpolatedLinearOperator(LinearOperator):
             return super(InterpolatedLinearOperator, self)._diagonal()
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),

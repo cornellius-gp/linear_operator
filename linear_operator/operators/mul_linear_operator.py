@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -37,7 +37,7 @@ class MulLinearOperator(LinearOperator):
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         res = self.left_linear_op._diagonal() * self.right_linear_op._diagonal()
         return res
 
@@ -128,7 +128,7 @@ class MulLinearOperator(LinearOperator):
         return tuple(list(left_deriv_args) + list(right_deriv_args))
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)

@@ -8,17 +8,14 @@ from itertools import combinations, product
 from unittest.mock import MagicMock, patch
 
 import torch
-from jaxtyping import install_import_hook
+
+import linear_operator
+from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
+from linear_operator.settings import linalg_dtypes
+from linear_operator.utils.errors import CachingError
+from linear_operator.utils.memoize import get_from_cache
 
 from ..utils.warnings import PerformanceWarning
-
-with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    import linear_operator
-    from linear_operator.operators import DiagLinearOperator, to_dense, DenseLinearOperator
-    from linear_operator.settings import linalg_dtypes
-    from linear_operator.utils.errors import CachingError
-    from linear_operator.utils.memoize import get_from_cache
-
 from .base_test_case import BaseTestCase
 
 

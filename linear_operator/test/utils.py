@@ -23,7 +23,7 @@ def approx_equal(self, other, epsilon=1e-4):
     return torch.max((self - other).abs()) <= epsilon
 
 
-def get_cuda_max_memory_allocations() -> int:
+def get_cuda_max_memory_allocations() -> torch.Tensor:
     """Get the `max_memory_allocated` for each cuda device"""
     return torch.tensor([torch.cuda.max_memory_allocated(i) for i in range(torch.cuda.device_count())])
 

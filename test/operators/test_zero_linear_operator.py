@@ -3,10 +3,8 @@
 import unittest
 
 import torch
-from jaxtyping import install_import_hook
 
-with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    from linear_operator.operators import ZeroLinearOperator
+from linear_operator.operators import ZeroLinearOperator
 from linear_operator.test.utils import approx_equal
 
 

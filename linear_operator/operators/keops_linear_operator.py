@@ -21,7 +21,7 @@ class KeOpsLinearOperator(LinearOperator):
         self.params = params
 
     @cached(name="kernel_diag")
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         """
         Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
         """

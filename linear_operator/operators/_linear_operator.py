@@ -8,14 +8,14 @@ import numbers
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
 try:
     # optional library for advanced type signatures
-    from jaxtyping import Float
+    from jaxtyping import Float, Int
 except ImportError:
     pass
 from torch import Tensor
@@ -37,6 +37,7 @@ from ..utils.deprecation import _deprecate_renamed_methods
 from ..utils.errors import CachingError
 from ..utils.generic import _to_helper
 from ..utils.getitem import (
+    IndexType,
     _compute_getitem_size,
     _convert_indices_to_tensors,
     _is_noop_index,
@@ -52,9 +53,6 @@ from .linear_operator_representation_tree import LinearOperatorRepresentationTre
 _HANDLED_FUNCTIONS = {}
 _HANDLED_SECOND_ARG_FUNCTIONS = {}
 _TYPES_DICT = {torch.float: "float", torch.half: "half", torch.double: "double"}
-
-# EllipsisType is only available in Python 3.10+
-IndexType = Union[type(Ellipsis), slice, Iterable[int], torch.LongTensor, int]
 
 
 def _implements(torch_function: Callable) -> Callable:
@@ -376,7 +374,7 @@ class LinearOperator(object):
         return tuple(grads)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         """
         Expands along batch dimensions. Return size will be *batch_shape x *matrix_shape.
@@ -506,9 +504,9 @@ class LinearOperator(object):
 
     def _cholesky_solve(
         self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[LinearOperator, "batch N M"],
+        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
+    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         """
         (Optional) Assuming that `self` is a Cholesky factor, computes the cholesky solve.
 
@@ -537,7 +535,7 @@ class LinearOperator(object):
             return "cholesky"
         return "lanczos"
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         r"""
         As :func:`torch._diagonal`, returns the diagonal of the matrix
         :math:`\mathbf A` this LinearOperator represents as a vector.
@@ -696,7 +694,7 @@ class LinearOperator(object):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         """
         Returns the (usually low-rank) inverse root of a LinearOperator of a PSD matrix.
 
@@ -755,7 +753,13 @@ class LinearOperator(object):
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         r"""
         TODO
         """
@@ -1580,7 +1584,7 @@ class LinearOperator(object):
 
     def inv_quad(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Float[Tensor, "*batch N M"],
+        inv_quad_rhs: Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]],
         reduce_inv_quad: bool = True,
     ) -> Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]:
         r"""
@@ -1631,12 +1635,12 @@ class LinearOperator(object):
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         r"""
         Calls both :func:`inv_quad` and :func:`logdet` on a positive
@@ -1813,8 +1817,8 @@ class LinearOperator(object):
     @_implements_symmetric(torch.mul)
     def mul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[float, Float[Tensor, "*batch M N"], Float[LinearOperator, "*batch M N"]],
-    ) -> Float[LinearOperator, "*batch M N"]:
+        other: Union[float, Float[Tensor, "*batch2 M N"], Float[LinearOperator, "*batch2 M N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         """
         Multiplies the matrix by a constant, or elementwise the matrix by another matrix.
 
@@ -1909,7 +1913,7 @@ class LinearOperator(object):
         rank: int,
         error_tol: Optional[float] = None,
         return_pivots: bool = False,
-    ) -> Union[Float[Tensor, "*batch N R"], Tuple[Float[Tensor, "*batch N R"], Float[Tensor, "*batch N"]]]:
+    ) -> Union[Float[Tensor, "*batch N R"], Tuple[Float[Tensor, "*batch N R"], Int[Tensor, "*batch N"]]]:
         r"""
         Performs a partial pivoted Cholesky factorization of the (positive definite) LinearOperator.
         :math:`\mathbf L \mathbf L^\top = \mathbf K`.
@@ -2053,7 +2057,7 @@ class LinearOperator(object):
         self._set_requires_grad(val)
         return self
 
-    def reshape(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
+    def reshape(self, *sizes: Union[torch.Size, int, Tuple[int, ...]]) -> LinearOperator:
         """
         Alias for expand
         """
@@ -2151,7 +2155,7 @@ class LinearOperator(object):
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
         method: Optional[str] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         r"""
         Returns a (usually low-rank) inverse root decomposition linear operator
         of the PSD LinearOperator :math:`\mathbf A`.

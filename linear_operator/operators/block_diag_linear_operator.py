@@ -62,7 +62,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
 
     def _add_batch_dim(
         self: Float[LinearOperator, "*batch1 M P"], other: Float[torch.Tensor, "*batch2 N C"]
-    ) -> Float[torch.Tensor, "batch2 N//batch1 C"]:
+    ) -> Float[torch.Tensor, "batch2 ... C"]:
         *batch_shape, num_rows, num_cols = other.shape
         batch_shape = list(batch_shape)
 
@@ -81,15 +81,15 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
 
     def _cholesky_solve(
         self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[LinearOperator, "batch N M"],
+        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
+    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         rhs = self._add_batch_dim(rhs)
         res = self.base_linear_op._cholesky_solve(rhs, upper=upper)
         res = self._remove_batch_dim(res)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         res = self.base_linear_op._diagonal().contiguous()
         return res.view(*self.batch_shape, self.size(-1))
 
@@ -124,7 +124,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
     def _size(self) -> torch.Size:
@@ -139,7 +139,13 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         else:
@@ -150,12 +156,12 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import torch
 from jaxtyping import Float
@@ -19,14 +19,14 @@ class RootLinearOperator(LinearOperator):
         super().__init__(root)
         self.root = root
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         if isinstance(self.root, DenseLinearOperator):
             return (self.root.tensor**2).sum(-1)
         else:
             return super()._diagonal()
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         if len(batch_shape) == 0:
             return self

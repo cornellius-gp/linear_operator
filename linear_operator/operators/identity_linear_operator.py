@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -67,13 +67,13 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def _cholesky_solve(
         self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[LinearOperator, "batch N M"],
+        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "batch N M"], Float[Tensor, "batch N M"]]:
+    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         return self._maybe_reshape_rhs(rhs)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
@@ -129,7 +129,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
@@ -176,12 +176,12 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rather than append)
         if inv_quad_rhs is None:

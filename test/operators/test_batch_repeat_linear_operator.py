@@ -3,12 +3,10 @@
 import unittest
 
 import torch
-from jaxtyping import install_import_hook
 
-with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    from linear_operator import to_linear_operator
-    from linear_operator.operators import BatchRepeatLinearOperator, ToeplitzLinearOperator
-    from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
+from linear_operator import to_linear_operator
+from linear_operator.operators import BatchRepeatLinearOperator, ToeplitzLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
 class TestBatchRepeatLinearOperator(LinearOperatorTestCase, unittest.TestCase):

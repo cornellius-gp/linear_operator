@@ -21,7 +21,13 @@ class AbstractPermutationLinearOperator(LinearOperator):
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         self._matmul_check_shape(rhs)
         return self.inverse() @ rhs
 
@@ -34,6 +40,10 @@ class AbstractPermutationLinearOperator(LinearOperator):
 
     def _matmul_batch_shape(self, rhs: Tensor) -> torch.Size:
         return torch.broadcast_shapes(self.batch_shape, rhs.shape[:-2])
+
+    @property
+    def dtype(self) -> Optional[torch.dtype]:
+        return self._dtype
 
 
 class PermutationLinearOperator(AbstractPermutationLinearOperator):
@@ -82,6 +92,7 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
 
         self.perm = perm
         self.inv_perm = inv_perm
+        self._dtype = torch.float32
         super().__init__(perm, inv_perm, validate_args=validate_args)
 
     def _matmul(
@@ -152,7 +163,8 @@ class TransposePermutationLinearOperator(AbstractPermutationLinearOperator):
         super().__init__(m=m)
         self.n = m * m  # size of implicitly represented linear operator
         self.m = m  # (m, m) is size of the reshaped input which is transposed
-        self._dtype = type(m)
+        # self._dtype = type(m)
+        self._dtype = torch.float32
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],

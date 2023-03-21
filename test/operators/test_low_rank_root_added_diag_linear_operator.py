@@ -5,11 +5,9 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import torch
-from jaxtyping import install_import_hook
 
-with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    import linear_operator
-    from linear_operator.operators import LowRankRootAddedDiagLinearOperator, LowRankRootLinearOperator
+import linear_operator
+from linear_operator.operators import LowRankRootAddedDiagLinearOperator, LowRankRootLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 

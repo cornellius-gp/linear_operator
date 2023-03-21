@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -42,18 +42,18 @@ class ZeroLinearOperator(LinearOperator):
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         shape = self.shape
         return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(*batch_shape, *self.sizes[-2:], dtype=self._dtype, device=self._device)
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
-        return ZeroLinearOperator(*new_size)
+        return torch.zeros(*new_size)
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
@@ -92,7 +92,7 @@ class ZeroLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "*batch N N"], Float[Tensor, "*batch N N"]]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _size(self) -> torch.Size:
@@ -172,19 +172,19 @@ class ZeroLinearOperator(LinearOperator):
 
     def inv_quad(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Float[Tensor, "*batch N M"],
+        inv_quad_rhs: Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]],
         reduce_inv_quad: bool = True,
     ) -> Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]:
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
@@ -209,8 +209,8 @@ class ZeroLinearOperator(LinearOperator):
 
     def mul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[float, Float[Tensor, "*batch M N"], Float[LinearOperator, "*batch M N"]],
-    ) -> Float[LinearOperator, "*batch M N"]:
+        other: Union[float, Float[Tensor, "*batch2 M N"], Float[LinearOperator, "*batch2 M N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         shape = torch.broadcast_shapes(self.shape, other.shape)
         return self.__class__(*shape, dtype=self._dtype, device=self._device)
 

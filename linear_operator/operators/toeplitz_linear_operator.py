@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -22,14 +22,14 @@ class ToeplitzLinearOperator(LinearOperator):
         super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         diag_term = self.column[..., 0]
         if self.column.ndimension() > 1:
             diag_term = diag_term.unsqueeze(-1)
         return diag_term.expand(*self.column.size())
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
 

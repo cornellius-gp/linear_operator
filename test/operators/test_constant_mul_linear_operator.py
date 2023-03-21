@@ -3,12 +3,10 @@
 import unittest
 
 import torch
-from jaxtyping import install_import_hook
 
-with install_import_hook("linear_operator", ("typeguard", "typechecked")):
-    from linear_operator.operators import DenseLinearOperator, ToeplitzLinearOperator
-    from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
-    from linear_operator.utils.toeplitz import sym_toeplitz
+from linear_operator.operators import DenseLinearOperator, ToeplitzLinearOperator
+from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
+from linear_operator.utils.toeplitz import sym_toeplitz
 
 
 class TestConstantMulLinearOperator(LinearOperatorTestCase, unittest.TestCase):

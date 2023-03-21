@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -25,11 +25,11 @@ class SumLinearOperator(LinearOperator):
 
         self.linear_ops = linear_ops
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         expanded_tensors = [linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops]
         return self.__class__(*expanded_tensors)

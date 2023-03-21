@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -46,7 +46,7 @@ class MatmulLinearOperator(LinearOperator):
             self.right_linear_op = right_linear_op
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
@@ -68,7 +68,7 @@ class MatmulLinearOperator(LinearOperator):
         res = (left_tensor * right_tensor).sum(-1)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         if isinstance(self.left_linear_op, DenseLinearOperator) and isinstance(
             self.right_linear_op, DenseLinearOperator
         ):

@@ -59,7 +59,7 @@ class CholLinearOperator(RootLinearOperator):
             return self.root._transpose_nonbatch()
 
     @cached
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         # TODO: Can we be smarter here?
         return (self.root.to_dense() ** 2).sum(-1)
 
@@ -68,7 +68,13 @@ class CholLinearOperator(RootLinearOperator):
         rhs: Float[torch.Tensor, "... N C"],
         preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
         num_tridiag: Optional[int] = 0,
-    ) -> Union[Float[torch.Tensor, "... N C"], Tuple[Float[torch.Tensor, "... N C"], Float[torch.Tensor, "... N N"]]]:
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         return self.root._cholesky_solve(rhs, upper=self.upper)
@@ -92,7 +98,7 @@ class CholLinearOperator(RootLinearOperator):
 
     def inv_quad(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Float[Tensor, "*batch N M"],
+        inv_quad_rhs: Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]],
         reduce_inv_quad: bool = True,
     ) -> Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]:
         if self.upper:
@@ -106,12 +112,12 @@ class CholLinearOperator(RootLinearOperator):
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         if not self.is_square:
             raise RuntimeError(
@@ -155,7 +161,7 @@ class CholLinearOperator(RootLinearOperator):
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
         method: Optional[str] = None,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         inv_root = self.root.inverse()
         return RootLinearOperator(inv_root._transpose_nonbatch())
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -131,7 +131,7 @@ class CatLinearOperator(LinearOperator):
                 [first_slice] + [_noop_index] * num_middle_tensors + [last_slice],
             )
 
-    def _diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
         if self.cat_dim == -2:
             res = []
             curr_col = 0
@@ -157,7 +157,7 @@ class CatLinearOperator(LinearOperator):
         return res
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: torch.Size
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
         batch_dim = self.cat_dim + 2
         if batch_dim < 0:
@@ -382,12 +382,12 @@ class CatLinearOperator(LinearOperator):
 
     def inv_quad_logdet(
         self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Float[Tensor, "*batch N M"]] = None,
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
         Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, " *batch"]],
+        Optional[Float[Tensor, "..."]],
     ]:
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
         return tuple(r.to(self.device) for r in res)

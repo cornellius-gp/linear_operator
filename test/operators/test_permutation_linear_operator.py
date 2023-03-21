@@ -9,8 +9,9 @@ from linear_operator.operators import PermutationLinearOperator, TransposePermut
 
 class TestPermutationLinearOperator(unittest.TestCase):
     def test_permutation_linear_operator(self):
-        with self.assertRaisesRegex(ValueError, "perm is not a Tensor."):
-            PermutationLinearOperator([1, 3, 5])
+        # Type checking handles this
+        # with self.assertRaisesRegex(ValueError, "perm is not a Tensor."):
+        #   PermutationLinearOperator([1, 3, 5])
 
         with self.assertRaisesRegex(ValueError, "Invalid perm*"):
             PermutationLinearOperator(torch.tensor([1, 3, 5]))
