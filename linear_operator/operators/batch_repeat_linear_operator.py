@@ -66,7 +66,8 @@ class BatchRepeatLinearOperator(LinearOperator):
         padding_dims = torch.Size(tuple(1 for _ in range(max(len(batch_shape) + 2 - self.base_linear_op.dim(), 0))))
         current_batch_shape = padding_dims + self.base_linear_op.batch_shape
         return self.__class__(
-            self.base_linear_op, batch_repeat=self._compute_batch_repeat_size(current_batch_shape, batch_shape)
+            self.base_linear_op,
+            batch_repeat=self._compute_batch_repeat_size(current_batch_shape, batch_shape),
         )
 
     def _get_indices(self, row_index, col_index, *batch_indices):
@@ -229,7 +230,10 @@ class BatchRepeatLinearOperator(LinearOperator):
         return self.__class__(base_linear_op, batch_repeat=batch_repeat)
 
     def add_jitter(self, jitter_val=1e-3):
-        return self.__class__(self.base_linear_op.add_jitter(jitter_val=jitter_val), batch_repeat=self.batch_repeat)
+        return self.__class__(
+            self.base_linear_op.add_jitter(jitter_val=jitter_val),
+            batch_repeat=self.batch_repeat,
+        )
 
     def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
         if not self.is_square:

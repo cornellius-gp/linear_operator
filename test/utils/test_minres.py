@@ -35,7 +35,8 @@ class TestMinres(BaseTestCase, unittest.TestCase):
         # Maybe add shifts
         if shifts is not None:
             matrix = matrix - torch.mul(
-                torch.eye(size, dtype=torch.float64), shifts.view(*shifts.shape, *[1 for _ in matrix.shape])
+                torch.eye(size, dtype=torch.float64),
+                shifts.view(*shifts.shape, *[1 for _ in matrix.shape]),
             )
 
         # Compute solves exactly

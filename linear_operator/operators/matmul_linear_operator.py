@@ -43,7 +43,8 @@ class MatmulLinearOperator(LinearOperator):
 
     def _expand_batch(self, batch_shape):
         return self.__class__(
-            self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
+            self.left_linear_op._expand_batch(batch_shape),
+            self.right_linear_op._expand_batch(batch_shape),
         )
 
     def _get_indices(self, row_index, col_index, *batch_indices):
@@ -107,13 +108,19 @@ class MatmulLinearOperator(LinearOperator):
         return left_grad + right_grad
 
     def _permute_batch(self, *dims):
-        return self.__class__(self.left_linear_op._permute_batch(*dims), self.right_linear_op._permute_batch(*dims))
+        return self.__class__(
+            self.left_linear_op._permute_batch(*dims),
+            self.right_linear_op._permute_batch(*dims),
+        )
 
     def _size(self):
         return _matmul_broadcast_shape(self.left_linear_op.shape, self.right_linear_op.shape)
 
     def _transpose_nonbatch(self, *args):
-        return self.__class__(self.right_linear_op._transpose_nonbatch(), self.left_linear_op._transpose_nonbatch())
+        return self.__class__(
+            self.right_linear_op._transpose_nonbatch(),
+            self.left_linear_op._transpose_nonbatch(),
+        )
 
     @cached
     def to_dense(self):

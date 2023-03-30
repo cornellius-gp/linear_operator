@@ -21,7 +21,10 @@ class ZeroLinearOperator(LinearOperator):
     """
 
     def __init__(
-        self, *sizes: Tuple[int, ...], dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None
+        self,
+        *sizes: Tuple[int, ...],
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
     ):
         super(ZeroLinearOperator, self).__init__(*sizes)
         self.sizes = list(sizes)
@@ -48,7 +51,10 @@ class ZeroLinearOperator(LinearOperator):
         return self.__class__(*batch_shape, *self.sizes[-2:], dtype=self._dtype, device=self._device)
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self,
+        row_index: torch.LongTensor,
+        col_index: torch.LongTensor,
+        *batch_indices: Tuple[torch.LongTensor, ...],
     ) -> torch.Tensor:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
         return ZeroLinearOperator(*new_size)
@@ -166,7 +172,10 @@ class ZeroLinearOperator(LinearOperator):
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[torch.Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 

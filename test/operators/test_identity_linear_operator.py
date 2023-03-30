@@ -156,7 +156,10 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def test_root_decomposition(self, cholesky=False):
         linear_op = self.create_linear_op()
         root_decomp = linear_op.root_decomposition().root
-        self.assertAllClose(root_decomp.to_dense(), torch.eye(linear_op.size(-1)).expand(linear_op.shape))
+        self.assertAllClose(
+            root_decomp.to_dense(),
+            torch.eye(linear_op.size(-1)).expand(linear_op.shape),
+        )
 
     def test_svd(self):
         linear_op = self.create_linear_op()

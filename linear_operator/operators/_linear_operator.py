@@ -380,7 +380,10 @@ class LinearOperator(ABC):
         return self.repeat(*batch_repeat, 1, 1)
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self,
+        row_index: torch.LongTensor,
+        col_index: torch.LongTensor,
+        *batch_indices: Tuple[torch.LongTensor, ...],
     ) -> torch.Tensor:
         """
         This method selects elements from the LinearOperator based on tensor indices for each dimension.
@@ -758,7 +761,10 @@ class LinearOperator(ABC):
             if hasattr(self, "_default_preconditioner_cache"):
                 U, S, Vt = self._default_preconditioner_cache
             else:
-                precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
+                precond_basis_size = min(
+                    linear_operator.settings.max_preconditioner_size.value(),
+                    self.size(-1),
+                )
                 random_basis = torch.randn(
                     self.batch_shape + torch.Size((self.size(-2), precond_basis_size)),
                     device=self.device,
@@ -1058,7 +1064,11 @@ class LinearOperator(ABC):
             updated_inv_root = TriangularLinearOperator(updated_inv_root)
 
         add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(updated_root))
-        add_to_cache(new_linear_op, "root_inv_decomposition", RootLinearOperator(updated_inv_root))
+        add_to_cache(
+            new_linear_op,
+            "root_inv_decomposition",
+            RootLinearOperator(updated_inv_root),
+        )
 
         return new_linear_op
 
@@ -1215,7 +1225,11 @@ class LinearOperator(ABC):
                 RootLinearOperator(to_linear_operator(new_inv_root)),
             )
 
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(to_linear_operator(new_root)))
+        add_to_cache(
+            new_linear_op,
+            "root_decomposition",
+            RootLinearOperator(to_linear_operator(new_root)),
+        )
 
         return new_linear_op
 
@@ -1485,7 +1499,10 @@ class LinearOperator(ABC):
         """
         if len(sizes) == 1 and hasattr(sizes, "__iter__"):
             sizes = sizes[0]
-        if len(sizes) < 2 or tuple(sizes[-2:]) not in {tuple(self.matrix_shape), (-1, -1)}:
+        if len(sizes) < 2 or tuple(sizes[-2:]) not in {
+            tuple(self.matrix_shape),
+            (-1, -1),
+        }:
             raise RuntimeError(
                 "Invalid expand arguments {}. Currently, repeat only works to create repeated "
                 "batches of a 2D LinearOperator.".format(tuple(sizes))
@@ -1561,7 +1578,10 @@ class LinearOperator(ABC):
         return inv_quad_term
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[torch.Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
         Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive
@@ -2215,7 +2235,11 @@ class LinearOperator(ABC):
 
     @_implements(torch.linalg.solve_triangular)
     def solve_triangular(
-        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+        self,
+        rhs: torch.Tensor,
+        upper: bool,
+        left: bool = True,
+        unitriangular: bool = False,
     ) -> torch.Tensor:
         r"""
         Computes a triangular linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
@@ -2392,7 +2416,9 @@ class LinearOperator(ABC):
         return self._svd()
 
     @_implements(torch.linalg.svd)
-    def _torch_linalg_svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
+    def _torch_linalg_svd(
+        self,
+    ) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
         r"""
         A version of self.svd() that matches the torch.linalg.svd API.
 
@@ -2761,7 +2787,11 @@ class LinearOperator(ABC):
 
     @classmethod
     def __torch_function__(
-        cls, func: Callable, types: Tuple[type, ...], args: Tuple[Any, ...] = (), kwargs: Dict[str, Any] = None
+        cls,
+        func: Callable,
+        types: Tuple[type, ...],
+        args: Tuple[Any, ...] = (),
+        kwargs: Dict[str, Any] = None,
     ) -> Any:
         if kwargs is None:
             kwargs = {}

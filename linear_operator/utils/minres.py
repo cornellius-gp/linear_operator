@@ -6,7 +6,15 @@ from .. import settings
 from .broadcasting import _pad_with_singletons
 
 
-def minres(matmul_closure, rhs, eps=1e-25, shifts=None, value=None, max_iter=None, preconditioner=None):
+def minres(
+    matmul_closure,
+    rhs,
+    eps=1e-25,
+    shifts=None,
+    value=None,
+    max_iter=None,
+    preconditioner=None,
+):
     r"""
     Perform MINRES to find solutions to :math:`(\mathbf K + \alpha \sigma \mathbf I) \mathbf x = \mathbf b`.
     Will find solutions for multiple shifts :math:`\sigma` at the same time.
@@ -103,7 +111,12 @@ def minres(matmul_closure, rhs, eps=1e-25, shifts=None, value=None, max_iter=Non
     scale_curr = torch.empty_like(scale_prev)
 
     # Terms for checking for convergence
-    solution_norm = torch.zeros(*solution.shape[:-2], solution.size(-1), dtype=solution.dtype, device=solution.device)
+    solution_norm = torch.zeros(
+        *solution.shape[:-2],
+        solution.size(-1),
+        dtype=solution.dtype,
+        device=solution.device,
+    )
     search_update_norm = torch.zeros_like(solution_norm)
 
     # Maybe log
@@ -183,7 +196,11 @@ def minres(matmul_closure, rhs, eps=1e-25, shifts=None, value=None, max_iter=Non
         cos_prev2, cos_prev1, cos_curr = cos_prev1, cos_curr, cos_prev2
         sin_prev2, sin_prev1, sin_curr = sin_prev1, sin_curr, sin_prev2
         # Search vector terms)
-        search_prev2, search_prev1, search_curr = search_prev1, search_curr, search_prev2
+        search_prev2, search_prev1, search_curr = (
+            search_prev1,
+            search_curr,
+            search_prev2,
+        )
         scale_prev, scale_curr = scale_curr, scale_prev
 
     # For rhs-s that are close to zero, set them to zero

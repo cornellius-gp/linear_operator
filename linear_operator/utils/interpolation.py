@@ -58,7 +58,9 @@ def left_t_interp(interp_indices, interp_values, rhs, output_dim):
     column_indices = column_indices.repeat(batch_size, 1)
     summing_matrix_indices = torch.stack([batch_indices.view(-1), interp_indices.view(-1), column_indices.view(-1)], 0)
     summing_matrix_values = torch.ones(
-        batch_size * num_data * num_interp, dtype=interp_values.dtype, device=interp_values.device
+        batch_size * num_data * num_interp,
+        dtype=interp_values.dtype,
+        device=interp_values.device,
     )
     size = torch.Size((batch_size, output_dim, num_data * num_interp))
     type_name = summing_matrix_values.type().split(".")[-1]  # e.g. FloatTensor

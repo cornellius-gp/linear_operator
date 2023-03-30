@@ -65,7 +65,14 @@ def lanczos_tridiag(
     # q_mat - batch version of Q - orthogonal matrix of decomp
     # alpha - batch version main diagonal of T
     # beta - batch version of off diagonal of T
-    q_mat = torch.zeros(num_iter, *batch_shape, matrix_shape[-1], num_init_vecs, dtype=dtype, device=device)
+    q_mat = torch.zeros(
+        num_iter,
+        *batch_shape,
+        matrix_shape[-1],
+        num_init_vecs,
+        dtype=dtype,
+        device=device,
+    )
     t_mat = torch.zeros(num_iter, num_iter, *batch_shape, num_init_vecs, dtype=dtype, device=device)
 
     # Begin algorithm

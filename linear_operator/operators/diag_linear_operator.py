@@ -57,7 +57,10 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self._diag
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self,
+        row_index: torch.LongTensor,
+        col_index: torch.LongTensor,
+        *batch_indices: Tuple[torch.LongTensor, ...],
     ) -> Tensor:
         res = self._diag[(*batch_indices, row_index)]
         # If row and col index don't agree, then we have off diagonal elements
@@ -122,7 +125,10 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.__class__(self._diag.reciprocal())
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[Tensor, Tensor]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
@@ -188,7 +194,11 @@ class DiagLinearOperator(TriangularLinearOperator):
         return res
 
     def solve_triangular(
-        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+        self,
+        rhs: torch.Tensor,
+        upper: bool,
+        left: bool = True,
+        unitriangular: bool = False,
     ) -> torch.Tensor:
         # upper or lower doesn't matter here, it's all the same
         if unitriangular:
@@ -332,7 +342,11 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         return super().matmul(other)
 
     def solve_triangular(
-        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+        self,
+        rhs: torch.Tensor,
+        upper: bool,
+        left: bool = True,
+        unitriangular: bool = False,
     ) -> torch.Tensor:
         return rhs / self.diag_values
 

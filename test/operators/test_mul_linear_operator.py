@@ -24,7 +24,10 @@ class TestMulLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         diag_tensor = linear_op._diag_tensor.to_dense()
-        res = torch.mul(linear_op._linear_op.left_linear_op.to_dense(), linear_op._linear_op.right_linear_op.to_dense())
+        res = torch.mul(
+            linear_op._linear_op.left_linear_op.to_dense(),
+            linear_op._linear_op.right_linear_op.to_dense(),
+        )
         res = res + diag_tensor
         return res
 
@@ -40,7 +43,10 @@ class TestMulLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         diag_tensor = linear_op._diag_tensor.to_dense()
-        res = torch.mul(linear_op._linear_op.left_linear_op.to_dense(), linear_op._linear_op.right_linear_op.to_dense())
+        res = torch.mul(
+            linear_op._linear_op.left_linear_op.to_dense(),
+            linear_op._linear_op.right_linear_op.to_dense(),
+        )
         res = res + diag_tensor
         return res
 
@@ -57,7 +63,10 @@ class TestMulLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase)
 
     def evaluate_linear_op(self, linear_op):
         diag_tensor = linear_op._diag_tensor.to_dense()
-        res = torch.mul(linear_op._linear_op.left_linear_op.to_dense(), linear_op._linear_op.right_linear_op.to_dense())
+        res = torch.mul(
+            linear_op._linear_op.left_linear_op.to_dense(),
+            linear_op._linear_op.right_linear_op.to_dense(),
+        )
         res = res + diag_tensor
         return res
 

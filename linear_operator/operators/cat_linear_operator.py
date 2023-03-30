@@ -98,7 +98,11 @@ class CatLinearOperator(LinearOperator):
         self.cat_dim_cum_sizes = cat_dim_cum_sizes
         self.idx_to_tensor_idx = idx_to_tensor_idx
         self._shape = torch.Size(
-            (*rep_tensor.shape[:positive_dim], cat_dim_cum_sizes[-1].item(), *rep_tensor.shape[positive_dim + 1 :])
+            (
+                *rep_tensor.shape[:positive_dim],
+                cat_dim_cum_sizes[-1].item(),
+                *rep_tensor.shape[positive_dim + 1 :],
+            )
         )
 
     def _split_slice(self, slice_idx):
@@ -151,7 +155,10 @@ class CatLinearOperator(LinearOperator):
                 res.append(t[..., rows, cols].to(self.device))
             res = torch.cat(res, dim=-1)
         else:
-            res = torch.cat([t._diagonal().to(self.device) for t in self.linear_ops], dim=self.cat_dim + 1)
+            res = torch.cat(
+                [t._diagonal().to(self.device) for t in self.linear_ops],
+                dim=self.cat_dim + 1,
+            )
         return res
 
     def _expand_batch(self, batch_shape):
@@ -364,14 +371,18 @@ class CatLinearOperator(LinearOperator):
         else:
             new_dim = self.cat_dim
         return self.__class__(
-            *[t._transpose_nonbatch() for t in self.linear_ops], dim=new_dim, output_device=self.output_device
+            *[t._transpose_nonbatch() for t in self.linear_ops],
+            dim=new_dim,
+            output_device=self.output_device,
         )
 
     def _unsqueeze_batch(self, dim):
         cat_dim = self.dim() + self.cat_dim
         linear_ops = [linear_op._unsqueeze_batch(dim) for linear_op in self.linear_ops]
         res = self.__class__(
-            *linear_ops, dim=(cat_dim + 1 if dim <= cat_dim else cat_dim), output_device=self.output_device
+            *linear_ops,
+            dim=(cat_dim + 1 if dim <= cat_dim else cat_dim),
+            output_device=self.output_device,
         )
         return res
 

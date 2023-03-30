@@ -56,7 +56,8 @@ class TestBatchRepeatLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.T
 
     def create_linear_op(self):
         toeplitz_column = torch.tensor(
-            [[[4, 0, 0, 1], [3, 0, -0.5, -1]], [[2, 0.1, 0.01, 0.0], [3, 0, -0.1, -2]]], dtype=torch.float
+            [[[4, 0, 0, 1], [3, 0, -0.5, -1]], [[2, 0.1, 0.01, 0.0], [3, 0, -0.1, -2]]],
+            dtype=torch.float,
         )
         toeplitz_column.detach_()
         return BatchRepeatLinearOperator(ToeplitzLinearOperator(toeplitz_column), torch.Size((2, 3, 1, 4)))

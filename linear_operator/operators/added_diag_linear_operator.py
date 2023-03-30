@@ -33,7 +33,10 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def __init__(
         self,
-        *linear_ops: Union[Tuple[LinearOperator, DiagLinearOperator], Tuple[DiagLinearOperator, LinearOperator]],
+        *linear_ops: Union[
+            Tuple[LinearOperator, DiagLinearOperator],
+            Tuple[DiagLinearOperator, LinearOperator],
+        ],
         preconditioner_override: Optional[Callable] = None,
     ):
         linear_ops = list(linear_ops)

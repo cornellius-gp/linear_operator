@@ -18,7 +18,12 @@ from .root_linear_operator import RootLinearOperator
 
 class InterpolatedLinearOperator(LinearOperator):
     def _check_args(
-        self, base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+        self,
+        base_linear_op,
+        left_interp_indices,
+        left_interp_values,
+        right_interp_indices,
+        right_interp_values,
     ):
         if left_interp_indices.size() != left_interp_values.size():
             return "Expected left_interp_indices ({}) to have the same size as left_interp_values ({})".format(
@@ -57,7 +62,9 @@ class InterpolatedLinearOperator(LinearOperator):
 
         if left_interp_values is None:
             left_interp_values = torch.ones(
-                left_interp_indices.size(), dtype=base_linear_op.dtype, device=base_linear_op.device
+                left_interp_indices.size(),
+                dtype=base_linear_op.dtype,
+                device=base_linear_op.device,
             )
 
         if right_interp_indices is None:
@@ -68,7 +75,9 @@ class InterpolatedLinearOperator(LinearOperator):
 
         if right_interp_values is None:
             right_interp_values = torch.ones(
-                right_interp_indices.size(), dtype=base_linear_op.dtype, device=base_linear_op.device
+                right_interp_indices.size(),
+                dtype=base_linear_op.dtype,
+                device=base_linear_op.device,
             )
 
         if left_interp_indices.shape[:-2] != base_linear_op.batch_shape:
@@ -82,7 +91,11 @@ class InterpolatedLinearOperator(LinearOperator):
                 )
 
         super(InterpolatedLinearOperator, self).__init__(
-            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op,
+            left_interp_indices,
+            left_interp_values,
+            right_interp_indices,
+            right_interp_values,
         )
         self.base_linear_op = base_linear_op
         self.left_interp_indices = left_interp_indices
@@ -92,8 +105,16 @@ class InterpolatedLinearOperator(LinearOperator):
 
     def _approx_diagonal(self):
         base_diag_root = self.base_linear_op._diagonal().sqrt()
-        left_res = left_interp(self.left_interp_indices, self.left_interp_values, base_diag_root.unsqueeze(-1))
-        right_res = left_interp(self.right_interp_indices, self.right_interp_values, base_diag_root.unsqueeze(-1))
+        left_res = left_interp(
+            self.left_interp_indices,
+            self.left_interp_values,
+            base_diag_root.unsqueeze(-1),
+        )
+        right_res = left_interp(
+            self.right_interp_indices,
+            self.right_interp_values,
+            base_diag_root.unsqueeze(-1),
+        )
         res = left_res * right_res
         return res.squeeze(-1)
 
@@ -102,10 +123,14 @@ class InterpolatedLinearOperator(LinearOperator):
             self.base_linear_op.root, DenseLinearOperator
         ):
             left_interp_vals = left_interp(
-                self.left_interp_indices, self.left_interp_values, self.base_linear_op.root.to_dense()
+                self.left_interp_indices,
+                self.left_interp_values,
+                self.base_linear_op.root.to_dense(),
             )
             right_interp_vals = left_interp(
-                self.right_interp_indices, self.right_interp_values, self.base_linear_op.root.to_dense()
+                self.right_interp_indices,
+                self.right_interp_values,
+                self.base_linear_op.root.to_dense(),
             )
             return (left_interp_vals * right_interp_vals).sum(-1)
         else:
@@ -341,7 +366,9 @@ class InterpolatedLinearOperator(LinearOperator):
                 return self._sparse_left_interp_t_memo
 
         left_interp_t = sparse.make_sparse_from_indices_and_values(
-            left_interp_indices_tensor, left_interp_values_tensor, self.base_linear_op.size()[-2]
+            left_interp_indices_tensor,
+            left_interp_values_tensor,
+            self.base_linear_op.size()[-2],
         )
         self._left_interp_indices_memo = left_interp_indices_tensor
         self._left_interp_values_memo = left_interp_values_tensor
@@ -356,7 +383,9 @@ class InterpolatedLinearOperator(LinearOperator):
                 return self._sparse_right_interp_t_memo
 
         right_interp_t = sparse.make_sparse_from_indices_and_values(
-            right_interp_indices_tensor, right_interp_values_tensor, self.base_linear_op.size()[-1]
+            right_interp_indices_tensor,
+            right_interp_values_tensor,
+            self.base_linear_op.size()[-1],
         )
         self._right_interp_indices_memo = right_interp_indices_tensor
         self._right_interp_values_memo = right_interp_values_tensor
@@ -381,8 +410,16 @@ class InterpolatedLinearOperator(LinearOperator):
 
         # Rearrange the indices and values
         permute_order = (*range(0, dim), *range(dim + 1, self.dim()), dim)
-        left_shape = (*left_interp_indices.shape[:dim], *left_interp_indices.shape[dim + 1 : -1], -1)
-        right_shape = (*right_interp_indices.shape[:dim], *right_interp_indices.shape[dim + 1 : -1], -1)
+        left_shape = (
+            *left_interp_indices.shape[:dim],
+            *left_interp_indices.shape[dim + 1 : -1],
+            -1,
+        )
+        right_shape = (
+            *right_interp_indices.shape[:dim],
+            *right_interp_indices.shape[dim + 1 : -1],
+            -1,
+        )
         left_interp_indices = left_interp_indices.permute(permute_order).reshape(left_shape)
         left_interp_values = left_interp_values.permute(permute_order).reshape(left_shape)
         right_interp_indices = right_interp_indices.permute(permute_order).reshape(right_shape)
@@ -395,7 +432,11 @@ class InterpolatedLinearOperator(LinearOperator):
 
         # Finally! We have an interpolated lazy tensor again
         return InterpolatedLinearOperator(
-            block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            block_diag,
+            left_interp_indices,
+            left_interp_values,
+            right_interp_indices,
+            right_interp_values,
         )
 
     def double(self, device_id=None):

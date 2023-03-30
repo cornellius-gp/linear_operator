@@ -15,7 +15,16 @@ def _default_preconditioner(x):
 
 @torch.jit.script
 def _jit_linear_cg_updates(
-    result, alpha, residual_inner_prod, eps, beta, residual, precond_residual, mul_storage, is_zero, curr_conjugate_vec
+    result,
+    alpha,
+    residual_inner_prod,
+    eps,
+    beta,
+    residual,
+    precond_residual,
+    mul_storage,
+    is_zero,
+    curr_conjugate_vec,
 ):
     # # Update result
     # # result_{k} = result_{k-1} + alpha_{k} p_vec_{k-1}
@@ -213,7 +222,12 @@ def linear_cg(
     # Define tridiagonal matrices, if applicable
     if n_tridiag:
         t_mat = torch.zeros(
-            n_tridiag_iter, n_tridiag_iter, *batch_shape, n_tridiag, dtype=alpha.dtype, device=alpha.device
+            n_tridiag_iter,
+            n_tridiag_iter,
+            *batch_shape,
+            n_tridiag,
+            dtype=alpha.dtype,
+            device=alpha.device,
         )
         alpha_tridiag_is_zero = torch.empty(*batch_shape, n_tridiag, dtype=bool_compat, device=t_mat.device)
         alpha_reciprocal = torch.empty(*batch_shape, n_tridiag, dtype=t_mat.dtype, device=t_mat.device)
@@ -336,6 +350,9 @@ def linear_cg(
 
     if n_tridiag:
         t_mat = t_mat[: last_tridiag_iter + 1, : last_tridiag_iter + 1]
-        return result, t_mat.permute(-1, *range(2, 2 + len(batch_shape)), 0, 1).contiguous()
+        return (
+            result,
+            t_mat.permute(-1, *range(2, 2 + len(batch_shape)), 0, 1).contiguous(),
+        )
     else:
         return result

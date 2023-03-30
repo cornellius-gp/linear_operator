@@ -32,7 +32,13 @@ class PivotedCholesky(Function):
         max_iter = min(max_iter, matrix_shape[-1])
 
         # What we're returning
-        L = torch.zeros(*batch_shape, max_iter, matrix_shape[-1], dtype=matrix.dtype, device=matrix.device)
+        L = torch.zeros(
+            *batch_shape,
+            max_iter,
+            matrix_shape[-1],
+            dtype=matrix.dtype,
+            device=matrix.device,
+        )
         orig_error = torch.max(matrix_diag, dim=-1)[0]
         errors = torch.norm(matrix_diag, 1, dim=-1) / orig_error
 
@@ -76,7 +82,8 @@ class PivotedCholesky(Function):
                 if m > 0:
                     L_prev = L[..., :m, :].gather(-1, pi_i.unsqueeze(-2).repeat(*(1 for _ in batch_shape), m, 1))
                     update = L[..., :m, :].gather(
-                        -1, pi_m.view(*pi_m.shape, 1, 1).repeat(*(1 for _ in batch_shape), m, 1)
+                        -1,
+                        pi_m.view(*pi_m.shape, 1, 1).repeat(*(1 for _ in batch_shape), m, 1),
                     )
                     L_m_new -= torch.sum(update * L_prev, dim=-2)
 
@@ -120,10 +127,17 @@ class PivotedCholesky(Function):
 
             # Compute (Krows * L^{-T}) - the (pivoted) result of Pivoted Cholesky
             res_pivoted = torch.cat(
-                [L, torch.linalg.solve_triangular(L, Krows[..., m:, :].mT, upper=False).mT],
+                [
+                    L,
+                    torch.linalg.solve_triangular(L, Krows[..., m:, :].mT, upper=False).mT,
+                ],
                 dim=-2,
             )
-            res = apply_permutation(res_pivoted, left_permutation=_inverse_permutation, right_permutation=None)
+            res = apply_permutation(
+                res_pivoted,
+                left_permutation=_inverse_permutation,
+                right_permutation=None,
+            )
 
             # Now compute the backward pass of res
             res.backward(gradient=grad_output)

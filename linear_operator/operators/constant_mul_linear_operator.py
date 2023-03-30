@@ -109,7 +109,8 @@ class ConstantMulLinearOperator(LinearOperator):
 
     def _permute_batch(self, *dims):
         return self.__class__(
-            self.base_linear_op._permute_batch(*dims), self._constant.expand(self.batch_shape).permute(*dims)
+            self.base_linear_op._permute_batch(*dims),
+            self._constant.expand(self.batch_shape).permute(*dims),
         )
 
     def _bilinear_derivative(self, left_vecs, right_vecs):

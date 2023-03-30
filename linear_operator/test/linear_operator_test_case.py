@@ -249,14 +249,20 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
                     torch.tensor([0, 1, 0, 2]),
                     slice(None, None, None),
                 )
-                res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
+                res, actual = (
+                    linear_operator.to_dense(linear_op[index]),
+                    evaluated[index],
+                )
                 self.assertAllClose(res, actual)
                 index = (
                     *batch_index,
                     slice(None, None, None),
                     torch.tensor([0, 1, 2, 1]),
                 )
-                res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
+                res, actual = (
+                    linear_operator.to_dense(linear_op[index]),
+                    evaluated[index],
+                )
                 self.assertAllClose(res, actual)
                 index = (*batch_index, slice(None, None, None), slice(None, None, None))
                 res, actual = linear_op[index].to_dense(), evaluated[index]
@@ -278,10 +284,17 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
         # Non-batch case
         if linear_op.ndimension() == 2:
-            index = (torch.tensor([0, 0, 1, 2]).unsqueeze(-1), torch.tensor([0, 1, 0, 2]).unsqueeze(-2))
+            index = (
+                torch.tensor([0, 0, 1, 2]).unsqueeze(-1),
+                torch.tensor([0, 1, 0, 2]).unsqueeze(-2),
+            )
             res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
-            index = (Ellipsis, torch.tensor([0, 0, 1, 2]).unsqueeze(-2), torch.tensor([0, 1, 0, 2]).unsqueeze(-1))
+            index = (
+                Ellipsis,
+                torch.tensor([0, 0, 1, 2]).unsqueeze(-2),
+                torch.tensor([0, 1, 0, 2]).unsqueeze(-1),
+            )
             res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
 
@@ -298,7 +311,10 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
                 )
                 res, actual = linear_op[index], evaluated[index]
                 self.assertAllClose(res, actual)
-                res, actual = linear_operator.to_dense(linear_op[index]), evaluated[index]
+                res, actual = (
+                    linear_operator.to_dense(linear_op[index]),
+                    evaluated[index],
+                )
                 self.assertAllClose(res, actual)
                 index = (*batch_index, slice(None, None, None), slice(None, None, None))
                 res, actual = linear_op[index].to_dense(), evaluated[index]
@@ -306,19 +322,35 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
 
             # Ellipsis
             res = linear_op.__getitem__(
-                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+                (
+                    Ellipsis,
+                    torch.tensor([0, 1, 0]).view(-1, 1, 1),
+                    torch.tensor([1, 2, 0, 1]).view(1, 1, -1),
+                )
             )
             actual = evaluated.__getitem__(
-                (Ellipsis, torch.tensor([0, 1, 0]).view(-1, 1, 1), torch.tensor([1, 2, 0, 1]).view(1, 1, -1))
+                (
+                    Ellipsis,
+                    torch.tensor([0, 1, 0]).view(-1, 1, 1),
+                    torch.tensor([1, 2, 0, 1]).view(1, 1, -1),
+                )
             )
             self.assertAllClose(res, actual)
             res = linear_operator.to_dense(
                 linear_op.__getitem__(
-                    (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+                    (
+                        torch.tensor([0, 1, 0]).view(1, -1),
+                        Ellipsis,
+                        torch.tensor([1, 2, 0, 1]).view(-1, 1),
+                    )
                 )
             )
             actual = evaluated.__getitem__(
-                (torch.tensor([0, 1, 0]).view(1, -1), Ellipsis, torch.tensor([1, 2, 0, 1]).view(-1, 1))
+                (
+                    torch.tensor([0, 1, 0]).view(1, -1),
+                    Ellipsis,
+                    torch.tensor([1, 2, 0, 1]).view(-1, 1),
+                )
             )
             self.assertAllClose(res, actual)
 
@@ -508,7 +540,9 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                         4
                     ), linear_operator.settings.max_preconditioner_size(2):
                         res_inv_quad, res_logdet = linear_op.inv_quad_logdet(
-                            inv_quad_rhs=vecs, logdet=True, reduce_inv_quad=reduce_inv_quad
+                            inv_quad_rhs=vecs,
+                            logdet=True,
+                            reduce_inv_quad=reduce_inv_quad,
                         )
 
             actual_inv_quad = evaluated.inverse().matmul(vecs_copy).mul(vecs_copy).sum(-2)

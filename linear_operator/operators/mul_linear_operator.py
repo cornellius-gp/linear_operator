@@ -120,7 +120,8 @@ class MulLinearOperator(LinearOperator):
 
     def _expand_batch(self, batch_shape):
         return self.__class__(
-            self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
+            self.left_linear_op._expand_batch(batch_shape),
+            self.right_linear_op._expand_batch(batch_shape),
         )
 
     @cached

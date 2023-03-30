@@ -86,7 +86,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self,
+        row_index: torch.LongTensor,
+        col_index: torch.LongTensor,
+        *batch_indices: Tuple[torch.LongTensor, ...],
     ) -> Tensor:
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
 
@@ -194,7 +197,11 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return res
 
     def solve_triangular(
-        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+        self,
+        rhs: torch.Tensor,
+        upper: bool,
+        left: bool = True,
+        unitriangular: bool = False,
     ) -> torch.Tensor:
         if upper != self.upper:
             raise RuntimeError(

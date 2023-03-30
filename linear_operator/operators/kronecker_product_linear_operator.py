@@ -13,7 +13,7 @@ from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .dense_linear_operator import to_linear_operator
 from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
+from .triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
 
 
 def _kron_diag(*lts) -> Tensor:
@@ -306,7 +306,10 @@ class KroneckerProductLinearOperator(LinearOperator):
         return res
 
     def _transpose_nonbatch(self):
-        return self.__class__(*(linear_op._transpose_nonbatch() for linear_op in self.linear_ops), **self._kwargs)
+        return self.__class__(
+            *(linear_op._transpose_nonbatch() for linear_op in self.linear_ops),
+            **self._kwargs,
+        )
 
 
 class KroneckerProductTriangularLinearOperator(KroneckerProductLinearOperator, _TriangularLinearOperatorBase):

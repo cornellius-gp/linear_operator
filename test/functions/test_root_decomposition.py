@@ -39,7 +39,10 @@ class TestRootDecomposition(BaseTestCase, unittest.TestCase):
         probe_vectors = torch.randn(*mat.shape[:-2], 4, 5)
         test_vectors = torch.randn(*mat.shape[:-2], 4, 5)
         root = linear_operator.root_inv_decomposition(
-            mat, method="lanczos", initial_vectors=probe_vectors, test_vectors=test_vectors
+            mat,
+            method="lanczos",
+            initial_vectors=probe_vectors,
+            test_vectors=test_vectors,
         ).root.to_dense()
         res = root.matmul(root.mT)
         actual = mat_clone.inverse()

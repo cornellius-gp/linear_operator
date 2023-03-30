@@ -17,8 +17,9 @@
 import os
 import sys
 import warnings
-import sphinx_rtd_theme  # noqa
 from typing import ForwardRef
+
+import sphinx_rtd_theme  # noqa
 
 
 sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))

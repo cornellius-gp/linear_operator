@@ -43,7 +43,10 @@ class TestKroneckerProductLinearOperator(LinearOperatorTestCase, unittest.TestCa
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
-        c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
+        c = torch.tensor(
+            [[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        )
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
@@ -92,9 +95,10 @@ class TestKroneckerProductLinearOperatorBatch(TestKroneckerProductLinearOperator
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float).repeat(3, 1, 1)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float).repeat(3, 1, 1)
-        c = torch.tensor([[4, 0.1, 1, 0], [0.1, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float).repeat(
-            3, 1, 1
-        )
+        c = torch.tensor(
+            [[4, 0.1, 1, 0], [0.1, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        ).repeat(3, 1, 1)
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)
