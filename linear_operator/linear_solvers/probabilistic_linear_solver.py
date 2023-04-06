@@ -121,7 +121,7 @@ class PLS(LinearSolver):
             linear_op_action = linear_op @ action
 
             # Observation
-            observ = action.T @ solver_state.residual
+            observ = torch.inner(action, solver_state.residual)
 
             # Search direction
             if isinstance(solver_state.inverse_op, ZeroLinearOperator):
@@ -130,7 +130,7 @@ class PLS(LinearSolver):
                 search_dir = action - solver_state.inverse_op @ linear_op_action
 
             # Normalization constant
-            search_dir_sqnorm = linear_op_action.T @ search_dir
+            search_dir_sqnorm = torch.inner(linear_op_action, search_dir)
             solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
 
             # Update solution estimate
