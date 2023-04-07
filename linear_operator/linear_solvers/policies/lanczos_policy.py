@@ -11,8 +11,9 @@ from .linear_solver_policy import LinearSolverPolicy
 class NaiveLanczosPolicy(LinearSolverPolicy):
     """Policy choosing approximate eigenvectors as actions."""
 
-    def __init__(self, seeding: float = "random") -> None:
+    def __init__(self, seeding: float = "random", precond: Optional["LinearOperator"] = None) -> None:
         self.seeding = seeding
+        self.precond = precond
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
@@ -44,7 +45,12 @@ class NaiveLanczosPolicy(LinearSolverPolicy):
             # Cache initial vector
             solver_state.cache["init_vec"] = init_vec
 
-        return solver_state.cache["init_vec"] - solver_state.problem.A @ solver_state.solution
+        action = solver_state.cache["init_vec"] - solver_state.problem.A @ solver_state.solution
+
+        if self.precond is not None:
+            action = self.precond @ action
+
+        return action
 
 
 class LanczosPolicy(LinearSolverPolicy):
