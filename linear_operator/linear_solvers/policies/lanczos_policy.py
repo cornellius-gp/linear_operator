@@ -4,6 +4,7 @@ from typing import Optional
 
 import torch
 
+from ...operators import LinearOperator
 from ...utils.lanczos import lanczos_tridiag, lanczos_tridiag_to_diag
 from .linear_solver_policy import LinearSolverPolicy
 
@@ -47,8 +48,10 @@ class NaiveLanczosPolicy(LinearSolverPolicy):
 
         action = solver_state.cache["init_vec"] - solver_state.problem.A @ solver_state.solution
 
-        if self.precond is not None:
+        if isinstance(self.precond, (torch.Tensor, LinearOperator)):
             action = self.precond @ action
+        elif callable(self.precond):
+            action = self.precond(action).squeeze()
 
         return action
 

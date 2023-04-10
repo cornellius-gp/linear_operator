@@ -4,6 +4,7 @@ from typing import Optional
 
 import torch
 
+from ...operators import LinearOperator
 from .linear_solver_policy import LinearSolverPolicy
 
 
@@ -18,6 +19,12 @@ class GradientPolicy(LinearSolverPolicy):
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-        if self.precond is None:
-            return solver_state.residual
-        return self.precond @ solver_state.residual
+
+        action = solver_state.residual
+
+        if isinstance(self.precond, (torch.Tensor, LinearOperator)):
+            action = self.precond @ action
+        elif callable(self.precond):
+            action = self.precond(action).squeeze()
+
+        return action
