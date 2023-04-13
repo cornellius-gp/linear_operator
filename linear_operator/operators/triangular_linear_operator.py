@@ -125,7 +125,6 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         added_diag_lt = self._tensor.add_diagonal(added_diag)
         return self.__class__(added_diag_lt, upper=self.upper)
 
-    @cached
     def to_dense(self) -> Tensor:
         return self._tensor.to_dense()
 
