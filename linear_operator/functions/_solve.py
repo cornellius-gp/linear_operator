@@ -10,12 +10,18 @@ from .. import settings
 
 # TODO: why is this special casing in here????
 # def _solve(linear_op, rhs):
-# from ..operators import CholLinearOperator, TriangularLinearOperator
+#     from ..operators import CholLinearOperator, TriangularLinearOperator
 
-# if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
-# # May want to do this for some KroneckerProductLinearOperators and possibly
-# # KroneckerProductAddedDiagLinearOperators as well
-# return linear_op.solve(rhs)
+#     if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
+#         # May want to do this for some KroneckerProductLinearOperators and possibly
+#         # KroneckerProductAddedDiagLinearOperators as well
+#         return linear_op.solve(rhs)
+#     if settings.fast_computations.solves.off() or linear_op.size(-1) <= settings.max_cholesky_size.value():
+#         return linear_op.cholesky()._cholesky_solve(rhs)
+#     else:
+#         with torch.no_grad():
+#             preconditioner = linear_op.detach()._solve_preconditioner()
+#         return linear_op._solve(rhs, preconditioner)
 
 
 class Solve(Function):
