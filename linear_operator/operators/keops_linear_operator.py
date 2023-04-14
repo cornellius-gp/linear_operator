@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 from typing import Callable
 
 import torch
@@ -32,7 +33,25 @@ class KeOpsLinearOperator(LinearOperator):
         return self.covar_func(self.x1, self.x2, **self.params)
 
     def _matmul(self, rhs):
-        return self.covar_mat @ rhs.contiguous()
+        # If rhs contains lots of zeros, naively sparsify the kernel matrix
+        nonzero_mask = rhs != 0.0
+        use_sparse_matmul = torch.sum(nonzero_mask) < 0.1 * math.prod(rhs.shape)
+
+        if use_sparse_matmul:
+            if rhs.ndim == 1:
+                return self.covar_func(self.x1, self.x2[nonzero_mask], **self.params) @ rhs.contiguous()
+            else:
+                result_cols = []
+                for col_idx in range(rhs.shape[1]):
+                    result_cols.append(
+                        self.covar_func(self.x1, self.x2[nonzero_mask[:, col_idx]], **self.params)
+                        @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
+                    )
+
+                return torch.stack(result_cols, dim=1)
+        else:
+            # If not, use regular matrix-free product
+            return self.covar_mat @ rhs.contiguous()
 
     def _size(self):
         return torch.Size(self.covar_mat.shape)
