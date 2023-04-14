@@ -33,7 +33,10 @@ def make_sparse_from_indices_and_values(interp_indices, interp_values, num_rows)
         batch_tensor = torch.arange(0, batch_size, dtype=torch.long, device=interp_values.device)
         batch_tensor = (
             batch_tensor.unsqueeze_(1)
-            .repeat(batch_shape[:i].numel(), batch_shape[i + 1 :].numel() * n_target_points * n_coefficients)
+            .repeat(
+                batch_shape[:i].numel(),
+                batch_shape[i + 1 :].numel() * n_target_points * n_coefficients,
+            )
             .view(-1)
         )
         batch_tensors.append(batch_tensor)
@@ -158,7 +161,10 @@ def sparse_getitem(sparse, idxs):
             mask = indices[i].eq(idx)
             if torch.any(mask):
                 new_indices = torch.zeros(
-                    indices.size(0) - 1, torch.sum(mask), dtype=indices.dtype, device=indices.device
+                    indices.size(0) - 1,
+                    torch.sum(mask),
+                    dtype=indices.dtype,
+                    device=indices.device,
                 )
                 for j in range(indices.size(0)):
                     if i > j:
@@ -181,7 +187,12 @@ def sparse_getitem(sparse, idxs):
                 raise RuntimeError("Slicing with step is not supported")
             mask = indices[i].lt(stop) & indices[i].ge(start)
             if torch.any(mask):
-                new_indices = torch.zeros(indices.size(0), torch.sum(mask), dtype=indices.dtype, device=indices.device)
+                new_indices = torch.zeros(
+                    indices.size(0),
+                    torch.sum(mask),
+                    dtype=indices.dtype,
+                    device=indices.device,
+                )
                 for j in range(indices.size(0)):
                     new_indices[j].copy_(indices[j][mask])
                 new_indices[i].sub_(start)
@@ -207,7 +218,12 @@ def sparse_repeat(sparse, *repeat_sizes):
         new_indices = sparse._indices()
         new_indices = torch.cat(
             [
-                torch.zeros(num_new_dims, new_indices.size(1), dtype=new_indices.dtype, device=new_indices.device),
+                torch.zeros(
+                    num_new_dims,
+                    new_indices.size(1),
+                    dtype=new_indices.dtype,
+                    device=new_indices.device,
+                ),
                 new_indices,
             ],
             0,
@@ -230,7 +246,13 @@ def sparse_repeat(sparse, *repeat_sizes):
             sparse = torch.sparse_coo_tensor(
                 new_indices,
                 sparse._values().repeat(repeat_size),
-                torch.Size((*sparse.shape[:i], repeat_size * sparse.size(i), *sparse.shape[i + 1 :])),
+                torch.Size(
+                    (
+                        *sparse.shape[:i],
+                        repeat_size * sparse.size(i),
+                        *sparse.shape[i + 1 :],
+                    )
+                ),
                 dtype=sparse.dtype,
                 device=sparse.device,
             )

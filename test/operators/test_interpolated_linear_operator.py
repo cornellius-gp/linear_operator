@@ -31,7 +31,11 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op,
+            left_interp_indices,
+            left_interp_values,
+            right_interp_indices,
+            right_interp_values,
         )
 
     def evaluate_linear_op(self, linear_op):
@@ -68,7 +72,11 @@ class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestC
         base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op,
+            left_interp_indices,
+            left_interp_values,
+            right_interp_indices,
+            right_interp_values,
         )
 
     def evaluate_linear_op(self, linear_op):
@@ -113,7 +121,11 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
         base_linear_op = DenseLinearOperator(base_tensor)
 
         return InterpolatedLinearOperator(
-            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
+            base_linear_op,
+            left_interp_indices,
+            left_interp_values,
+            right_interp_indices,
+            right_interp_values,
         )
 
     def evaluate_linear_op(self, linear_op):
@@ -123,8 +135,16 @@ class TestInterpolatedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.
             for j in range(5):
                 left_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
                 right_matrix_comp = torch.zeros(4, 6, dtype=linear_op.dtype)
-                left_matrix_comp.scatter_(1, linear_op.left_interp_indices[i, j], linear_op.left_interp_values[i, j])
-                right_matrix_comp.scatter_(1, linear_op.right_interp_indices[i, j], linear_op.right_interp_values[i, j])
+                left_matrix_comp.scatter_(
+                    1,
+                    linear_op.left_interp_indices[i, j],
+                    linear_op.left_interp_values[i, j],
+                )
+                right_matrix_comp.scatter_(
+                    1,
+                    linear_op.right_interp_indices[i, j],
+                    linear_op.right_interp_values[i, j],
+                )
                 left_matrix_comps.append(left_matrix_comp.unsqueeze(0))
                 right_matrix_comps.append(right_matrix_comp.unsqueeze(0))
         left_matrix = torch.cat(left_matrix_comps)

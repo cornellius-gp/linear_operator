@@ -33,7 +33,13 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         device: Optional[torch.device] = None,
     ):
         one = torch.tensor(1.0, dtype=dtype, device=device)
-        LinearOperator.__init__(self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device)
+        LinearOperator.__init__(
+            self,
+            diag_shape=diag_shape,
+            batch_shape=batch_shape,
+            dtype=dtype,
+            device=device,
+        )
         self.diag_values = one.expand(torch.Size([*batch_shape, 1]))
         self.diag_shape = diag_shape
         self._batch_shape = batch_shape
@@ -68,7 +74,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def _expand_batch(self, batch_shape: torch.Size) -> LinearOperator:
         return IdentityLinearOperator(
-            diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
+            diag_shape=self.diag_shape,
+            batch_shape=batch_shape,
+            dtype=self.dtype,
+            device=self.device,
         )
 
     def _getitem(
@@ -82,7 +91,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
             if len(batch_indices):
                 new_batch_shape = _compute_getitem_size(self, (*batch_indices, row_index, col_index))[:-2]
                 res = IdentityLinearOperator(
-                    diag_shape=self.diag_shape, batch_shape=new_batch_shape, dtype=self._dtype, device=self._device
+                    diag_shape=self.diag_shape,
+                    batch_shape=new_batch_shape,
+                    dtype=self._dtype,
+                    device=self._device,
                 )
                 return res
             else:
@@ -102,14 +114,20 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def _permute_batch(self, *dims: Tuple[int, ...]) -> LinearOperator:
         batch_shape = self.diag_values.permute(*dims, -1).shape[:-1]
         return IdentityLinearOperator(
-            diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self._dtype, device=self._device
+            diag_shape=self.diag_shape,
+            batch_shape=batch_shape,
+            dtype=self._dtype,
+            device=self._device,
         )
 
     def _prod_batch(self, dim: int) -> LinearOperator:
         batch_shape = list(self.batch_shape)
         del batch_shape[dim]
         return IdentityLinearOperator(
-            diag_shape=self.diag_shape, batch_shape=torch.Size(batch_shape), dtype=self.dtype, device=self.device
+            diag_shape=self.diag_shape,
+            batch_shape=torch.Size(batch_shape),
+            dtype=self.dtype,
+            device=self.device,
         )
 
     def _root_decomposition(self) -> LinearOperator:
@@ -143,7 +161,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         batch_shape.insert(dim, 1)
         batch_shape = torch.Size(batch_shape)
         return IdentityLinearOperator(
-            diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
+            diag_shape=self.diag_shape,
+            batch_shape=batch_shape,
+            dtype=self.dtype,
+            device=self.device,
         )
 
     def abs(self) -> LinearOperator:
@@ -156,7 +177,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return self
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[torch.Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
@@ -176,7 +200,11 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def log(self) -> LinearOperator:
         return ZeroLinearOperator(
-            *self._batch_shape, self.diag_shape, self.diag_shape, dtype=self._dtype, device=self._device
+            *self._batch_shape,
+            self.diag_shape,
+            self.diag_shape,
+            dtype=self._dtype,
+            device=self._device,
         )
 
     def matmul(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
@@ -208,7 +236,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def type(self, dtype: torch.dtype) -> LinearOperator:
         return IdentityLinearOperator(
-            diag_shape=self.diag_shape, batch_shape=self.batch_shape, dtype=dtype, device=self.device
+            diag_shape=self.diag_shape,
+            batch_shape=self.batch_shape,
+            dtype=dtype,
+            device=self.device,
         )
 
     def zero_mean_mvn_samples(self, num_samples: int) -> torch.Tensor:

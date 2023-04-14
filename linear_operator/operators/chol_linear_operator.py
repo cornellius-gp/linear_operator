@@ -10,7 +10,7 @@ import torch
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .root_linear_operator import RootLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
+from .triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
 
 
 class CholLinearOperator(RootLinearOperator):
@@ -92,7 +92,10 @@ class CholLinearOperator(RootLinearOperator):
         return inv_quad_term
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[torch.Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         if not self.is_square:
             raise RuntimeError(

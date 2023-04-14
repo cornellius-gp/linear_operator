@@ -40,6 +40,12 @@ class TestSumKroneckerLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         return SumKroneckerLinearOperator(kp_lt_1, kp_lt_2)
 
     def evaluate_linear_op(self, linear_op):
-        res1 = kron(linear_op.linear_ops[0].linear_ops[0].tensor, linear_op.linear_ops[0].linear_ops[1].tensor)
-        res2 = kron(linear_op.linear_ops[1].linear_ops[0].tensor, linear_op.linear_ops[1].linear_ops[1].tensor)
+        res1 = kron(
+            linear_op.linear_ops[0].linear_ops[0].tensor,
+            linear_op.linear_ops[0].linear_ops[1].tensor,
+        )
+        res2 = kron(
+            linear_op.linear_ops[1].linear_ops[0].tensor,
+            linear_op.linear_ops[1].linear_ops[1].tensor,
+        )
         return res1 + res2

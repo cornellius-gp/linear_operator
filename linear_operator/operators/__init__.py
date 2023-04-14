@@ -6,7 +6,7 @@ from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 from .block_diag_linear_operator import BlockDiagLinearOperator
 from .block_interleaved_linear_operator import BlockInterleavedLinearOperator
 from .block_linear_operator import BlockLinearOperator
-from .cat_linear_operator import CatLinearOperator, cat
+from .cat_linear_operator import cat, CatLinearOperator
 from .chol_linear_operator import CholLinearOperator
 from .constant_mul_linear_operator import ConstantMulLinearOperator
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator

@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import ToeplitzLinearOperator, to_linear_operator
+from linear_operator.operators import to_linear_operator, ToeplitzLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 

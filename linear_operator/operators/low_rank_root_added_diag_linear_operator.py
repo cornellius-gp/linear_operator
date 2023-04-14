@@ -46,7 +46,8 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
             res = super()._mul_constant(constant)
         else:
             res = AddedDiagLinearOperator(
-                self._linear_op._mul_constant(constant), self._diag_tensor._mul_constant(constant)
+                self._linear_op._mul_constant(constant),
+                self._diag_tensor._mul_constant(constant),
             )
         return res
 

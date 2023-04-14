@@ -106,7 +106,10 @@ def inv_quad(input: Anysor, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = 
 
 
 def inv_quad_logdet(
-    input: Anysor, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+    input: Anysor,
+    inv_quad_rhs: Optional[torch.Tensor] = None,
+    logdet: bool = False,
+    reduce_inv_quad: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""
     Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive definite matrix (or batch) :math:`\mathbf A`.
@@ -128,7 +131,10 @@ def inv_quad_logdet(
 
 
 def pivoted_cholesky(
-    input: Anysor, rank: int, error_tol: Optional[float] = None, return_pivots: bool = False
+    input: Anysor,
+    rank: int,
+    error_tol: Optional[float] = None,
+    return_pivots: bool = False,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     r"""
     Performs a partial pivoted Cholesky factorization of a positive definite matrix (or batch of matrices).

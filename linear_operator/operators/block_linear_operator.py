@@ -73,8 +73,16 @@ class BlockLinearOperator(LinearOperator):
         # Now we know that row_index and col_index
         num_blocks = self.num_blocks
         num_rows, num_cols = self.matrix_shape
-        row_start, row_end, row_step = row_index.start or 0, row_index.stop or num_rows, row_index.step
-        col_start, col_end, col_step = col_index.start or 0, col_index.stop or num_cols, col_index.step
+        row_start, row_end, row_step = (
+            row_index.start or 0,
+            row_index.stop or num_rows,
+            row_index.step,
+        )
+        col_start, col_end, col_step = (
+            col_index.start or 0,
+            col_index.stop or num_cols,
+            col_index.step,
+        )
 
         # If we have a step, it's too complicated - go with the base case
         if row_step is not None or col_step is not None:

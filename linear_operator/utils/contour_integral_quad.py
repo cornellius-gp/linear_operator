@@ -55,7 +55,12 @@ def contour_integral_quad(
         # Determine if init_vecs has extra_dimensions
         num_extra_dims = max(0, rhs.dim() - linear_op.dim())
         lanczos_init = rhs.__getitem__(
-            (*([0] * num_extra_dims), Ellipsis, slice(None, None, None), slice(None, 1, None))
+            (
+                *([0] * num_extra_dims),
+                Ellipsis,
+                slice(None, None, None),
+                slice(None, 1, None),
+            )
         ).expand(*linear_op.shape[:-1], 1)
         with warnings.catch_warnings(), torch.no_grad():
             warnings.simplefilter("ignore", NumericalWarning)  # Supress CG stopping warning
@@ -134,7 +139,13 @@ def contour_integral_quad(
     # Compute the solves at the given shifts
     # Do one more matmul if we don't want to include the inverse
     with torch.no_grad():
-        solves = minres(lambda v: linear_op._matmul(v), rhs, value=-1, shifts=shifts, preconditioner=preconditioner)
+        solves = minres(
+            lambda v: linear_op._matmul(v),
+            rhs,
+            value=-1,
+            shifts=shifts,
+            preconditioner=preconditioner,
+        )
     no_shift_solves = solves[0]
     solves = solves[1:]
     if not inverse:

@@ -111,7 +111,13 @@ class TestLowRankRootAddedDiagLinearOperatorBatch(TestLowRankRootAddedDiagLinear
 
     def create_linear_op(self):
         tensor = torch.randn(3, 5, 2)
-        diag = torch.tensor([[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]])
+        diag = torch.tensor(
+            [
+                [1.0, 2.0, 4.0, 2.0, 3.0],
+                [2.0, 1.0, 2.0, 1.0, 4.0],
+                [1.0, 2.0, 2.0, 3.0, 4.0],
+            ]
+        )
         lt = LowRankRootLinearOperator(tensor).add_diagonal(diag)
         assert isinstance(lt, LowRankRootAddedDiagLinearOperator)
         return lt
@@ -130,9 +136,13 @@ class TestLowRankRootAddedDiagLinearOperatorMultiBatch(TestLowRankRootAddedDiagL
 
     def create_linear_op(self):
         tensor = torch.randn(4, 3, 5, 2)
-        diag = torch.tensor([[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]]).repeat(
-            4, 1, 1
-        )
+        diag = torch.tensor(
+            [
+                [1.0, 2.0, 4.0, 2.0, 3.0],
+                [2.0, 1.0, 2.0, 1.0, 4.0],
+                [1.0, 2.0, 2.0, 3.0, 4.0],
+            ]
+        ).repeat(4, 1, 1)
         lt = LowRankRootLinearOperator(tensor).add_diagonal(diag)
         assert isinstance(lt, LowRankRootAddedDiagLinearOperator)
         return lt
