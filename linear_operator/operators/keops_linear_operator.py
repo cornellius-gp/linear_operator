@@ -34,6 +34,8 @@ class KeOpsLinearOperator(LinearOperator):
 
     def _matmul(self, rhs):
         # If rhs contains lots of zeros, naively sparsify the kernel matrix
+        # TODO: add test to check correctness
+        # TODO: add context manager and setting to control naive sparsification
         nonzero_mask = rhs != 0.0
         use_sparse_matmul = torch.sum(nonzero_mask) < 0.1 * math.prod(rhs.shape)
 
