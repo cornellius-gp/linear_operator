@@ -144,7 +144,7 @@ class CG(LinearSolver):
         return solver_state
 
 
-class CGGpytorch(LinearSolver):
+class CGGpytorch(LinearSolver):  # TODO: Remove CG implementation above and just call this CG
     """Conjugate gradient method.
 
     Legacy implementation of the linear conjugate gradient method as originally used in GPyTorch.
