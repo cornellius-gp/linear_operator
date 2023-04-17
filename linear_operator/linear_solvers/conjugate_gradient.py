@@ -167,6 +167,8 @@ class CGGpytorch(LinearSolver):
             tolerance=self.tol,
             n_tridiag=num_tridiag,
             max_iter=self.max_iter,
-            max_tridiag_iter=min(settings.max_lanczos_quadrature_iterations.value(), self.max_iter),
+            max_tridiag_iter=min(
+                settings.max_lanczos_quadrature_iterations.value(), self.max_iter
+            ),  # TODO: make lanczos iterations and preconditioner settable
             preconditioner=preconditioner,
         )

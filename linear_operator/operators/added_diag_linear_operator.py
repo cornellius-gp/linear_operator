@@ -34,7 +34,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
     def __init__(
         self,
         *linear_ops: Tuple[LinearOperator, DiagLinearOperator],
-        preconditioner_override: Optional[Callable] = None, **kwargs
+        preconditioner_override: Optional[Callable] = None,
+        **kwargs
     ):
         linear_ops = list(linear_ops)
         super().__init__(*linear_ops, preconditioner_override=preconditioner_override, **kwargs)
