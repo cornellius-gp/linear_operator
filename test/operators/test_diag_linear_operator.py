@@ -33,7 +33,8 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op_copy = linear_op.detach().clone()
         evaluated = self.evaluate_linear_op(linear_op_copy)
         self.assertAllClose(
-            torch.exp(linear_op).diagonal(dim1=-1, dim2=-2), torch.exp(evaluated.diagonal(dim1=-1, dim2=-2))
+            torch.exp(linear_op).diagonal(dim1=-1, dim2=-2),
+            torch.exp(evaluated.diagonal(dim1=-1, dim2=-2)),
         )
 
     def test_inverse(self):
@@ -61,7 +62,8 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op_copy = linear_op.detach().clone()
         evaluated = self.evaluate_linear_op(linear_op_copy)
         self.assertAllClose(
-            torch.log(linear_op).diagonal(dim1=-1, dim2=-2), torch.log(evaluated.diagonal(dim1=-1, dim2=-2))
+            torch.log(linear_op).diagonal(dim1=-1, dim2=-2),
+            torch.log(evaluated.diagonal(dim1=-1, dim2=-2)),
         )
 
     def test_solve_triangular(self):
@@ -92,7 +94,12 @@ class TestDiagLinearOperatorBatch(TestDiagLinearOperator):
 
     def create_linear_op(self):
         diag = torch.tensor(
-            [[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]], requires_grad=True
+            [
+                [1.0, 2.0, 4.0, 2.0, 3.0],
+                [2.0, 1.0, 2.0, 1.0, 4.0],
+                [1.0, 2.0, 2.0, 3.0, 4.0],
+            ],
+            requires_grad=True,
         )
         return DiagLinearOperator(diag)
 

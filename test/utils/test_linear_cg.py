@@ -70,7 +70,13 @@ class TestLinearCG(unittest.TestCase):
 
         rhs = torch.randn(size, 50, dtype=torch.float64)
         solves, t_mats = linear_cg(
-            matrix.matmul, rhs=rhs, n_tridiag=5, max_tridiag_iter=10, max_iter=size, tolerance=0, eps=1e-15
+            matrix.matmul,
+            rhs=rhs,
+            n_tridiag=5,
+            max_tridiag_iter=10,
+            max_iter=size,
+            tolerance=0,
+            eps=1e-15,
         )
 
         # Check cg
@@ -110,7 +116,13 @@ class TestLinearCG(unittest.TestCase):
 
         rhs = torch.randn(batch, size, 10, dtype=torch.float64)
         solves, t_mats = linear_cg(
-            matrix.matmul, rhs=rhs, n_tridiag=8, max_iter=size, max_tridiag_iter=10, tolerance=0, eps=1e-30
+            matrix.matmul,
+            rhs=rhs,
+            n_tridiag=8,
+            max_iter=size,
+            max_tridiag_iter=10,
+            tolerance=0,
+            eps=1e-30,
         )
 
         # Check cg

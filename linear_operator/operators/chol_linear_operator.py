@@ -12,7 +12,7 @@ from torch import Tensor
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
 from .root_linear_operator import RootLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator, _TriangularLinearOperatorBase
+from .triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
 
 
 class CholLinearOperator(RootLinearOperator):

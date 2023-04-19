@@ -76,7 +76,15 @@ def apply_permutation(
         right_permutation = torch.arange(matrix.size(-1), device=matrix.device)
 
     # Apply permutations
-    return to_dense(matrix.__getitem__((*batch_idx, left_permutation.unsqueeze(-1), right_permutation.unsqueeze(-2))))
+    return to_dense(
+        matrix.__getitem__(
+            (
+                *batch_idx,
+                left_permutation.unsqueeze(-1),
+                right_permutation.unsqueeze(-2),
+            )
+        )
+    )
 
 
 def inverse_permutation(permutation):

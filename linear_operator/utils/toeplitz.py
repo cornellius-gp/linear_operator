@@ -38,7 +38,10 @@ def toeplitz(toeplitz_column, toeplitz_row):
         return toeplitz_column.view(1, 1)
 
     res = torch.empty(
-        len(toeplitz_column), len(toeplitz_column), dtype=toeplitz_column.dtype, device=toeplitz_column.device
+        len(toeplitz_column),
+        len(toeplitz_column),
+        dtype=toeplitz_column.dtype,
+        device=toeplitz_column.device,
     )
     for i, val in enumerate(toeplitz_column):
         for j in range(len(toeplitz_column) - i):

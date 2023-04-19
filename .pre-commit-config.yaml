@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
     -   id: check-byte-order-marker
     -   id: check-case-conflict
@@ -12,24 +12,19 @@ repos:
     -   id: trailing-whitespace
     -   id: debug-statements
 -   repo: https://github.com/pycqa/flake8
-    rev: 4.0.1
+    rev: 5.0.4
     hooks:
     -   id: flake8
         args: [--config=setup.cfg]
         exclude: ^(examples/*)|(docs/*)
--   repo: https://github.com/ambv/black
-    rev: 22.3.0
+-   repo: https://github.com/omnilib/ufmt
+    rev: v2.0.0
     hooks:
-    -   id: black
+    -   id: ufmt
+        additional_dependencies:
+        - black == 22.3.0
+        - usort == 1.0.3
         exclude: ^(build/*)|(docs/*)|(examples/*)
-        args: [-l 120, --target-version=py37]
--   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.10.1
-    hooks:
-    -   id: isort
-        language_version: python3
-        exclude: ^(build/*)|(docs/*)|(examples/*)
-        args: [-w120, -m3, --tc, --project=gpytorch, --profile=black]
 -   repo: https://github.com/jumanjihouse/pre-commit-hooks
     rev: 2.1.6
     hooks:
@@ -39,7 +34,7 @@ repos:
     -   id: forbid-binary
         exclude: ^(examples/*)|(test/examples/old_variational_strategy_model.pth)
 -   repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.13
+    rev: v1.3.1
     hooks:
     -   id: forbid-crlf
     -   id: forbid-tabs

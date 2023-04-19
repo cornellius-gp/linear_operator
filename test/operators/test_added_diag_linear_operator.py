@@ -37,7 +37,12 @@ class TestAddedDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase
         tensor = torch.randn(3, 5, 5)
         tensor = tensor.mT.matmul(tensor).detach()
         diag = torch.tensor(
-            [[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]], requires_grad=True
+            [
+                [1.0, 2.0, 4.0, 2.0, 3.0],
+                [2.0, 1.0, 2.0, 1.0, 4.0],
+                [1.0, 2.0, 2.0, 3.0, 4.0],
+            ],
+            requires_grad=True,
         )
         return AddedDiagLinearOperator(DenseLinearOperator(tensor), DiagLinearOperator(diag))
 
@@ -58,7 +63,12 @@ class TestAddedDiagLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.Tes
         tensor = tensor.mT.matmul(tensor).detach()
         diag = (
             torch.tensor(
-                [[1.0, 2.0, 4.0, 2.0, 3.0], [2.0, 1.0, 2.0, 1.0, 4.0], [1.0, 2.0, 2.0, 3.0, 4.0]], requires_grad=True
+                [
+                    [1.0, 2.0, 4.0, 2.0, 3.0],
+                    [2.0, 1.0, 2.0, 1.0, 4.0],
+                    [1.0, 2.0, 2.0, 3.0, 4.0],
+                ],
+                requires_grad=True,
             )
             .repeat(4, 1, 1)
             .detach()
@@ -97,7 +107,9 @@ class TestAddedDiagLinearOperatorPrecondOverride(unittest.TestCase):
             return precond_closure, precond_lt, logdet
 
         overrode_lt = AddedDiagLinearOperator(
-            RootLinearOperator(tensor), DiagLinearOperator(diag), preconditioner_override=nonstandard_preconditioner
+            RootLinearOperator(tensor),
+            DiagLinearOperator(diag),
+            preconditioner_override=nonstandard_preconditioner,
         )
 
         # compute a solve - mostly to make sure that we can actually perform the solve

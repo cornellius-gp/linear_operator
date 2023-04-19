@@ -37,7 +37,10 @@ class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOpera
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
-        c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
+        c = torch.tensor(
+            [[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        )
         d = 0.5 * torch.rand(24, dtype=torch.float)
         a.requires_grad_(True)
         b.requires_grad_(True)
@@ -64,7 +67,10 @@ class TestKroneckerProductAddedKroneckerDiagLinearOperator(TestKroneckerProductA
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
-        c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
+        c = torch.tensor(
+            [[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        )
         d = torch.tensor([2, 1, 3], dtype=torch.float)
         e = torch.tensor([5], dtype=torch.float)
         f = torch.tensor([2.5], dtype=torch.float)
@@ -91,7 +97,10 @@ class TestKroneckerProductAddedKroneckerConstDiagLinearOperator(TestKroneckerPro
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
-        c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
+        c = torch.tensor(
+            [[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        )
         d = torch.tensor([2], dtype=torch.float)
         e = torch.tensor([5], dtype=torch.float)
         f = torch.tensor([2.5], dtype=torch.float)
@@ -119,7 +128,10 @@ class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAdded
     def create_linear_op(self):
         a = torch.tensor([[4, 0, 2], [0, 3, -1], [2, -1, 3]], dtype=torch.float)
         b = torch.tensor([[2, 1], [1, 2]], dtype=torch.float)
-        c = torch.tensor([[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]], dtype=torch.float)
+        c = torch.tensor(
+            [[4, 0.5, 1, 0], [0.5, 4, -1, 0], [1, -1, 3, 0], [0, 0, 0, 4]],
+            dtype=torch.float,
+        )
         a.requires_grad_(True)
         b.requires_grad_(True)
         c.requires_grad_(True)

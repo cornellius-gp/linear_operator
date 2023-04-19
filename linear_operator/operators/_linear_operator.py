@@ -37,12 +37,12 @@ from ..utils.deprecation import _deprecate_renamed_methods
 from ..utils.errors import CachingError
 from ..utils.generic import _to_helper
 from ..utils.getitem import (
-    IndexType,
     _compute_getitem_size,
     _convert_indices_to_tensors,
     _is_noop_index,
     _is_tensor_index_moved_to_start,
     _noop_index,
+    IndexType,
 )
 from ..utils.lanczos import _postprocess_lanczos_root_inv_decomp
 from ..utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache

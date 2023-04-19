@@ -66,21 +66,53 @@ class TestZeroLinearOperator(unittest.TestCase):
         linear_op = ZeroLinearOperator(3, 5, 5)
         evaluated = linear_op.to_dense()
 
-        index = (torch.tensor([0, 1, 1, 0]), torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1]))
+        index = (
+            torch.tensor([0, 1, 1, 0]),
+            torch.tensor([0, 1, 0, 2]),
+            torch.tensor([1, 2, 0, 1]),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (torch.tensor([0, 1, 1, 0]), torch.tensor([0, 1, 0, 2]), slice(None, None, None))
+        index = (
+            torch.tensor([0, 1, 1, 0]),
+            torch.tensor([0, 1, 0, 2]),
+            slice(None, None, None),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (torch.tensor([0, 1, 1]), slice(None, None, None), torch.tensor([0, 1, 2]))
+        index = (
+            torch.tensor([0, 1, 1]),
+            slice(None, None, None),
+            torch.tensor([0, 1, 2]),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (slice(None, None, None), torch.tensor([0, 1, 1, 0]), torch.tensor([0, 1, 0, 2]))
+        index = (
+            slice(None, None, None),
+            torch.tensor([0, 1, 1, 0]),
+            torch.tensor([0, 1, 0, 2]),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (torch.tensor([0, 0, 1, 1]), slice(None, None, None), slice(None, None, None))
+        index = (
+            torch.tensor([0, 0, 1, 1]),
+            slice(None, None, None),
+            slice(None, None, None),
+        )
         self.assertTrue(approx_equal(linear_op[index].to_dense(), evaluated[index]))
-        index = (slice(None, None, None), torch.tensor([0, 0, 1, 2]), torch.tensor([0, 0, 1, 1]))
+        index = (
+            slice(None, None, None),
+            torch.tensor([0, 0, 1, 2]),
+            torch.tensor([0, 0, 1, 1]),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (torch.tensor([0, 1, 1, 0]), torch.tensor([0, 1, 0, 2]), slice(None, None, None))
+        index = (
+            torch.tensor([0, 1, 1, 0]),
+            torch.tensor([0, 1, 0, 2]),
+            slice(None, None, None),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
-        index = (torch.tensor([0, 0, 1, 0]), slice(None, None, None), torch.tensor([0, 0, 1, 1]))
+        index = (
+            torch.tensor([0, 0, 1, 0]),
+            slice(None, None, None),
+            torch.tensor([0, 0, 1, 1]),
+        )
         self.assertTrue(approx_equal(linear_op[index], evaluated[index]))
         index = (Ellipsis, torch.tensor([0, 1, 1, 0]))
         self.assertTrue(approx_equal(linear_op[index].to_dense(), evaluated[index]))
