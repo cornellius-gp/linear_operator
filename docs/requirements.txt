@@ -1,3 +1,4 @@
+jaxtyping>=0.2.9
 myst-parser
 setuptools_scm
 sphinx

@@ -37,7 +37,7 @@ except ImportError:
     pass
 
 # Other requirements
-install_requires += ["scipy", "jaxtyping>=0.2.9", "typeguard~=2.13.3"]
+install_requires += ["scipy"]
 
 
 # Get version
@@ -77,7 +77,7 @@ setup(
     install_requires=install_requires,
     extras_require={
         "dev": ["ufmt", "twine", "pre-commit"],
-        "test": ["flake8==5.0.4", "flake8-print==5.0.0"],
+        "test": ["flake8==5.0.4", "flake8-print==5.0.0", "jaxtyping>=0.2.9", "typeguard~=2.13.3"],
     },
     test_suite="test",
 )
