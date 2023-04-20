@@ -64,7 +64,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         return res
 
     def _compute_batch_repeat_size(
-        self, current_batch_shape: Union[torch.Size, list[int]], desired_batch_shape: Union[torch.Size, list[int]]
+        self, current_batch_shape: Union[torch.Size, List[int]], desired_batch_shape: Union[torch.Size, List[int]]
     ) -> torch.Size:
         batch_repeat = torch.Size(
             desired_batch_size // current_batch_size

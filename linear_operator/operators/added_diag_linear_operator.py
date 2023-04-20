@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -159,7 +159,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
         self._precond_lt = PsdSumLinearOperator(RootLinearOperator(self._piv_chol_self), self._diag_tensor)
 
-    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, list[int]], n: int, k: int):
+    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, List[int]], n: int, k: int):
         # We can factor out the noise for for both QR and solves.
         self._noise = self._noise.narrow(-2, 0, 1)
         self._q_cache, self._r_cache = torch.linalg.qr(
@@ -172,7 +172,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         logdet = logdet + (n - k) * self._noise.squeeze(-2).squeeze(-1).log()
         self._precond_logdet_cache = logdet.view(*batch_shape) if len(batch_shape) else logdet.squeeze()
 
-    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, list[int]], n: int):
+    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, List[int]], n: int):
         # With non-constant diagonals, we cant factor out the noise as easily
         self._q_cache, self._r_cache = torch.linalg.qr(
             torch.cat((self._piv_chol_self / self._noise.sqrt(), eye), dim=-2)

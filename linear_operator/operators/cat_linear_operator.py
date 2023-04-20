@@ -103,7 +103,7 @@ class CatLinearOperator(LinearOperator):
             (*rep_tensor.shape[:positive_dim], cat_dim_cum_sizes[-1].item(), *rep_tensor.shape[positive_dim + 1 :])
         )
 
-    def _split_slice(self, slice_idx: slice) -> Tuple[Sequence[int], list[slice, ...]]:
+    def _split_slice(self, slice_idx: slice) -> Tuple[Sequence[int], List[slice, ...]]:
         """
         Splits a slice(a, b, None) in to a list of slices [slice(a1, b1, None), slice(a2, b2, None), ...]
         so that each slice in the list slices in to a single tensor that we have concatenated with this LinearOperator.
@@ -397,7 +397,7 @@ class CatLinearOperator(LinearOperator):
         return self.output_device
 
     @property
-    def devices(self) -> list[torch.device]:
+    def devices(self) -> List[torch.device]:
         return [t.device for t in self.linear_ops]
 
     @property
