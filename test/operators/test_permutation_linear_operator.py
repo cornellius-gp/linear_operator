@@ -4,6 +4,8 @@ import unittest
 
 import torch
 
+from packaging import version
+
 from linear_operator.operators import PermutationLinearOperator, TransposePermutationLinearOperator
 
 
@@ -34,12 +36,12 @@ class TestPermutationLinearOperator(unittest.TestCase):
         right_hand_sides = [torch.randn(n)] + [torch.randn(*batch_shape, n, 4) for batch_shape in batch_shapes]
 
         for P in operators:
-            if torch.__version__ > "1.12":
+            if version.parse(torch.__version__) > version.parse("1.12"):
                 D = P.to_dense()
                 S = P.to_sparse()
                 self.assertTrue(isinstance(S, torch.Tensor))
                 self.assertTrue(S.layout == torch.sparse_csr)
-                self.assertTrue(torch.equal(D, S.to_dense()))
+                self.assertTrue(torch.equal(D, S.to_dense().to(D.dtype)))
 
             for x in right_hand_sides:
                 batch_shape = torch.broadcast_shapes(P.batch_shape, x.shape[:-2])
