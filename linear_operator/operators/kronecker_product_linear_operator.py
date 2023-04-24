@@ -449,6 +449,15 @@ class KroneckerProductDiagLinearOperator(DiagLinearOperator, KroneckerProductTri
     ) -> Float[LinearOperator, "*batch M N"]:
         return DiagLinearOperator(self._diag * other.unsqueeze(-1))
 
+    def _size(self) -> torch.Size:
+        # Though the super._size method works, this is more efficient
+        diag_shapes = [linear_op._diag.shape for linear_op in self.linear_ops]
+        batch_shape = torch.broadcast_shapes(*[diag_shape[:-1] for diag_shape in diag_shapes])
+        N = 1
+        for diag_shape in diag_shapes:
+            N *= diag_shape[-1]
+        return torch.Size([*batch_shape, N, N])
+
     def _symeig(
         self: Float[LinearOperator, "*batch N N"],
         eigenvectors: bool = False,

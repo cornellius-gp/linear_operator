@@ -2250,8 +2250,8 @@ class LinearOperator(object):
         return size
 
     @property
-    def shape(self):
-        return self.size()
+    def shape(self) -> torch.Size:
+        return self._size()
 
     @_implements(torch.linalg.solve)
     def solve(

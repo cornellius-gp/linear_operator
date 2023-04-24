@@ -99,7 +99,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
-        return self._diag.shape + self._diag.shape[-1:]
+        return torch.Size([*self._diag.shape, self._diag.shape[-1]])
 
     def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self._diag.sum(dim))
@@ -330,7 +330,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         return (res,)
 
     @property
-    def _diag(self) -> Tensor:
+    def _diag(self: Float[LinearOperator, "... N N"]) -> Float[Tensor, "... N"]:
         return self.diag_values.expand(*self.diag_values.shape[:-1], self.diag_shape)
 
     def _expand_batch(
@@ -355,6 +355,10 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
 
     def _prod_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self.diag_values.prod(dim), diag_shape=self.diag_shape)
+
+    def _size(self) -> torch.Size:
+        # Though the super._size method works, this is more efficient
+        return torch.Size([*self.diag_values.shape[:-1], self.diag_shape, self.diag_shape])
 
     def _sum_batch(self, dim: int) -> LinearOperator:
         return ConstantDiagLinearOperator(self.diag_values.sum(dim), diag_shape=self.diag_shape)
