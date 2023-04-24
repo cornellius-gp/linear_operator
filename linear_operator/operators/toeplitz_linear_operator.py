@@ -22,7 +22,7 @@ class ToeplitzLinearOperator(LinearOperator):
         super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         diag_term = self.column[..., 0]
         if self.column.ndimension() > 1:
             diag_term = diag_term.unsqueeze(-1)

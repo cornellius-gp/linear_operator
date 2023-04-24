@@ -65,7 +65,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(self._diag.expand(*batch_shape, self._diag.size(-1)))
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         return self._diag
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:

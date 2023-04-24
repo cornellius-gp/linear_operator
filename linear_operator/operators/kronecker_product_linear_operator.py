@@ -170,7 +170,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.linear_ops]
         return KroneckerProductTriangularLinearOperator(*chol_factors, upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         return _kron_diag(*self.linear_ops)
 
     def _expand_batch(

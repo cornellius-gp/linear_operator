@@ -87,7 +87,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 res = self._transpose_nonbatch().solve(w)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         return self._tensor._diagonal()
 
     def _expand_batch(

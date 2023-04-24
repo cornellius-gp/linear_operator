@@ -25,7 +25,7 @@ class SumLinearOperator(LinearOperator):
 
         self.linear_ops = linear_ops
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
 
     def _expand_batch(

@@ -131,7 +131,7 @@ class CatLinearOperator(LinearOperator):
                 [first_slice] + [_noop_index] * num_middle_tensors + [last_slice],
             )
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         if self.cat_dim == -2:
             res = []
             curr_col = 0

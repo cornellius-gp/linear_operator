@@ -59,7 +59,7 @@ class CholLinearOperator(RootLinearOperator):
             return self.root._transpose_nonbatch()
 
     @cached
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         # TODO: Can we be smarter here?
         return (self.root.to_dense() ** 2).sum(-1)
 

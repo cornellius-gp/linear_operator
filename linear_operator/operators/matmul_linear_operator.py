@@ -68,7 +68,7 @@ class MatmulLinearOperator(LinearOperator):
         res = (left_tensor * right_tensor).sum(-1)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         if isinstance(self.left_linear_op, DenseLinearOperator) and isinstance(
             self.right_linear_op, DenseLinearOperator
         ):

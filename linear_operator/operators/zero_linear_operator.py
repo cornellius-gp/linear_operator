@@ -42,7 +42,7 @@ class ZeroLinearOperator(LinearOperator):
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         shape = self.shape
         return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 

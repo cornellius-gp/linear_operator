@@ -57,7 +57,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         res = self._remove_batch_dim(res)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         block_diag = self.base_linear_op._diagonal()
         return block_diag.mT.contiguous().view(*block_diag.shape[:-2], -1)
 

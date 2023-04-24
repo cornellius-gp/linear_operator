@@ -33,7 +33,7 @@ class SumBatchLinearOperator(BlockLinearOperator):
         other = other.reshape(*shape).expand(*expand_shape)
         return other
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         diag = self.base_linear_op._diagonal().sum(-2)
         return diag
 

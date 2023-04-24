@@ -37,7 +37,7 @@ class MulLinearOperator(LinearOperator):
         self.left_linear_op = left_linear_op
         self.right_linear_op = right_linear_op
 
-    def _diagonal(self: Float[LinearOperator, "..."]) -> Float[torch.Tensor, "..."]:
+    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
         res = self.left_linear_op._diagonal() * self.right_linear_op._diagonal()
         return res
 
