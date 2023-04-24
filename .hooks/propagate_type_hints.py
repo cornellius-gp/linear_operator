@@ -3,6 +3,7 @@
 # The idea is that we only want to change the type hints.
 # This way we can enforce consistency between the base class signature and derived signatures.
 
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple, TypedDict
 
@@ -94,16 +95,27 @@ def main():
     base_filename = Path(directory) / "_linear_operator.py"
     base_visitor = collect_base_type_hints(base_filename)
 
+    os.environ["TYPE_HINTS_PROPAGATED"] = "0"
+    changed_files = []
+
     pathlist = Path(directory).glob("*.py")
     for path in pathlist:
         if path.name[0] == "_":
             continue
         target = path
         target_out = path
-        print(f"Processing {(target.name, target_out.name)}")  # noqa: T001, T201
-        modified_tree = copy_base_type_hints_to_derived(target, base_visitor)
-        with open(target_out, "w") as f:
-            f.write(modified_tree.code)
+        original_code = target.read_text()
+        modified_code = copy_base_type_hints_to_derived(target, base_visitor).code
+        if original_code != modified_code:
+            changed_files.append(path)
+            with open(target_out, "w") as f:
+                f.write(modified_code)
+
+    if len(changed_files):
+        print("The following files have been changed:")  # noqa T201
+        for changed_file in changed_files:
+            print(f" - {changed_file}")  # noqa T201
+        os.environ["TYPE_HINTS_PROPAGATED"] = "1"
 
 
 main()
