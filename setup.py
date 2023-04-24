@@ -77,7 +77,14 @@ setup(
     install_requires=install_requires,
     extras_require={
         "dev": ["ufmt", "twine", "pre-commit"],
-        "test": ["flake8==5.0.4", "flake8-print==5.0.0", "jaxtyping>=0.2.9", "packaging", "typeguard~=2.13.3"],
+        "test": [
+            "flake8==5.0.4",
+            "flake8-print==5.0.0",
+            "jaxtyping>=0.2.9",
+            "packaging",
+            "pytest",
+            "typeguard~=2.13.3",
+        ],
     },
     test_suite="test",
 )
