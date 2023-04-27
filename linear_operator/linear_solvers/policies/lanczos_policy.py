@@ -29,17 +29,6 @@ class NaiveLanczosPolicy(LinearSolverPolicy):
                     device=solver_state.problem.A.device,
                 )
                 init_vec = init_vec.div(torch.linalg.vector_norm(init_vec))
-
-            elif self.seeding == "rkhs":
-                init_vec = (
-                    solver_state.problem.A
-                    @ torch.randn(
-                        solver_state.problem.A.shape[1],
-                        dtype=solver_state.problem.A.dtype,
-                        device=solver_state.problem.A.device,
-                    )
-                    / torch.sqrt(torch.as_tensor(solver_state.problem.A.shape[1]))
-                )
             else:
                 raise NotImplementedError
 
@@ -52,6 +41,40 @@ class NaiveLanczosPolicy(LinearSolverPolicy):
             action = self.precond @ action
         elif callable(self.precond):
             action = self.precond(action).squeeze()
+
+        return action
+
+
+class SubsetLanczosPolicy(LinearSolverPolicy):
+    """Policy choosing approximate eigenvectors as actions."""
+
+    def __init__(self, subset_size: int = 256) -> None:
+        self.subset_size = subset_size
+        super().__init__()
+
+    def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
+
+        if solver_state.iteration == 0:
+
+            # Seed vector
+            init_vec = torch.randn(
+                self.subset_size,
+                dtype=solver_state.problem.A.dtype,
+                device=solver_state.problem.A.device,
+            )
+            init_vec = init_vec.div(torch.linalg.vector_norm(init_vec))
+
+            # Cache initial vector
+            solver_state.cache["init_vec"] = init_vec
+
+        action = torch.zeros(
+            solver_state.problem.A.shape[1], dtype=solver_state.problem.A.dtype, device=solver_state.problem.A.device
+        )
+        action[0 : self.subset_size] = (
+            solver_state.cache["init_vec"]
+            - solver_state.problem.A[0 : self.subset_size, 0 : self.subset_size]
+            @ solver_state.solution[0 : self.subset_size]
+        )
 
         return action
 
