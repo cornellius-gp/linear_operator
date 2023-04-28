@@ -67,6 +67,11 @@ class PLS(LinearSolver):
         else:
             max_iter = self.max_iter
 
+        # Ensure initial guess and rhs are vectors
+        rhs = rhs.reshape(-1)
+        if x is not None:
+            x = x.reshape(-1)
+
         if x is None:
             x = torch.zeros_like(rhs, requires_grad=True)
             inverse_op = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype, device=linear_op.device)
@@ -76,10 +81,10 @@ class PLS(LinearSolver):
             # Construct a better initial guess with a consistent inverse approximation such that x = inverse_op @ rhs
             action = x
             linear_op_action = linear_op @ action
-            action_linear_op_action = linear_op_action.T @ action
+            action_linear_op_action = torch.inner(linear_op_action, action)
 
             # Potentially improved initial guess x derived from initial guess
-            step_size = action.T @ rhs / action_linear_op_action
+            step_size = torch.inner(action, rhs) / action_linear_op_action
             x = step_size * action
 
             # Initial residual
