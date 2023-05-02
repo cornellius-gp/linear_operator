@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
+from typing import Callable, Optional, Tuple, Union
 
+import torch
+from jaxtyping import Float
+from torch import Tensor
+
+from ._linear_operator import LinearOperator
 from .kronecker_product_linear_operator import KroneckerProductLinearOperator
 from .sum_linear_operator import SumLinearOperator
 
@@ -32,7 +38,18 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         inv_root_times_lt1 = KroneckerProductLinearOperator(*lt2_inv_root_mm_lt2).add_jitter(1.0)
         return inv_root_times_lt1
 
-    def _solve(self, rhs, preconditioner=None, num_tridiag=0):
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
+        num_tridiag: Optional[int] = 0,
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         inner_mat = self._sum_formulation
         # root decomposition may not be trustworthy if it uses a different method than
         # root_inv_decomposition. so ensure that we call this locally
@@ -47,12 +64,14 @@ class SumKroneckerLinearOperator(SumLinearOperator):
 
         return res
 
-    def _logdet(self):
+    def _logdet(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, " *batch"]:
         inner_mat = self._sum_formulation
         lt2_logdet = self.linear_ops[1].logdet()
         return inner_mat._logdet() + lt2_logdet
 
-    def _root_decomposition(self):
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         inner_mat = self._sum_formulation
         lt2_root = KroneckerProductLinearOperator(
             *[lt.root_decomposition().root for lt in self.linear_ops[1].linear_ops]
@@ -61,14 +80,26 @@ class SumKroneckerLinearOperator(SumLinearOperator):
         root = lt2_root.matmul(inner_mat_root)
         return root
 
-    def _root_inv_decomposition(self, initial_vectors=None):
+    def _root_inv_decomposition(
+        self: Float[LinearOperator, "*batch N N"],
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         inner_mat = self._sum_formulation
         lt2_root_inv = self.linear_ops[1].root_inv_decomposition().root
         inner_mat_root_inv = inner_mat.root_inv_decomposition().root
         inv_root = lt2_root_inv.matmul(inner_mat_root_inv)
         return inv_root
 
-    def inv_quad_logdet(self, inv_quad_rhs=None, logdet=False, reduce_inv_quad=True):
+    def inv_quad_logdet(
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
+    ) -> Tuple[
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, "..."]],
+    ]:
         inv_quad_term = None
         logdet_term = None
 

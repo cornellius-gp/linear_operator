@@ -38,3 +38,11 @@ repos:
     hooks:
     -   id: forbid-crlf
     -   id: forbid-tabs
+-   repo: local
+    hooks:
+    -   id: propagate-type-hints
+        name: Propagate Type Hints
+        entry: ./.hooks/propagate_type_hints.sh
+        language: script
+        pass_filenames: true
+        require_serial: true

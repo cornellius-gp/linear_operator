@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
@@ -15,19 +17,19 @@ from .triangular_linear_operator import _TriangularLinearOperatorBase, Triangula
 
 class CholLinearOperator(RootLinearOperator):
     r"""
-    A LinearOperator that represents a positive definite matrix given
+    A LinearOperator (... x N x N) that represents a positive definite matrix given
     a lower trinagular Cholesky factor :math:`\mathbf L`
     (or upper triangular Cholesky factor :math:`\mathbf R`).
 
     :param chol: The Cholesky factor :math:`\mathbf L` (or :math:`\mathbf R`).
-    :type chol: TriangularLinearOperator
+    :type chol: TriangularLinearOperator (... x N x N)
     :param upper: If the orientation of the cholesky factor is an upper triangular matrix
         (i.e. :math:`\mathbf R^\top \mathbf R`).
         If false, then the orientation is assumed to be a lower triangular matrix
         (i.e. :math:`\mathbf L \mathbf L^\top`).
     """
 
-    def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False):
+    def __init__(self, chol: Float[_TriangularLinearOperatorBase, "*#batch N N"], upper: bool = False):
         if not isinstance(chol, _TriangularLinearOperatorBase):
             warnings.warn(
                 "chol argument to CholLinearOperator should be a TriangularLinearOperator. "
@@ -44,28 +46,41 @@ class CholLinearOperator(RootLinearOperator):
         self.upper = upper
 
     @property
-    def _chol_diag(self) -> torch.Tensor:
+    def _chol_diag(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "... N"]:
         return self.root._diagonal()
 
     @cached(name="cholesky")
-    def _cholesky(self, upper: bool = False) -> TriangularLinearOperator:
+    def _cholesky(
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
+    ) -> Float[LinearOperator, "*batch N N"]:
         if upper == self.upper:
             return self.root
         else:
             return self.root._transpose_nonbatch()
 
     @cached
-    def _diagonal(self) -> torch.Tensor:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         # TODO: Can we be smarter here?
         return (self.root.to_dense() ** 2).sum(-1)
 
-    def _solve(self, rhs: torch.Tensor, preconditioner: Callable, num_tridiag: int = 0) -> torch.Tensor:
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
+        num_tridiag: Optional[int] = 0,
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         return self.root._cholesky_solve(rhs, upper=self.upper)
 
     @cached
-    def to_dense(self) -> torch.Tensor:
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         root = self.root
         if self.upper:
             res = root._transpose_nonbatch() @ root
@@ -74,29 +89,36 @@ class CholLinearOperator(RootLinearOperator):
         return res.to_dense()
 
     @cached
-    def inverse(self) -> "CholLinearOperator":
+    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
         """
         Returns the inverse of the CholLinearOperator.
         """
         Linv = self.root.inverse()  # this could be slow in some cases w/ structured lazies
         return CholLinearOperator(TriangularLinearOperator(Linv, upper=not self.upper), upper=not self.upper)
 
-    def inv_quad(self, tensor: torch.Tensor, reduce_inv_quad: bool = True) -> torch.Tensor:
+    def inv_quad(
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]],
+        reduce_inv_quad: bool = True,
+    ) -> Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"]]:
         if self.upper:
-            R = self.root._transpose_nonbatch().solve(tensor)
+            R = self.root._transpose_nonbatch().solve(inv_quad_rhs)
         else:
-            R = self.root.solve(tensor)
+            R = self.root.solve(inv_quad_rhs)
         inv_quad_term = (R**2).sum(dim=-2)
         if inv_quad_term.numel() and reduce_inv_quad:
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term
 
     def inv_quad_logdet(
-        self,
-        inv_quad_rhs: Optional[torch.Tensor] = None,
-        logdet: bool = False,
-        reduce_inv_quad: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self: Float[LinearOperator, "*batch N N"],
+        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
+        logdet: Optional[bool] = False,
+        reduce_inv_quad: Optional[bool] = True,
+    ) -> Tuple[
+        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
+        Optional[Float[Tensor, "..."]],
+    ]:
         if not self.is_square:
             raise RuntimeError(
                 "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "
@@ -135,15 +157,19 @@ class CholLinearOperator(RootLinearOperator):
         return inv_quad_term, logdet_term
 
     def root_inv_decomposition(
-        self,
+        self: Float[LinearOperator, "*batch N N"],
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
         method: Optional[str] = None,
-    ) -> LinearOperator:
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         inv_root = self.root.inverse()
         return RootLinearOperator(inv_root._transpose_nonbatch())
 
-    def solve(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def solve(
+        self: Float[LinearOperator, "... N N"],
+        right_tensor: Union[Float[Tensor, "... N P"], Float[Tensor, " N"]],
+        left_tensor: Optional[Float[Tensor, "... O N"]] = None,
+    ) -> Union[Float[Tensor, "... N P"], Float[Tensor, "... N"], Float[Tensor, "... O P"], Float[Tensor, "... O"]]:
         is_vector = right_tensor.ndim == 1
         if is_vector:
             right_tensor = right_tensor.unsqueeze(-1)

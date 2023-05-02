@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils import sparse
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import DenseLinearOperator, to_linear_operator
 from .diag_linear_operator import DiagLinearOperator
 from .root_linear_operator import RootLinearOperator
@@ -18,12 +20,7 @@ from .root_linear_operator import RootLinearOperator
 
 class InterpolatedLinearOperator(LinearOperator):
     def _check_args(
-        self,
-        base_linear_op,
-        left_interp_indices,
-        left_interp_values,
-        right_interp_indices,
-        right_interp_values,
+        self, base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
     ):
         if left_interp_indices.size() != left_interp_values.size():
             return "Expected left_interp_indices ({}) to have the same size as left_interp_values ({})".format(
@@ -62,9 +59,7 @@ class InterpolatedLinearOperator(LinearOperator):
 
         if left_interp_values is None:
             left_interp_values = torch.ones(
-                left_interp_indices.size(),
-                dtype=base_linear_op.dtype,
-                device=base_linear_op.device,
+                left_interp_indices.size(), dtype=base_linear_op.dtype, device=base_linear_op.device
             )
 
         if right_interp_indices is None:
@@ -75,9 +70,7 @@ class InterpolatedLinearOperator(LinearOperator):
 
         if right_interp_values is None:
             right_interp_values = torch.ones(
-                right_interp_indices.size(),
-                dtype=base_linear_op.dtype,
-                device=base_linear_op.device,
+                right_interp_indices.size(), dtype=base_linear_op.dtype, device=base_linear_op.device
             )
 
         if left_interp_indices.shape[:-2] != base_linear_op.batch_shape:
@@ -91,11 +84,7 @@ class InterpolatedLinearOperator(LinearOperator):
                 )
 
         super(InterpolatedLinearOperator, self).__init__(
-            base_linear_op,
-            left_interp_indices,
-            left_interp_values,
-            right_interp_indices,
-            right_interp_values,
+            base_linear_op, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
         self.base_linear_op = base_linear_op
         self.left_interp_indices = left_interp_indices
@@ -103,40 +92,30 @@ class InterpolatedLinearOperator(LinearOperator):
         self.right_interp_indices = right_interp_indices
         self.right_interp_values = right_interp_values
 
-    def _approx_diagonal(self):
+    def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
         base_diag_root = self.base_linear_op._diagonal().sqrt()
-        left_res = left_interp(
-            self.left_interp_indices,
-            self.left_interp_values,
-            base_diag_root.unsqueeze(-1),
-        )
-        right_res = left_interp(
-            self.right_interp_indices,
-            self.right_interp_values,
-            base_diag_root.unsqueeze(-1),
-        )
+        left_res = left_interp(self.left_interp_indices, self.left_interp_values, base_diag_root.unsqueeze(-1))
+        right_res = left_interp(self.right_interp_indices, self.right_interp_values, base_diag_root.unsqueeze(-1))
         res = left_res * right_res
         return res.squeeze(-1)
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
             self.base_linear_op.root, DenseLinearOperator
         ):
             left_interp_vals = left_interp(
-                self.left_interp_indices,
-                self.left_interp_values,
-                self.base_linear_op.root.to_dense(),
+                self.left_interp_indices, self.left_interp_values, self.base_linear_op.root.to_dense()
             )
             right_interp_vals = left_interp(
-                self.right_interp_indices,
-                self.right_interp_values,
-                self.base_linear_op.root.to_dense(),
+                self.right_interp_indices, self.right_interp_values, self.base_linear_op.root.to_dense()
             )
             return (left_interp_vals * right_interp_vals).sum(-1)
         else:
             return super(InterpolatedLinearOperator, self)._diagonal()
 
-    def _expand_batch(self, batch_shape):
+    def _expand_batch(
+        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
+    ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self.left_interp_indices.expand(*batch_shape, *self.left_interp_indices.shape[-2:]),
@@ -145,7 +124,7 @@ class InterpolatedLinearOperator(LinearOperator):
             self.right_interp_values.expand(*batch_shape, *self.right_interp_values.shape[-2:]),
         )
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         left_interp_indices = self.left_interp_indices.__getitem__((*batch_indices, row_index)).unsqueeze(-2)
         right_interp_indices = self.right_interp_indices.__getitem__((*batch_indices, col_index)).unsqueeze(-1)
         base_vals = self.base_linear_op._get_indices(
@@ -161,12 +140,7 @@ class InterpolatedLinearOperator(LinearOperator):
         res = (base_vals * interp_values).sum([-2, -1])
         return res
 
-    def _getitem(
-        self,
-        row_index: Union[slice, torch.LongTensor],
-        col_index: Union[slice, torch.LongTensor],
-        *batch_indices: Tuple[Union[int, slice, torch.LongTensor], ...],
-    ) -> LinearOperator:
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Handle batch dimensions
         # Construt a new LinearOperator
         base_linear_op = self.base_linear_op
@@ -212,7 +186,10 @@ class InterpolatedLinearOperator(LinearOperator):
         )
         return res
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -238,7 +215,9 @@ class InterpolatedLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _mul_constant(self, other):
+    def _mul_constant(
+        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
+    ) -> Float[LinearOperator, "*batch M N"]:
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the interpolated structure
         return self.__class__(
@@ -249,7 +228,10 @@ class InterpolatedLinearOperator(LinearOperator):
             self.right_interp_values,
         )
 
-    def _t_matmul(self, rhs):
+    def _t_matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
+    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -275,7 +257,7 @@ class InterpolatedLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -342,12 +324,12 @@ class InterpolatedLinearOperator(LinearOperator):
         )
         return res
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return torch.Size(
             self.base_linear_op.batch_shape + (self.left_interp_indices.size(-2), self.right_interp_indices.size(-2))
         )
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         res = self.__class__(
             self.base_linear_op.mT,
             self.right_interp_indices,
@@ -366,9 +348,7 @@ class InterpolatedLinearOperator(LinearOperator):
                 return self._sparse_left_interp_t_memo
 
         left_interp_t = sparse.make_sparse_from_indices_and_values(
-            left_interp_indices_tensor,
-            left_interp_values_tensor,
-            self.base_linear_op.size()[-2],
+            left_interp_indices_tensor, left_interp_values_tensor, self.base_linear_op.size()[-2]
         )
         self._left_interp_indices_memo = left_interp_indices_tensor
         self._left_interp_values_memo = left_interp_values_tensor
@@ -383,16 +363,14 @@ class InterpolatedLinearOperator(LinearOperator):
                 return self._sparse_right_interp_t_memo
 
         right_interp_t = sparse.make_sparse_from_indices_and_values(
-            right_interp_indices_tensor,
-            right_interp_values_tensor,
-            self.base_linear_op.size()[-1],
+            right_interp_indices_tensor, right_interp_values_tensor, self.base_linear_op.size()[-1]
         )
         self._right_interp_indices_memo = right_interp_indices_tensor
         self._right_interp_values_memo = right_interp_values_tensor
         self._sparse_right_interp_t_memo = right_interp_t
         return self._sparse_right_interp_t_memo
 
-    def _sum_batch(self, dim):
+    def _sum_batch(self, dim: int) -> LinearOperator:
         left_interp_indices = self.left_interp_indices
         left_interp_values = self.left_interp_values
         right_interp_indices = self.right_interp_indices
@@ -410,16 +388,8 @@ class InterpolatedLinearOperator(LinearOperator):
 
         # Rearrange the indices and values
         permute_order = (*range(0, dim), *range(dim + 1, self.dim()), dim)
-        left_shape = (
-            *left_interp_indices.shape[:dim],
-            *left_interp_indices.shape[dim + 1 : -1],
-            -1,
-        )
-        right_shape = (
-            *right_interp_indices.shape[:dim],
-            *right_interp_indices.shape[dim + 1 : -1],
-            -1,
-        )
+        left_shape = (*left_interp_indices.shape[:dim], *left_interp_indices.shape[dim + 1 : -1], -1)
+        right_shape = (*right_interp_indices.shape[:dim], *right_interp_indices.shape[dim + 1 : -1], -1)
         left_interp_indices = left_interp_indices.permute(permute_order).reshape(left_shape)
         left_interp_values = left_interp_values.permute(permute_order).reshape(left_shape)
         right_interp_indices = right_interp_indices.permute(permute_order).reshape(right_shape)
@@ -432,28 +402,29 @@ class InterpolatedLinearOperator(LinearOperator):
 
         # Finally! We have an interpolated lazy tensor again
         return InterpolatedLinearOperator(
-            block_diag,
-            left_interp_indices,
-            left_interp_values,
-            right_interp_indices,
-            right_interp_values,
+            block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def double(self, device_id=None):
+    def double(
+        self: Float[LinearOperator, "*batch M N"], device_id: Optional[str] = None
+    ) -> Float[LinearOperator, "*batch M N"]:
         # We need to ensure that the indices remain integers.
         new_lt = super().double(device_id=device_id)
         new_lt.left_interp_indices = new_lt.left_interp_indices.type(torch.int64)
         new_lt.right_interp_indices = new_lt.right_interp_indices.type(torch.int64)
         return new_lt
 
-    def matmul(self, tensor):
+    def matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
+    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.
         # The _matmul_closure is optimized for repeated calls, such as for _solve
 
-        if isinstance(tensor, DiagLinearOperator):
+        if isinstance(other, DiagLinearOperator):
             # if we know the rhs is diagonal this is easy
-            new_right_interp_values = self.right_interp_values * tensor._diag.unsqueeze(-1)
+            new_right_interp_values = self.right_interp_values * other._diag.unsqueeze(-1)
             return InterpolatedLinearOperator(
                 base_linear_op=self.base_linear_op,
                 left_interp_indices=self.left_interp_indices,
@@ -462,15 +433,15 @@ class InterpolatedLinearOperator(LinearOperator):
                 right_interp_values=new_right_interp_values,
             )
 
-        if tensor.ndimension() == 1:
+        if other.ndimension() == 1:
             is_vector = True
-            tensor = tensor.unsqueeze(-1)
+            other = other.unsqueeze(-1)
         else:
             is_vector = False
 
         # right_interp^T * tensor
         base_size = self.base_linear_op.size(-1)
-        right_interp_res = left_t_interp(self.right_interp_indices, self.right_interp_values, tensor, base_size)
+        right_interp_res = left_t_interp(self.right_interp_indices, self.right_interp_values, other, base_size)
 
         # base_linear_op * right_interp^T * tensor
         base_res = self.base_linear_op.matmul(right_interp_res)
@@ -483,7 +454,9 @@ class InterpolatedLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def zero_mean_mvn_samples(self, num_samples):
+    def zero_mean_mvn_samples(
+        self: Float[LinearOperator, "*batch N N"], num_samples: int
+    ) -> Float[Tensor, "num_samples *batch N"]:
         base_samples = self.base_linear_op.zero_mean_mvn_samples(num_samples)
         batch_iter = tuple(range(1, base_samples.dim()))
         base_samples = base_samples.permute(*batch_iter, 0)

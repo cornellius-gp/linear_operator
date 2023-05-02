@@ -16,6 +16,13 @@ from linear_operator.operators import (
 )
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
+# requires typeguard 3.1+
+# import typeguard
+# import pytest
+# @pytest.fixture(autouse=True)
+# def suppress_typeguard():
+#    yield typeguard.suppress_type_checks()
+
 
 class TestKroneckerProductAddedDiagLinearOperator(unittest.TestCase, LinearOperatorTestCase):
     # this lazy tensor has an explicit inverse so we don't need to run these

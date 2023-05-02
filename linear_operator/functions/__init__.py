@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import torch
 
 from ._dsmm import DSMM
 
-Anysor = Union["LinearOperator", torch.Tensor]  # noqa F811
+LinearOperatorType = Any  # Want this to be "LinearOperator" but runtime type checker can't handle
 
 
-def add_diagonal(input: Anysor, diag: torch.Tensor) -> "LinearOperator":  # noqa F811
+Anysor = Union[LinearOperatorType, torch.Tensor]
+
+
+def add_diagonal(input: Anysor, diag: torch.Tensor) -> LinearOperatorType:
     r"""
     Adds an element to the diagonal of the matrix :math:`\mathbf A`.
 
@@ -44,7 +47,9 @@ def add_jitter(input: Anysor, jitter_val: float = 1e-3) -> Anysor:
         return input + diag
 
 
-def diagonalization(input: Anysor, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+def diagonalization(
+    input: Anysor, method: Optional[str] = None
+) -> Tuple[torch.Tensor, Union[torch.Tensor, LinearOperatorType]]:
     r"""
     Returns a (usually partial) diagonalization of a symmetric positive definite matrix (or batch of matrices).
     :math:`\mathbf A`.
@@ -106,11 +111,8 @@ def inv_quad(input: Anysor, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = 
 
 
 def inv_quad_logdet(
-    input: Anysor,
-    inv_quad_rhs: Optional[torch.Tensor] = None,
-    logdet: bool = False,
-    reduce_inv_quad: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    input: Anysor, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
     r"""
     Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive definite matrix (or batch) :math:`\mathbf A`.
     However, calling this method is far more efficient and stable than calling each method independently.
@@ -131,10 +133,7 @@ def inv_quad_logdet(
 
 
 def pivoted_cholesky(
-    input: Anysor,
-    rank: int,
-    error_tol: Optional[float] = None,
-    return_pivots: bool = False,
+    input: Anysor, rank: int, error_tol: Optional[float] = None, return_pivots: bool = False
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     r"""
     Performs a partial pivoted Cholesky factorization of a positive definite matrix (or batch of matrices).
@@ -162,7 +161,7 @@ def pivoted_cholesky(
     return to_linear_operator(input).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
 
 
-def root_decomposition(input: Anysor, method: Optional[str] = None) -> "LinearOperator":  # noqa F811
+def root_decomposition(input: Anysor, method: Optional[str] = None) -> LinearOperatorType:
     r"""
     Returns a (usually low-rank) root decomposition linear operator of the
     positive definite matrix (or batch of matrices) :math:`\mathbf A`.
@@ -184,7 +183,7 @@ def root_inv_decomposition(
     initial_vectors: Optional[torch.Tensor] = None,
     test_vectors: Optional[torch.Tensor] = None,
     method: Optional[str] = None,
-) -> "LinearOperator":  # noqa F811
+) -> LinearOperatorType:
     r"""
     Returns a (usually low-rank) inverse root decomposition linear operator
     of the PSD LinearOperator :math:`\mathbf A`.
@@ -241,7 +240,9 @@ def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) 
     return to_linear_operator(input).solve(right_tensor=rhs, left_tensor=lhs)
 
 
-def sqrt_inv_matmul(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+def sqrt_inv_matmul(
+    input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     r"""
     Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`
     and a right hand size :math:`\mathbf R`,

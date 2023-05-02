@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from typing import Optional, Tuple, Union
+
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 
 
 class KeOpsLinearOperator(LinearOperator):
@@ -15,7 +21,7 @@ class KeOpsLinearOperator(LinearOperator):
         self.params = params
 
     @cached(name="kernel_diag")
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         """
         Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
         """
@@ -26,21 +32,24 @@ class KeOpsLinearOperator(LinearOperator):
     def covar_mat(self):
         return self.covar_func(self.x1, self.x2, **self.params)
 
-    def _matmul(self, rhs):
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         return self.covar_mat @ rhs.contiguous()
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         return torch.Size(self.covar_mat.shape)
 
-    def _transpose_nonbatch(self):
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return KeOpsLinearOperator(self.x2, self.x1, self.covar_func)
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         x1_ = self.x1[(*batch_indices, row_index)]
         x2_ = self.x2[(*batch_indices, col_index)]
         return self.covar_func(x1_, x2_, diag=True, **self.params)
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         x1 = self.x1
         x2 = self.x2
         dim_index = _noop_index
@@ -83,7 +92,7 @@ class KeOpsLinearOperator(LinearOperator):
         # Now construct a kernel with those indices
         return self.__class__(x1, x2, covar_func=self.covar_func, **self.params)
 
-    def _bilinear_derivative(self, left_vecs, right_vecs):
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         """
         Use default behavior, but KeOps does not automatically make args contiguous like torch.matmul.
 

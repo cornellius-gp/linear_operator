@@ -11,12 +11,7 @@ class LinearOperatorRepresentationTree(object):
         for arg in linear_op._args:
             if hasattr(arg, "representation") and callable(arg.representation):  # Is it a lazy tensor?
                 representation_size = len(arg.representation())
-                self.children.append(
-                    (
-                        slice(counter, counter + representation_size, None),
-                        arg.representation_tree(),
-                    )
-                )
+                self.children.append((slice(counter, counter + representation_size, None), arg.representation_tree()))
                 counter += representation_size
             else:
                 self.children.append((counter, None))

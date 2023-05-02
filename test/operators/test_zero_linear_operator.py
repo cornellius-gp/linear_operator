@@ -160,7 +160,7 @@ class TestZeroLinearOperator(unittest.TestCase):
         product = zero.matmul(lazy_square)
         self.assertTrue(approx_equal(product, actual))
 
-        tensor_square = torch.eye(3, dtype=int).repeat(5, 1, 1)
+        tensor_square = torch.eye(3, dtype=float).repeat(5, 1, 1)
         product = zero._matmul(tensor_square)
         self.assertTrue(approx_equal(product, actual))
         self.assertEqual(product.dtype, tensor_square.dtype)

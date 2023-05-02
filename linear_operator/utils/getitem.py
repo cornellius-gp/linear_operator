@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Any, Iterable, Tuple, Union
 
 import torch
 
 from .. import settings
 from .broadcasting import _pad_with_singletons
 
+# EllipsisType is only available in Python 3.10+
+IndexType = Union[type(Ellipsis), slice, Iterable[int], torch.LongTensor, int]
+
 # A slice that does nothing to a dimension
 _noop_index = slice(None, None, None)
 
 
 def _compute_getitem_size(
-    obj: Union[torch.Tensor, "LinearOperator"],  # noqa F821
-    indices: Tuple[Union[slice, torch.LongTensor, int], ...],  # noqa F811
+    obj: Union[torch.Tensor, Any],
+    indices: IndexType,  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
 ) -> torch.Size:
     """
     Given an object and a tuple of indices, computes the final size of the
@@ -93,8 +96,8 @@ def _compute_getitem_size(
 
 
 def _convert_indices_to_tensors(
-    obj: Union[torch.Tensor, "LinearOperator"],  # noqa F821
-    indices: Tuple[Union[slice, torch.LongTensor, int], ...],  # noqa F811
+    obj: Union[torch.Tensor, Any],
+    indices: IndexType,  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
 ) -> Tuple[torch.LongTensor, ...]:
     """
     Given an index made up of tensors/slices/ints, returns a tensor-only index that has the

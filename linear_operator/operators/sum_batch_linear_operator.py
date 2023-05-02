@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index
+from ._linear_operator import IndexType, LinearOperator
 from .block_linear_operator import BlockLinearOperator
 
 
@@ -30,11 +33,11 @@ class SumBatchLinearOperator(BlockLinearOperator):
         other = other.reshape(*shape).expand(*expand_shape)
         return other
 
-    def _diagonal(self):
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         diag = self.base_linear_op._diagonal().sum(-2)
         return diag
 
-    def _get_indices(self, row_index, col_index, *batch_indices):
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         # Create an extra index for the summed dimension
         sum_index = torch.arange(0, self.base_linear_op.size(-3), device=self.device)
         sum_index = _pad_with_singletons(sum_index, row_index.dim(), 0)
@@ -45,17 +48,17 @@ class SumBatchLinearOperator(BlockLinearOperator):
         res = self.base_linear_op._get_indices(row_index, col_index, *batch_indices, sum_index)
         return res.sum(-1)
 
-    def _getitem(self, row_index, col_index, *batch_indices):
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         res = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
         return self.__class__(res, **self._kwargs)
 
     def _remove_batch_dim(self, other):
         return other.sum(-3)
 
-    def _size(self):
+    def _size(self) -> torch.Size:
         shape = list(self.base_linear_op.shape)
         del shape[-3]
         return torch.Size(shape)
 
-    def to_dense(self):
+    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self.base_linear_op.to_dense().sum(dim=-3)  # BlockLinearOperators always use dim3 for the block_dim

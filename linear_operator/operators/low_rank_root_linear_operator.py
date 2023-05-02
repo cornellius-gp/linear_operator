@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
+from typing import Union
 
+import torch
+from jaxtyping import Float
+from torch import Tensor
+
+from ._linear_operator import LinearOperator
 from .root_linear_operator import RootLinearOperator
 
 
@@ -12,7 +18,10 @@ class LowRankRootLinearOperator(RootLinearOperator):
     write custom _getitem, _get_indices, etc, leading to much better code reuse.
     """
 
-    def add_diagonal(self, diag):
+    def add_diagonal(
+        self: Float[LinearOperator, "*batch N N"],
+        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
+    ) -> Float[LinearOperator, "*batch N N"]:
         from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
         from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 
@@ -39,7 +48,10 @@ class LowRankRootLinearOperator(RootLinearOperator):
 
         return LowRankRootAddedDiagLinearOperator(self, diag_tensor)
 
-    def __add__(self, other):
+    def __add__(
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
+    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
         from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 
