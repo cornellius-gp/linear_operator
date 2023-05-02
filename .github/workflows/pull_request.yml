@@ -17,4 +17,4 @@ jobs:
   run_small_type_checked_test_suite:
     uses: ./.github/workflows/run_type_checked_test_suite.yml
     with:
-      files_to_test: test/operators/test_dense_linear_operator.py
+      files_to_test: "test/operators/test_dense_linear_operator.py test/operators/test_diag_linear_operator.py test/operators/test_kronecker_product_linear_operator.py"
