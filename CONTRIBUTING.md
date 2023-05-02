@@ -50,17 +50,28 @@ These type hints are checked in the unit tests by using
 checking of the signatures to make sure they are accurate.
 The signatures are written into the base linear operator class in `_linear_oparator.py`.
 These signatures are then copied to the derived classes by running the script
-`propagate_type_hints.py`. This is done for:
+`python ./.hooks/propagate_type_hints.py`.
+This is done for:
 1. Consistency. Make sure the derived implementations are following the promised interface.
 2. Visibility. Make it easy to see what the expected signature is, along with dimensions. Repeating the signature in the derived classes enhances readability.
 3. Necessity. The way that jaxtyping and typeguard are written, they won't run type checks unless type annotations are present in the derived method signature.
 
 In short, if you want to update the type hints, update the code in the LinearOperator class in
-`_linear_oparator.py` then run `propagate_type_hints.py` to copy the new signature to the derived
+`_linear_oparator.py` then run `python ./.hooks/propagate_type_hints.py` to copy the new signature to the derived
 classes.
 
 ### Unit Tests
 
+#### With type checking (slower, but more thorough)
+To run the unittests with type checking, run
+```bash
+pytest --jaxtyping-packages=linear_operator,typeguard.typechecked
+```
+
+- To run tests within a specific directory, run (e.g.) `pytest test/operators --jaxtyping-packages=linear_operator,typeguard.typechecked`.
+- To run a specific file, run (e.g.) `pytest test/operators/test_matmul_linear_operator.py --jaxtyping-packages=linear_operator,typeguard.typechecked`.
+
+#### Without type checking (faster, but less thorough)
 We use python's `unittest` to run unit tests:
 ```bash
 python -m unittest
@@ -68,6 +79,7 @@ python -m unittest
 
 - To run tests within a specific directory, run (e.g.) `python -m unittest discover -s test/operators`.
 - To run a specific unit test, run (e.g.) `python -m unittest test.operators.test_matmul_linear_operator.TestMatmulLinearOperator.test_matmul_vec`.
+
 
 
 ### Documentation
