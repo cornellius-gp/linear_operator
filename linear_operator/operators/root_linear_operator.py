@@ -19,7 +19,7 @@ class RootLinearOperator(LinearOperator):
         super().__init__(root)
         self.root = root
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         if isinstance(self.root, DenseLinearOperator):
             return (self.root.tensor**2).sum(-1)
         else:

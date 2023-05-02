@@ -99,7 +99,7 @@ class InterpolatedLinearOperator(LinearOperator):
         res = left_res * right_res
         return res.squeeze(-1)
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
             self.base_linear_op.root, DenseLinearOperator
         ):
@@ -416,7 +416,7 @@ class InterpolatedLinearOperator(LinearOperator):
 
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.

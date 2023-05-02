@@ -104,7 +104,10 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     ) -> Float[LinearOperator, "*batch M N"]:
         return ConstantDiagLinearOperator(self.diag_values * other, diag_shape=self.diag_shape)
 
-    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
+    def _mul_matrix(
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[torch.Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         return other
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
@@ -206,7 +209,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         is_vec = False
         if other.dim() == 1:

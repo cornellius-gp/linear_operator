@@ -74,7 +74,7 @@ class ConstantMulLinearOperator(LinearOperator):
         res = self.base_linear_op._approx_diagonal()
         return res * self._constant.unsqueeze(-1)
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         res = self.base_linear_op._diagonal()
         return res * self._constant.unsqueeze(-1)
 

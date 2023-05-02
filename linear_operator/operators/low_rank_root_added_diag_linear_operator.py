@@ -97,8 +97,8 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         return logdet_term
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 

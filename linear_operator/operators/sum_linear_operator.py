@@ -25,7 +25,7 @@ class SumLinearOperator(LinearOperator):
 
         self.linear_ops = linear_ops
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
 
     def _expand_batch(
@@ -80,8 +80,8 @@ class SumLinearOperator(LinearOperator):
         return (sum(linear_op.to_dense() for linear_op in self.linear_ops)).contiguous()
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .diag_linear_operator import DiagLinearOperator

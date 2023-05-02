@@ -83,8 +83,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
         return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(diag))
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 

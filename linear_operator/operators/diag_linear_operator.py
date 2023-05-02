@@ -28,8 +28,8 @@ class DiagLinearOperator(TriangularLinearOperator):
         self._diag = diag
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, DiagLinearOperator):
             return self.add_diagonal(other._diag)
@@ -65,7 +65,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     ) -> Float[LinearOperator, "... M N"]:
         return self.__class__(self._diag.expand(*batch_shape, self._diag.size(-1)))
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         return self._diag
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
@@ -80,7 +80,10 @@ class DiagLinearOperator(TriangularLinearOperator):
     ) -> Float[LinearOperator, "*batch M N"]:
         return self.__class__(self._diag * other.unsqueeze(-1))
 
-    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
+    def _mul_matrix(
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[torch.Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         return DiagLinearOperator(self._diag * other._diagonal())
 
     def _prod_batch(self, dim: int) -> LinearOperator:
@@ -187,7 +190,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     # a MatmulLinearOperator is created.
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         if isinstance(other, Tensor):
             diag = self._diag if other.ndim == 1 else self._diag.unsqueeze(-1)
@@ -308,8 +311,8 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
         self.diag_shape = diag_shape
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, ConstantDiagLinearOperator):
             if other.shape[-1] == self.shape[-1]:
@@ -343,7 +346,10 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
     ) -> Float[LinearOperator, "*batch M N"]:
         return self.__class__(self.diag_values * other, diag_shape=self.diag_shape)
 
-    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
+    def _mul_matrix(
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[torch.Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         if isinstance(other, ConstantDiagLinearOperator):
             if not self.diag_shape == other.diag_shape:
                 raise ValueError(
@@ -389,7 +395,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
 
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         if isinstance(other, ConstantDiagLinearOperator):
             return self._mul_matrix(other)

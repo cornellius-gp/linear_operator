@@ -83,8 +83,8 @@ class KroneckerProductLinearOperator(LinearOperator):
         self.linear_ops = linear_ops
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, (KroneckerProductDiagLinearOperator, ConstantDiagLinearOperator)):
             from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
@@ -170,7 +170,7 @@ class KroneckerProductLinearOperator(LinearOperator):
         chol_factors = [lt.cholesky(upper=upper) for lt in self.linear_ops]
         return KroneckerProductTriangularLinearOperator(*chol_factors, upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         return _kron_diag(*self.linear_ops)
 
     def _expand_batch(

@@ -50,8 +50,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         self._tensor = tensor
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .diag_linear_operator import DiagLinearOperator
 
@@ -87,7 +87,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 res = self._transpose_nonbatch().solve(w)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         return self._tensor._diagonal()
 
     def _expand_batch(

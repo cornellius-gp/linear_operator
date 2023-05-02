@@ -42,7 +42,7 @@ class ZeroLinearOperator(LinearOperator):
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
         raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         shape = self.shape
         return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 
@@ -193,7 +193,7 @@ class ZeroLinearOperator(LinearOperator):
 
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         tensor_size_ind = -2 if other.ndimension() > 1 else -1
         if self.size(-1) != other.size(tensor_size_ind):
@@ -234,7 +234,7 @@ class ZeroLinearOperator(LinearOperator):
         return ZeroLinearOperator(*sizes)
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         return other

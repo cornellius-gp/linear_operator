@@ -535,7 +535,7 @@ class LinearOperator(object):
             return "cholesky"
         return "lanczos"
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         r"""
         As :func:`torch._diagonal`, returns the diagonal of the matrix
         :math:`\mathbf A` this LinearOperator represents as a vector.
@@ -565,7 +565,10 @@ class LinearOperator(object):
 
         return ConstantMulLinearOperator(self, other)
 
-    def _mul_matrix(self, other: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
+    def _mul_matrix(
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[torch.Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]],
+    ) -> Float[LinearOperator, "... M N"]:
         r"""
         Multiplies the LinearOperator by a (batch of) matrices.
 
@@ -1782,7 +1785,7 @@ class LinearOperator(object):
     @_implements(torch.matmul)
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, " N"], Float[LinearOperator, "*batch2 N P"]],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
         r"""
         Performs :math:`\mathbf A \mathbf B`, where :math:`\mathbf A \in
@@ -2071,7 +2074,7 @@ class LinearOperator(object):
     def rmatmul(
         self: Float[LinearOperator, "... M N"],
         other: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
-    ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "... N"], Float[LinearOperator, "... P N"]]:
+    ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "N"], Float[LinearOperator, "... P N"]]:
         r"""
         Performs :math:`\mathbf B \mathbf A`, where :math:`\mathbf A \in
         \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
@@ -2707,14 +2710,14 @@ class LinearOperator(object):
         return samples
 
     def __sub__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         return self + other.mul(-1)
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from .added_diag_linear_operator import AddedDiagLinearOperator
         from .dense_linear_operator import to_linear_operator
@@ -2851,27 +2854,47 @@ class LinearOperator(object):
         )
         return torch.isclose(to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
 
-    def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def __matmul__(
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[
+            Float[torch.Tensor, "*batch2 N D"], Float[torch.Tensor, "N"], Float[LinearOperator, "*batch2 N D"]
+        ],
+    ) -> Union[Float[torch.Tensor, "... M D"], Float[torch.Tensor, "... M"], Float[LinearOperator, "... M D"]]:
         return self.matmul(other)
 
     @_implements_second_arg(torch.Tensor.matmul)
-    def __rmatmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def __rmatmul__(
+        self: Float[LinearOperator, "... M N"],
+        other: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
+    ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "... N"], Float[LinearOperator, "... P N"]]:
         return self.rmatmul(other)
 
     @_implements_second_arg(torch.Tensor.mul)
-    def __mul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __mul__(
+        self: Float[LinearOperator, "*batch #M #N"],
+        other: Union[Float[torch.Tensor, "*batch2 #M #N"], Float[LinearOperator, "*batch2 #M #N"], float],
+    ) -> Float[LinearOperator, "... M N"]:
         return self.mul(other)
 
     @_implements_second_arg(torch.Tensor.add)
-    def __radd__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __radd__(
+        self: Float[LinearOperator, "*batch #M #N"],
+        other: Union[Float[torch.Tensor, "*batch2 #M #N"], Float[LinearOperator, "*batch2 #M #N"], float],
+    ) -> Float[LinearOperator, "... M N"]:
         return self + other
 
-    def __rmul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __rmul__(
+        self: Float[LinearOperator, "*batch #M #N"],
+        other: Union[Float[torch.Tensor, "*batch2 #M #N"], Float[LinearOperator, "*batch2 #M #N"], float],
+    ) -> Float[LinearOperator, "... M N"]:
         return self.mul(other)
 
     @_implements_second_arg(torch.sub)
     @_implements_second_arg(torch.Tensor.sub)
-    def __rsub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __rsub__(
+        self: Float[LinearOperator, "*batch #M #N"],
+        other: Union[Float[torch.Tensor, "*batch2 #M #N"], Float[LinearOperator, "*batch2 #M #N"], float],
+    ) -> Float[LinearOperator, "... M N"]:
         return self.mul(-1) + other
 
     @classmethod

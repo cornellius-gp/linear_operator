@@ -37,7 +37,7 @@ class DenseLinearOperator(LinearOperator):
     ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
-    def _diagonal(self: Float[LinearOperator, "... N N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         return self.tensor.diagonal(dim1=-1, dim2=-2)
 
     def _expand_batch(
@@ -90,8 +90,8 @@ class DenseLinearOperator(LinearOperator):
         return self.tensor
 
     def __add__(
-        self: Float[LinearOperator, "... M #N"],
-        other: Union[Float[Tensor, "... #N"], Float[LinearOperator, "... M #N"], float],
+        self: Float[LinearOperator, "... #M #N"],
+        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.tensor + other.tensor)
