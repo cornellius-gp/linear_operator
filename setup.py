@@ -37,7 +37,7 @@ except ImportError:
     pass
 
 # Other requirements
-install_requires += ["scipy"]
+install_requires += ["scipy", "jaxtyping>=0.2.9", "typeguard~=2.13.3"]
 
 
 # Get version
@@ -80,10 +80,7 @@ setup(
         "test": [
             "flake8==5.0.4",
             "flake8-print==5.0.0",
-            "jaxtyping>=0.2.9",
-            "packaging",
             "pytest",
-            "typeguard~=2.13.3",
         ],
     },
     test_suite="test",
