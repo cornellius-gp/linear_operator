@@ -102,7 +102,7 @@ class DiagLinearOperator(TriangularLinearOperator):
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
-        return torch.Size([*self._diag.shape, self._diag.shape[-1]])
+        return torch.Size([*self._diag.shape, *self._diag.shape[-1:]])
 
     def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self._diag.sum(dim))
