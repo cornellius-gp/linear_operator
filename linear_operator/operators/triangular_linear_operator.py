@@ -160,7 +160,6 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         added_diag_lt = self._tensor.add_diagonal(diag)
         return self.__class__(added_diag_lt, upper=self.upper)
 
-    @cached
     def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         return self._tensor.to_dense()
 
