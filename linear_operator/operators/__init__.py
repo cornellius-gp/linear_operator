@@ -14,6 +14,7 @@ from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from .identity_linear_operator import IdentityLinearOperator
 from .interpolated_linear_operator import InterpolatedLinearOperator
 from .keops_linear_operator import KeOpsLinearOperator
+from .kernel_linear_operator import KernelLinearOperator
 from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 from .kronecker_product_linear_operator import (
     KroneckerProductDiagLinearOperator,
@@ -53,6 +54,7 @@ __all__ = [
     "IdentityLinearOperator",
     "InterpolatedLinearOperator",
     "KeOpsLinearOperator",
+    "KernelLinearOperator",
     "KroneckerProductLinearOperator",
     "KroneckerProductAddedDiagLinearOperator",
     "KroneckerProductDiagLinearOperator",

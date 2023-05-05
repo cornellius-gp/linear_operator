@@ -909,7 +909,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_logdet(self):
         tolerances = self.tolerances["logdet"]
 
-        linear_op = self.create_linear_op()
+        linear_op = self.create_linear_op().detach()
         linear_op_copy = linear_op.detach().clone()
         linear_op.requires_grad_(True)
         linear_op_copy.requires_grad_(True)
