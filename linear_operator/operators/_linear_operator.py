@@ -11,10 +11,9 @@ from collections import deque
 from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
+import linear_operator
 import torch
 from torch import Tensor
-
-import linear_operator
 
 from .. import settings, utils
 from ..functions._diagonalization import Diagonalization
@@ -38,7 +37,13 @@ from ..utils.getitem import (
     _noop_index,
 )
 from ..utils.lanczos import _postprocess_lanczos_root_inv_decomp
-from ..utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache
+from ..utils.memoize import (
+    _is_in_cache_ignore_all_args,
+    _is_in_cache_ignore_args,
+    add_to_cache,
+    cached,
+    pop_from_cache,
+)
 from ..utils.pinverse import stable_pinverse
 from ..utils.warnings import NumericalWarning, PerformanceWarning
 from .linear_operator_representation_tree import LinearOperatorRepresentationTree
@@ -165,7 +170,9 @@ class LinearOperator(ABC):
         :param rhs: the matrix :math:`\mathbf M` to multiply with (... x N x C).
         :return: :math:`\mathbf K \mathbf M` (... x M x C)
         """
-        raise NotImplementedError("The class {} requires a _matmul function!".format(self.__class__.__name__))
+        raise NotImplementedError(
+            "The class {} requires a _matmul function!".format(self.__class__.__name__)
+        )
 
     @abstractmethod
     def _size(self) -> torch.Size:
@@ -179,7 +186,9 @@ class LinearOperator(ABC):
 
         :return: The size of the (batched) matrix :math:`\mathbf K` represented by this LinearOperator
         """
-        raise NotImplementedError("The class {} requires a _size function!".format(self.__class__.__name__))
+        raise NotImplementedError(
+            "The class {} requires a _size function!".format(self.__class__.__name__)
+        )
 
     @abstractmethod
     def _transpose_nonbatch(self) -> LinearOperator:
@@ -193,7 +202,9 @@ class LinearOperator(ABC):
             does some additional work. Calling this method directly is discouraged.
         """
         raise NotImplementedError(
-            "The class {} requires a _transpose_nonbatch function!".format(self.__class__.__name__)
+            "The class {} requires a _transpose_nonbatch function!".format(
+                self.__class__.__name__
+            )
         )
 
     ####
@@ -273,13 +284,21 @@ class LinearOperator(ABC):
 
         # Normal case: we have to do some processing on either the rows or columns
         # We will handle this through "interpolation"
-        row_interp_indices = torch.arange(0, self.size(-2), dtype=torch.long, device=self.device).view(-1, 1)
+        row_interp_indices = torch.arange(
+            0, self.size(-2), dtype=torch.long, device=self.device
+        ).view(-1, 1)
         row_interp_indices = row_interp_indices.expand(*self.batch_shape, -1, 1)
-        row_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(row_interp_indices)
+        row_interp_values = torch.tensor(
+            1.0, dtype=self.dtype, device=self.device
+        ).expand_as(row_interp_indices)
 
-        col_interp_indices = torch.arange(0, self.size(-1), dtype=torch.long, device=self.device).view(-1, 1)
+        col_interp_indices = torch.arange(
+            0, self.size(-1), dtype=torch.long, device=self.device
+        ).view(-1, 1)
         col_interp_indices = col_interp_indices.expand(*self.batch_shape, -1, 1)
-        col_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(col_interp_indices)
+        col_interp_values = torch.tensor(
+            1.0, dtype=self.dtype, device=self.device
+        ).expand_as(col_interp_indices)
 
         # Construct interpolated LinearOperator
         from . import InterpolatedLinearOperator
@@ -314,7 +333,9 @@ class LinearOperator(ABC):
     ####
     # The following methods PROBABLY should be over-written by LinearOperator subclasses for efficiency
     ####
-    def _bilinear_derivative(self, left_vecs: torch.Tensor, right_vecs: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+    def _bilinear_derivative(
+        self, left_vecs: torch.Tensor, right_vecs: torch.Tensor
+    ) -> Tuple[torch.Tensor, ...]:
         r"""
         Given :math:`\mathbf U` (left_vecs) and :math:`\mathbf V` (right_vecs),
         Computes the derivatives of (:math:`\mathbf u^\top \mathbf K \mathbf v`) w.r.t. :math:`\mathbf K`.
@@ -339,7 +360,7 @@ class LinearOperator(ABC):
         :param left_vecs: The vectors :math:`\mathbf U = [\mathbf u_1, \ldots, \mathbf u_D]`
         :param right_vecs: The vectors :math:`\mathbf V = [\mathbf v_1, \ldots, \mathbf v_D]`
         :return: Derivative with respect to the arguments (:math:`\boldsymbol \theta`) that
-            represent this this LinearOperator.
+            represent this LinearOperator.
         """
         args = tuple(self.representation())
         args_with_grads = tuple(arg for arg in args if arg.requires_grad)
@@ -353,7 +374,9 @@ class LinearOperator(ABC):
             lin_op_copy = self.representation_tree()(*representation)
             return (left_vecs * lin_op_copy._matmul(right_vecs)).sum()
 
-        actual_grads = deque(torch.autograd.functional.vjp(_matmul, self.representation())[1])
+        actual_grads = deque(
+            torch.autograd.functional.vjp(_matmul, self.representation())[1]
+        )
 
         # Now make sure that the object we return has one entry for every item in args
         grads = []
@@ -374,14 +397,23 @@ class LinearOperator(ABC):
             :func:`~linear_operator.LinearOperator.expand`,
             which does some additional work. Calling this method directly is discouraged.
         """
-        current_shape = torch.Size([1 for _ in range(len(batch_shape) - self.dim() + 2)] + list(self.batch_shape))
+        current_shape = torch.Size(
+            [1 for _ in range(len(batch_shape) - self.dim() + 2)]
+            + list(self.batch_shape)
+        )
         batch_repeat = torch.Size(
-            [expand_size // current_size for expand_size, current_size in zip(batch_shape, current_shape)]
+            [
+                expand_size // current_size
+                for expand_size, current_size in zip(batch_shape, current_shape)
+            ]
         )
         return self.repeat(*batch_repeat, 1, 1)
 
     def _get_indices(
-        self, row_index: torch.LongTensor, col_index: torch.LongTensor, *batch_indices: Tuple[torch.LongTensor, ...]
+        self,
+        row_index: torch.LongTensor,
+        col_index: torch.LongTensor,
+        *batch_indices: Tuple[torch.LongTensor, ...],
     ) -> torch.Tensor:
         """
         This method selects elements from the LinearOperator based on tensor indices for each dimension.
@@ -405,16 +437,26 @@ class LinearOperator(ABC):
         col_index = col_index.expand(final_shape)
         batch_indices = tuple(index.expand(final_shape) for index in batch_indices)
 
-        base_linear_op = self._getitem(_noop_index, _noop_index, *batch_indices)._expand_batch(final_shape)
+        base_linear_op = self._getitem(
+            _noop_index, _noop_index, *batch_indices
+        )._expand_batch(final_shape)
 
         # Create some interoplation indices and values
-        row_interp_indices = torch.arange(0, self.size(-2), dtype=torch.long, device=self.device)
+        row_interp_indices = torch.arange(
+            0, self.size(-2), dtype=torch.long, device=self.device
+        )
         row_interp_indices = row_interp_indices[row_index].unsqueeze_(-1).unsqueeze_(-1)
-        row_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(row_interp_indices)
+        row_interp_values = torch.tensor(
+            1.0, dtype=self.dtype, device=self.device
+        ).expand_as(row_interp_indices)
 
-        col_interp_indices = torch.arange(0, self.size(-1), dtype=torch.long, device=self.device)
+        col_interp_indices = torch.arange(
+            0, self.size(-1), dtype=torch.long, device=self.device
+        )
         col_interp_indices = col_interp_indices[col_index].unsqueeze_(-1).unsqueeze_(-1)
-        col_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(col_interp_indices)
+        col_interp_values = torch.tensor(
+            1.0, dtype=self.dtype, device=self.device
+        ).expand_as(col_interp_indices)
 
         # Construct interpolated LinearOperator
         from . import InterpolatedLinearOperator
@@ -479,8 +521,13 @@ class LinearOperator(ABC):
 
         evaluated_kern_mat = self.evaluate_kernel()
 
-        if any(isinstance(sub_mat, KeOpsLinearOperator) for sub_mat in evaluated_kern_mat._args):
-            raise RuntimeError("Cannot run Cholesky with KeOps: it will either be really slow or not work.")
+        if any(
+            isinstance(sub_mat, KeOpsLinearOperator)
+            for sub_mat in evaluated_kern_mat._args
+        ):
+            raise RuntimeError(
+                "Cannot run Cholesky with KeOps: it will either be really slow or not work."
+            )
 
         evaluated_mat = evaluated_kern_mat.to_dense()
 
@@ -499,7 +546,9 @@ class LinearOperator(ABC):
         ..note::
             This method is used as an internal helper. Calling this method directly is discouraged.
         """
-        raise NotImplementedError("_cholesky_solve not implemented for the base LinearOperator")
+        raise NotImplementedError(
+            "_cholesky_solve not implemented for the base LinearOperator"
+        )
 
     def _choose_root_method(self) -> str:
         r"""
@@ -531,7 +580,9 @@ class LinearOperator(ABC):
 
         :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
         """
-        row_col_iter = torch.arange(0, self.matrix_shape[-1], dtype=torch.long, device=self.device)
+        row_col_iter = torch.arange(
+            0, self.matrix_shape[-1], dtype=torch.long, device=self.device
+        )
         return self[..., row_col_iter, row_col_iter]
 
     def _inv_quad_logdet(
@@ -576,7 +627,9 @@ class LinearOperator(ABC):
 
         return ConstantMulLinearOperator(self, other)
 
-    def _mul_matrix(self, other: Union[torch.Tensor, "LinearOperator"]) -> LinearOperator:
+    def _mul_matrix(
+        self, other: Union[torch.Tensor, "LinearOperator"]
+    ) -> LinearOperator:
         r"""
         Multiplies the LinearOperator by a (batch of) matrices.
 
@@ -591,7 +644,9 @@ class LinearOperator(ABC):
 
         self = self.evaluate_kernel()
         other = other.evaluate_kernel()
-        if isinstance(self, DenseLinearOperator) or isinstance(other, DenseLinearOperator):
+        if isinstance(self, DenseLinearOperator) or isinstance(
+            other, DenseLinearOperator
+        ):
             return DenseLinearOperator(self.to_dense() * other.to_dense())
         else:
             return MulLinearOperator(self, other)
@@ -658,10 +713,14 @@ class LinearOperator(ABC):
             if num_batch // 2 == 1:
                 part1 = part1.squeeze(dim)
                 part2 = part2.squeeze(dim)
-                res = MulLinearOperator(RootLinearOperator(part1), RootLinearOperator(part2))
+                res = MulLinearOperator(
+                    RootLinearOperator(part1), RootLinearOperator(part2)
+                )
                 break
             else:
-                res = MulLinearOperator(RootLinearOperator(part1), RootLinearOperator(part2))
+                res = MulLinearOperator(
+                    RootLinearOperator(part1), RootLinearOperator(part2)
+                )
                 roots = res.root_decomposition().root.to_dense()
                 num_batch = num_batch // 2
 
@@ -779,7 +838,10 @@ class LinearOperator(ABC):
             if hasattr(self, "_default_preconditioner_cache"):
                 U, S, Vt = self._default_preconditioner_cache
             else:
-                precond_basis_size = min(linear_operator.settings.max_preconditioner_size.value(), self.size(-1))
+                precond_basis_size = min(
+                    linear_operator.settings.max_preconditioner_size.value(),
+                    self.size(-1),
+                )
                 random_basis = torch.randn(
                     self.batch_shape + torch.Size((self.size(-2), precond_basis_size)),
                     device=self.device,
@@ -834,18 +896,24 @@ class LinearOperator(ABC):
         V = evecs
         return U, S, V
 
-    def _symeig(self, eigenvectors: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
+    def _symeig(
+        self, eigenvectors: bool = False
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, "LinearOperator"]]:
         r"""
         Method that allows implementing special-cased symeig computation. Should not be called directly
         """
         from linear_operator.operators.dense_linear_operator import DenseLinearOperator
 
         if settings.verbose_linalg.on():
-            settings.verbose_linalg.logger.debug(f"Running symeig on a matrix of size {self.shape}.")
+            settings.verbose_linalg.logger.debug(
+                f"Running symeig on a matrix of size {self.shape}."
+            )
 
         # potentially perform decomposition in double precision for numerical stability
         dtype = self.dtype
-        evals, evecs = torch.linalg.eigh(self.to_dense().to(dtype=settings._linalg_dtype_symeig.value()))
+        evals, evecs = torch.linalg.eigh(
+            self.to_dense().to(dtype=settings._linalg_dtype_symeig.value())
+        )
         # chop any negative eigenvalues.
         # TODO: warn if evals are significantly negative
         evals = evals.clamp_min(0.0).to(dtype=dtype)
@@ -876,10 +944,14 @@ class LinearOperator(ABC):
     def abs(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
         # We define it here so that we can map the torch function torch.abs to the LinearOperator method
-        raise NotImplementedError(f"torch.abs({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.abs({self.__class__.__name__}) is not implemented."
+        )
 
     @_implements_symmetric(torch.add)
-    def add(self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None) -> LinearOperator:
+    def add(
+        self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None
+    ) -> LinearOperator:
         r"""
         Each element of the tensor :attr:`other` is multiplied by the scalar :attr:`alpha`
         and added to each element of the :obj:`~linear_operator.operators.LinearOperator`.
@@ -941,9 +1013,13 @@ class LinearOperator(ABC):
                         self.shape, diag_shape
                     )
                 )
-            diag_tensor = ConstantDiagLinearOperator(expanded_diag, diag_shape=self.shape[-1])
+            diag_tensor = ConstantDiagLinearOperator(
+                expanded_diag, diag_shape=self.shape[-1]
+            )
 
-        return AddedDiagLinearOperator(self, diag_tensor, linear_solver=self.linear_solver)
+        return AddedDiagLinearOperator(
+            self, diag_tensor, linear_solver=self.linear_solver
+        )
 
     def add_jitter(self, jitter_val: float = 1e-3) -> LinearOperator:
         r"""
@@ -1005,7 +1081,9 @@ class LinearOperator(ABC):
         from .triangular_linear_operator import TriangularLinearOperator
 
         if not isinstance(self, SumLinearOperator):
-            new_linear_op = self + to_linear_operator(low_rank_mat.matmul(low_rank_mat.mT))
+            new_linear_op = self + to_linear_operator(
+                low_rank_mat.matmul(low_rank_mat.mT)
+            )
         else:
             new_linear_op = SumLinearOperator(
                 *self.linear_ops,
@@ -1018,7 +1096,10 @@ class LinearOperator(ABC):
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
         # don't create one
-        has_roots = any(_is_in_cache_ignore_args(self, key) for key in ("root_decomposition", "root_inv_decomposition"))
+        has_roots = any(
+            _is_in_cache_ignore_args(self, key)
+            for key in ("root_decomposition", "root_inv_decomposition")
+        )
         if not generate_roots and not has_roots:
             return new_linear_op
 
@@ -1026,11 +1107,15 @@ class LinearOperator(ABC):
         # \tilde{A} = A + BB^T = L(I + L^{-1} B B^T L^{-T})L^T
 
         # first get LL^T = A
-        current_root = self.root_decomposition(method=root_decomp_method, **root_decomp_kwargs).root
+        current_root = self.root_decomposition(
+            method=root_decomp_method, **root_decomp_kwargs
+        ).root
         return_triangular = isinstance(current_root, TriangularLinearOperator)
 
         # and MM^T = A^{-1}
-        current_inv_root = self.root_inv_decomposition(method=root_inv_decomp_method).root.mT
+        current_inv_root = self.root_inv_decomposition(
+            method=root_inv_decomp_method
+        ).root.mT
 
         # compute p = M B and take its SVD
         pvector = current_inv_root.matmul(low_rank_mat)
@@ -1039,7 +1124,9 @@ class LinearOperator(ABC):
         U, S, _ = torch.linalg.svd(pvector, full_matrices=True)
 
         # we want the root decomposition of I_r + U S^2 U^T but S is q so we need to pad.
-        one_padding = torch.ones(*S.shape[:-1], U.shape[-2] - S.shape[-1], device=S.device, dtype=S.dtype)
+        one_padding = torch.ones(
+            *S.shape[:-1], U.shape[-2] - S.shape[-1], device=S.device, dtype=S.dtype
+        )
         # the non zero eigenvalues get updated by S^2 + 1, so we take the square root.
         root_S_plus_identity = (S**2 + 1.0) ** 0.5
         # pad the nonzero eigenvalues with the ones
@@ -1068,7 +1155,9 @@ class LinearOperator(ABC):
             )
 
         # compute \tilde{S}^{-1}
-        stacked_inv_root_S = torch.cat((1.0 / root_S_plus_identity, one_padding), dim=-1)
+        stacked_inv_root_S = torch.cat(
+            (1.0 / root_S_plus_identity, one_padding), dim=-1
+        )
         # compute the new inverse inner root: U \tilde{S}^{-1}
         inner_inv_root = U.matmul(torch.diag_embed(stacked_inv_root_S))
         # finally \tilde{L}^{-1} = L^{-1} U \tilde{S}^{-1}
@@ -1078,8 +1167,14 @@ class LinearOperator(ABC):
             updated_root = TriangularLinearOperator(updated_root)
             updated_inv_root = TriangularLinearOperator(updated_inv_root)
 
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(updated_root))
-        add_to_cache(new_linear_op, "root_inv_decomposition", RootLinearOperator(updated_inv_root))
+        add_to_cache(
+            new_linear_op, "root_decomposition", RootLinearOperator(updated_root)
+        )
+        add_to_cache(
+            new_linear_op,
+            "root_inv_decomposition",
+            RootLinearOperator(updated_inv_root),
+        )
 
         return new_linear_op
 
@@ -1176,14 +1271,17 @@ class LinearOperator(ABC):
 
         if not generate_roots and generate_inv_roots:
             warnings.warn(
-                "root_inv_decomposition is only generated when " "root_decomposition is generated.",
+                "root_inv_decomposition is only generated when "
+                "root_decomposition is generated.",
                 UserWarning,
             )
         B_, B = cross_mat, to_linear_operator(cross_mat)
         D = to_linear_operator(new_mat)
         batch_shape = B.shape[:-2]
         if self.ndimension() < cross_mat.ndimension():
-            expand_shape = torch.broadcast_shapes(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
+            expand_shape = (
+                torch.broadcast_shapes(self.shape[:-2], B.shape[:-2]) + self.shape[-2:]
+            )
             A = self.expand(expand_shape)
         else:
             A = self
@@ -1191,7 +1289,9 @@ class LinearOperator(ABC):
         # form matrix C = [A B; B^T D], where A = self, B = cross_mat, D = new_mat
         upper_row = CatLinearOperator(A, B, dim=-2, output_device=A.device)
         lower_row = CatLinearOperator(B.mT, D, dim=-2, output_device=A.device)
-        new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
+        new_linear_op = CatLinearOperator(
+            upper_row, lower_row, dim=-1, output_device=A.device
+        )
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
         # don't create one
@@ -1208,19 +1308,27 @@ class LinearOperator(ABC):
         # Get components for new root Z = [E 0; F G]
         E = self.root_decomposition(**root_decomp_kwargs).root  # E = L, LL^T = A
         m, n = E.shape[-2:]
-        R = self.root_inv_decomposition().root.to_dense()  # RR^T = A^{-1} (this is fast if L is triangular)
+        R = (
+            self.root_inv_decomposition().root.to_dense()
+        )  # RR^T = A^{-1} (this is fast if L is triangular)
         lower_left = B_ @ R  # F = BR
         schur = D - lower_left.matmul(lower_left.mT)  # GG^T = new_mat - FF^T
-        schur_root = to_linear_operator(schur).root_decomposition().root.to_dense()  # G = (new_mat - FF^T)^{1/2}
+        schur_root = (
+            to_linear_operator(schur).root_decomposition().root.to_dense()
+        )  # G = (new_mat - FF^T)^{1/2}
 
         # Form new root matrix
         num_fant = schur_root.size(-2)
-        new_root = torch.zeros(*batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype)
+        new_root = torch.zeros(
+            *batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype
+        )
         new_root[..., :m, :n] = E.to_dense()
         new_root[..., m:, : lower_left.shape[-1]] = lower_left
         new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root
         if generate_inv_roots:
-            if isinstance(E, TriangularLinearOperator) and isinstance(schur_root, TriangularLinearOperator):
+            if isinstance(E, TriangularLinearOperator) and isinstance(
+                schur_root, TriangularLinearOperator
+            ):
                 # make sure these are actually upper triangular
                 if getattr(E, "upper", False) or getattr(schur_root, "upper", False):
                     raise NotImplementedError
@@ -1236,7 +1344,11 @@ class LinearOperator(ABC):
                 RootLinearOperator(to_linear_operator(new_inv_root)),
             )
 
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(to_linear_operator(new_root)))
+        add_to_cache(
+            new_linear_op,
+            "root_decomposition",
+            RootLinearOperator(to_linear_operator(new_root)),
+        )
 
         return new_linear_op
 
@@ -1259,7 +1371,10 @@ class LinearOperator(ABC):
         Returns clone of the LinearOperator (with clones of all underlying tensors)
         """
         args = [arg.clone() if hasattr(arg, "clone") else arg for arg in self._args]
-        kwargs = {key: val.clone() if hasattr(val, "clone") else val for key, val in self._kwargs.items()}
+        kwargs = {
+            key: val.clone() if hasattr(val, "clone") else val
+            for key, val in self._kwargs.items()
+        }
         return self.__class__(*args, **kwargs)
 
     def cpu(self) -> LinearOperator:
@@ -1340,18 +1455,24 @@ class LinearOperator(ABC):
         :return: The diagonal (or batch of diagonals) of :math:`\mathbf A`.
         """
 
-        if not offset == 0 and ((dim1 == -2 and dim2 == -1) or (dim1 == -1 and dim2 == -2)):
+        if not offset == 0 and (
+            (dim1 == -2 and dim2 == -1) or (dim1 == -1 and dim2 == -2)
+        ):
             raise NotImplementedError(
                 "LinearOperator#diagonal is only implemented for when :attr:`dim1` and :attr:`dim2` are equal "
                 "to -2 and -1, respectfully, and :attr:`offset = 0`. "
                 f"Got: offset={offset}, dim1={dim1}, dim2={dim2}."
             )
         elif not self.is_square:
-            raise RuntimeError("LinearOperator#diagonal is only implemented for square operators.")
+            raise RuntimeError(
+                "LinearOperator#diagonal is only implemented for square operators."
+            )
         return self._diagonal()
 
     @cached(name="diagonalization")
-    def diagonalization(self, method: Optional[str] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def diagonalization(
+        self, method: Optional[str] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns a (usually partial) diagonalization of a symmetric PSD matrix.
         Options are either "lanczos" or "symeig". "lanczos" runs Lanczos while
@@ -1412,7 +1533,9 @@ class LinearOperator(ABC):
         from .zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
-            raise RuntimeError("Attempted to divide by a ZeroLinearOperator (divison by zero)")
+            raise RuntimeError(
+                "Attempted to divide by a ZeroLinearOperator (divison by zero)"
+            )
 
         return self.mul(1.0 / other)
 
@@ -1480,7 +1603,9 @@ class LinearOperator(ABC):
     def exp(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
         # We define it here so that we can map the torch function torch.exp to the LinearOperator method
-        raise NotImplementedError(f"torch.exp({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.exp({self.__class__.__name__}) is not implemented."
+        )
 
     def expand(self, *sizes: Union[torch.Size, Tuple[int, ...]]) -> LinearOperator:
         r"""
@@ -1506,7 +1631,10 @@ class LinearOperator(ABC):
         """
         if len(sizes) == 1 and hasattr(sizes, "__iter__"):
             sizes = sizes[0]
-        if len(sizes) < 2 or tuple(sizes[-2:]) not in {tuple(self.matrix_shape), (-1, -1)}:
+        if len(sizes) < 2 or tuple(sizes[-2:]) not in {
+            tuple(self.matrix_shape),
+            (-1, -1),
+        }:
             raise RuntimeError(
                 "Invalid expand arguments {}. Currently, repeat only works to create repeated "
                 "batches of a 2D LinearOperator.".format(tuple(sizes))
@@ -1535,7 +1663,9 @@ class LinearOperator(ABC):
         """
         return self.type(torch.half)
 
-    def inv_quad(self, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = True) -> torch.Tensor:
+    def inv_quad(
+        self, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = True
+    ) -> torch.Tensor:
         r"""
         Computes an inverse quadratic form (w.r.t self) with several right hand sides, i.e:
 
@@ -1587,7 +1717,10 @@ class LinearOperator(ABC):
                 "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
                 "of dimensions.".format(self.shape, inv_quad_rhs.shape)
             )
-        elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
+        elif (
+            self.batch_shape != inv_quad_rhs.shape[:-2]
+            or self.shape[-1] != inv_quad_rhs.shape[-2]
+        ):
             raise RuntimeError(
                 "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                     self.shape, inv_quad_rhs.shape
@@ -1596,17 +1729,26 @@ class LinearOperator(ABC):
 
         # Special case: use Cholesky to compute these terms
         if self.linear_solver is None:
-            inv_quad_term, _ = self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=False)
+            inv_quad_term, _ = self._inv_quad_logdet(
+                inv_quad_rhs=inv_quad_rhs, logdet=False
+            )
         else:
-            args = (inv_quad_rhs.expand(*result_shape[:-2], *inv_quad_rhs.shape[-2:]),) + self.representation()
-            inv_quad_term = InvQuad.apply(self.representation_tree(), self.linear_solver, *args)
+            args = (
+                inv_quad_rhs.expand(*result_shape[:-2], *inv_quad_rhs.shape[-2:]),
+            ) + self.representation()
+            inv_quad_term = InvQuad.apply(
+                self.representation_tree(), self.linear_solver, *args
+            )
 
         if inv_quad_term.numel() and reduce_inv_quad:
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term
 
     def inv_quad_logdet(
-        self, inv_quad_rhs: Optional[Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
+        self,
+        inv_quad_rhs: Optional[Tensor] = None,
+        logdet: bool = False,
+        reduce_inv_quad: bool = True,
     ) -> Tuple[Union[Tensor, None], Union[Tensor, None]]:
         r"""
         Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive
@@ -1626,10 +1768,12 @@ class LinearOperator(ABC):
         # Short circuit to inv_quad function if we're not computing logdet
         if not logdet:
             if inv_quad_rhs is None:
-                raise RuntimeError("Either `inv_quad_rhs` or `logdet` must be specifed.")
-            return self.inv_quad(inv_quad_rhs, reduce_inv_quad=reduce_inv_quad), torch.zeros(
-                [], dtype=self.dtype, device=self.device
-            )
+                raise RuntimeError(
+                    "Either `inv_quad_rhs` or `logdet` must be specifed."
+                )
+            return self.inv_quad(
+                inv_quad_rhs, reduce_inv_quad=reduce_inv_quad
+            ), torch.zeros([], dtype=self.dtype, device=self.device)
 
         # Default: use modified batch conjugate gradients to compute these terms
         # See NeurIPS 2018 paper: https://arxiv.org/abs/1809.11165
@@ -1654,7 +1798,10 @@ class LinearOperator(ABC):
                     "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
                     "of dimensions.".format(self.shape, inv_quad_rhs.shape)
                 )
-            elif self.batch_shape != inv_quad_rhs.shape[:-2] or self.shape[-1] != inv_quad_rhs.shape[-2]:
+            elif (
+                self.batch_shape != inv_quad_rhs.shape[:-2]
+                or self.shape[-1] != inv_quad_rhs.shape[-2]
+            ):
                 raise RuntimeError(
                     "LinearOperator (size={}) cannot be multiplied with right-hand-side Tensor (size={}).".format(
                         self.shape, inv_quad_rhs.shape
@@ -1663,7 +1810,9 @@ class LinearOperator(ABC):
 
         # Special case: use Cholesky to compute these terms
         if self.linear_solver is None:
-            inv_quad_term, logdet_term = self._inv_quad_logdet(inv_quad_rhs=inv_quad_rhs, logdet=logdet)
+            inv_quad_term, logdet_term = self._inv_quad_logdet(
+                inv_quad_rhs=inv_quad_rhs, logdet=logdet
+            )
 
         else:
             args = self.representation()
@@ -1708,21 +1857,27 @@ class LinearOperator(ABC):
     def inverse(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
         # We define it here so that we can map the torch function torch.inverse to the LinearOperator method
-        raise NotImplementedError(f"torch.inverse({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.inverse({self.__class__.__name__}) is not implemented."
+        )
 
     @property
     def is_square(self) -> bool:
         return self.matrix_shape[0] == self.matrix_shape[1]
 
     @_implements_symmetric(torch.isclose)
-    def isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+    def isclose(
+        self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+    ) -> Tensor:
         return self._isclose(other, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
     @_implements(torch.log)
     def log(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
         # We define it here so that we can map the torch function torch.log to the LinearOperator method
-        raise NotImplementedError(f"torch.log({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.log({self.__class__.__name__}) is not implemented."
+        )
 
     @_implements(torch.logdet)
     def logdet(self) -> torch.Tensor:
@@ -1733,7 +1888,9 @@ class LinearOperator(ABC):
         return res
 
     @_implements(torch.matmul)
-    def matmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
+    def matmul(
+        self, other: Union[torch.Tensor, "LinearOperator"]
+    ) -> Union[torch.Tensor, "LinearOperator"]:
         r"""
         Performs :math:`\mathbf A \mathbf B`, where :math:`\mathbf A \in
         \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
@@ -1765,7 +1922,9 @@ class LinearOperator(ABC):
         return self.transpose(-1, -2)
 
     @_implements_symmetric(torch.mul)
-    def mul(self, other: Union[float, torch.Tensor, "LinearOperator"]) -> LinearOperator:
+    def mul(
+        self, other: Union[float, torch.Tensor, "LinearOperator"]
+    ) -> LinearOperator:
         """
         Multiplies the matrix by a constant, or elementwise the matrix by another matrix.
 
@@ -1788,13 +1947,18 @@ class LinearOperator(ABC):
             broadcast_shape = torch.broadcast_shapes(self.shape, other.shape)
         except RuntimeError:
             raise RuntimeError(
-                "Cannot multiply LinearOperator of size {} by an object of size {}".format(self.shape, other.shape)
+                "Cannot multiply LinearOperator of size {} by an object of size {}".format(
+                    self.shape, other.shape
+                )
             )
 
         if torch.is_tensor(other):
             if other.numel() == 1:
                 return self._mul_constant(other.squeeze())
-            elif other.shape[-2:] == torch.Size((1, 1)) and self.batch_shape == broadcast_shape[:-2]:
+            elif (
+                other.shape[-2:] == torch.Size((1, 1))
+                and self.batch_shape == broadcast_shape[:-2]
+            ):
                 return self._mul_constant(other.view(*other.shape[:-2]))
 
         return self._mul_matrix(to_linear_operator(other))
@@ -1851,7 +2015,9 @@ class LinearOperator(ABC):
                     )
 
         if dims[-2:] != (num_dims - 2, num_dims - 1):
-            raise ValueError("At the moment, cannot permute the non-batch dimensions of LinearOperators.")
+            raise ValueError(
+                "At the moment, cannot permute the non-batch dimensions of LinearOperators."
+            )
 
         return self._permute_batch(*dims[:-2])
 
@@ -1879,7 +2045,9 @@ class LinearOperator(ABC):
             https://www.sciencedirect.com/science/article/pii/S0168927411001814
         """
         func = PivotedCholesky.apply
-        res, pivots = func(self.representation_tree(), rank, error_tol, *self.representation())
+        res, pivots = func(
+            self.representation_tree(), rank, error_tol, *self.representation()
+        )
 
         if return_pivots:
             return res, pivots
@@ -1906,7 +2074,9 @@ class LinearOperator(ABC):
         :param dim: Which dimension to compute the product along.
         """
         if dim is None:
-            raise ValueError("At the moment, LinearOperator.prod requires a dim argument (got None)")
+            raise ValueError(
+                "At the moment, LinearOperator.prod requires a dim argument (got None)"
+            )
 
         orig_dim = dim
         if dim < 0:
@@ -1957,10 +2127,14 @@ class LinearOperator(ABC):
         for arg in self._args:
             if torch.is_tensor(arg):
                 representation.append(arg)
-            elif hasattr(arg, "representation") and callable(arg.representation):  # Is it a LinearOperator?
+            elif hasattr(arg, "representation") and callable(
+                arg.representation
+            ):  # Is it a LinearOperator?
                 representation += list(arg.representation())
             else:
-                raise RuntimeError("Representation of a LinearOperator should consist only of Tensors")
+                raise RuntimeError(
+                    "Representation of a LinearOperator should consist only of Tensors"
+                )
         return tuple(representation)
 
     # TODO: make this method private
@@ -2012,7 +2186,9 @@ class LinearOperator(ABC):
         return self.expand(*sizes)
 
     @_implements_second_arg(torch.matmul)
-    def rmatmul(self, other: Union[torch.Tensor, "LinearOperator"]) -> Union[torch.Tensor, "LinearOperator"]:
+    def rmatmul(
+        self, other: Union[torch.Tensor, "LinearOperator"]
+    ) -> Union[torch.Tensor, "LinearOperator"]:
         r"""
         Performs :math:`\mathbf B \mathbf A`, where :math:`\mathbf A \in
         \mathbb R^{M \times N}` is the LinearOperator and :math:`\mathbf B`
@@ -2068,7 +2244,9 @@ class LinearOperator(ABC):
 
         if method == "pivoted_cholesky":
             return RootLinearOperator(
-                to_linear_operator(self.to_dense()).pivoted_cholesky(rank=self._root_decomposition_size())
+                to_linear_operator(self.to_dense()).pivoted_cholesky(
+                    rank=self._root_decomposition_size()
+                )
             )
         if method == "symeig":
             evals, evecs = self._symeig(eigenvectors=True)
@@ -2147,7 +2325,10 @@ class LinearOperator(ABC):
                         "LinearOperator (size={}) and initial_vectors (size={}) should have the same number "
                         "of dimensions.".format(self.shape, initial_vectors.shape)
                     )
-                elif self.batch_shape != initial_vectors.shape[:-2] or self.shape[-1] != initial_vectors.shape[-2]:
+                elif (
+                    self.batch_shape != initial_vectors.shape[:-2]
+                    or self.shape[-1] != initial_vectors.shape[-2]
+                ):
                     raise RuntimeError(
                         "LinearOperator (size={}) cannot be multiplied with initial_vectors (size={}).".format(
                             self.shape, initial_vectors.shape
@@ -2156,7 +2337,9 @@ class LinearOperator(ABC):
 
             inv_root = self._root_inv_decomposition(initial_vectors)
             if initial_vectors is not None and initial_vectors.size(-1) > 1:
-                inv_root = _postprocess_lanczos_root_inv_decomp(self, inv_root, initial_vectors, test_vectors)
+                inv_root = _postprocess_lanczos_root_inv_decomp(
+                    self, inv_root, initial_vectors, test_vectors
+                )
         elif method == "symeig":
             evals, evecs = self._symeig(eigenvectors=True)
             # TODO: only use non-zero evals (req. dealing w/ batches...)
@@ -2193,7 +2376,9 @@ class LinearOperator(ABC):
         return self.size()
 
     @_implements(torch.linalg.solve)
-    def solve(self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def solve(
+        self, right_tensor: torch.Tensor, left_tensor: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         r"""
         Computes a linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
         I.e. computes
@@ -2251,7 +2436,11 @@ class LinearOperator(ABC):
             func = Solve
             if left_tensor is None:
                 return func.apply(
-                    self.representation_tree(), self.linear_solver, False, right_tensor, *self.representation()
+                    self.representation_tree(),
+                    self.linear_solver,
+                    False,
+                    right_tensor,
+                    *self.representation(),
                 )
             else:
                 return func.apply(
@@ -2265,7 +2454,11 @@ class LinearOperator(ABC):
 
     @_implements(torch.linalg.solve_triangular)
     def solve_triangular(
-        self, rhs: torch.Tensor, upper: bool, left: bool = True, unitriangular: bool = False
+        self,
+        rhs: torch.Tensor,
+        upper: bool,
+        left: bool = True,
+        unitriangular: bool = False,
     ) -> torch.Tensor:
         r"""
         Computes a triangular linear solve (w.r.t self = :math:`\mathbf A`) with right hand side :math:`\mathbf R`.
@@ -2294,15 +2487,21 @@ class LinearOperator(ABC):
         """
         # This function is only implemented by TriangularLinearOperator subclasses. We define it here so
         # that we can map the torch function torch.linalg.solve_triangular to the LinearOperator method.
-        raise NotImplementedError(f"torch.linalg.solve_triangular({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.linalg.solve_triangular({self.__class__.__name__}) is not implemented."
+        )
 
     @_implements(torch.sqrt)
     def sqrt(self) -> "LinearOperator":
         # Only implemented by some LinearOperator subclasses
         # We define it here so that we can map the torch function torch.sqrt to the LinearOperator method
-        raise NotImplementedError(f"torch.sqrt({self.__class__.__name__}) is not implemented.")
+        raise NotImplementedError(
+            f"torch.sqrt({self.__class__.__name__}) is not implemented."
+        )
 
-    def sqrt_inv_matmul(self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def sqrt_inv_matmul(
+        self, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         r"""
         If the LinearOperator :math:`\mathbf A` is positive definite,
         computes
@@ -2334,7 +2533,9 @@ class LinearOperator(ABC):
             squeeze = True
 
         func = SqrtInvMatmul
-        sqrt_inv_matmul_res, inv_quad_res = func.apply(self.representation_tree(), rhs, lhs, *self.representation())
+        sqrt_inv_matmul_res, inv_quad_res = func.apply(
+            self.representation_tree(), rhs, lhs, *self.representation()
+        )
 
         if squeeze:
             sqrt_inv_matmul_res = sqrt_inv_matmul_res.squeeze(-1)
@@ -2362,7 +2563,9 @@ class LinearOperator(ABC):
             return self[index]
 
     @_implements(torch.sub)
-    def sub(self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None) -> LinearOperator:
+    def sub(
+        self, other: Union[torch.Tensor, "LinearOperator"], alpha: float = None
+    ) -> LinearOperator:
         r"""
         Each element of the tensor :attr:`other` is multiplied by the scalar :attr:`alpha`
         and subtracted to each element of the :obj:`~linear_operator.operators.LinearOperator`.
@@ -2422,7 +2625,11 @@ class LinearOperator(ABC):
         elif dim < self.dim():
             return self._sum_batch(dim)
         else:
-            raise ValueError("Invalid dim ({}) for LinearOperator of size {}".format(orig_dim, self.shape))
+            raise ValueError(
+                "Invalid dim ({}) for LinearOperator of size {}".format(
+                    orig_dim, self.shape
+                )
+            )
 
     def svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
         r"""
@@ -2442,7 +2649,9 @@ class LinearOperator(ABC):
         return self._svd()
 
     @_implements(torch.linalg.svd)
-    def _torch_linalg_svd(self) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
+    def _torch_linalg_svd(
+        self,
+    ) -> Tuple["LinearOperator", torch.Tensor, "LinearOperator"]:
         r"""
         A version of self.svd() that matches the torch.linalg.svd API.
 
@@ -2527,7 +2736,12 @@ class LinearOperator(ABC):
             dim1 = ndimension + dim1
         if dim2 < 0:
             dim2 = ndimension + dim2
-        if dim1 >= ndimension or dim2 >= ndimension or not isinstance(dim1, int) or not isinstance(dim2, int):
+        if (
+            dim1 >= ndimension
+            or dim2 >= ndimension
+            or not isinstance(dim1, int)
+            or not isinstance(dim2, int)
+        ):
             raise RuntimeError("Invalid dimension")
 
         # Batch case
@@ -2546,7 +2760,9 @@ class LinearOperator(ABC):
             res = self._transpose_nonbatch()
 
         else:
-            raise RuntimeError("Cannot transpose batch dimension with non-batch dimension")
+            raise RuntimeError(
+                "Cannot transpose batch dimension with non-batch dimension"
+            )
 
         return res
 
@@ -2641,7 +2857,11 @@ class LinearOperator(ABC):
                 dtype=self.dtype,
                 device=self.device,
             )
-            samples = covar_root.matmul(base_samples).permute(-1, *range(self.dim() - 1)).contiguous()
+            samples = (
+                covar_root.matmul(base_samples)
+                .permute(-1, *range(self.dim() - 1))
+                .contiguous()
+            )
 
         return samples
 
@@ -2662,8 +2882,16 @@ class LinearOperator(ABC):
         elif isinstance(other, Tensor):
             other = to_linear_operator(other)
             shape = torch.broadcast_shapes(self.shape, other.shape)
-            new_self = self if self.shape[:-2] == shape[:-2] else self._expand_batch(shape[:-2])
-            new_other = other if other.shape[:-2] == shape[:-2] else other._expand_batch(shape[:-2])
+            new_self = (
+                self
+                if self.shape[:-2] == shape[:-2]
+                else self._expand_batch(shape[:-2])
+            )
+            new_other = (
+                other
+                if other.shape[:-2] == shape[:-2]
+                else other._expand_batch(shape[:-2])
+            )
             return SumLinearOperator(new_self, new_other)
         elif isinstance(other, numbers.Number) and other == 0:
             return self
@@ -2677,12 +2905,19 @@ class LinearOperator(ABC):
 
         # Process the index
         index = index if isinstance(index, tuple) else (index,)
-        index = tuple(torch.tensor(idx) if isinstance(idx, list) else idx for idx in index)
-        index = tuple(idx.item() if torch.is_tensor(idx) and not len(idx.shape) else idx for idx in index)
+        index = tuple(
+            torch.tensor(idx) if isinstance(idx, list) else idx for idx in index
+        )
+        index = tuple(
+            idx.item() if torch.is_tensor(idx) and not len(idx.shape) else idx
+            for idx in index
+        )
 
         # Handle the ellipsis
         # Find the index of the ellipsis
-        ellipsis_locs = tuple(index for index, item in enumerate(index) if item is Ellipsis)
+        ellipsis_locs = tuple(
+            index for index, item in enumerate(index) if item is Ellipsis
+        )
         if settings.debug.on():
             if len(ellipsis_locs) > 1:
                 raise RuntimeError(
@@ -2692,7 +2927,11 @@ class LinearOperator(ABC):
         if len(ellipsis_locs) == 1:
             ellipsis_loc = ellipsis_locs[0]
             num_to_fill_in = ndimension - (len(index) - 1)
-            index = index[:ellipsis_loc] + tuple(_noop_index for _ in range(num_to_fill_in)) + index[ellipsis_loc + 1 :]
+            index = (
+                index[:ellipsis_loc]
+                + tuple(_noop_index for _ in range(num_to_fill_in))
+                + index[ellipsis_loc + 1 :]
+            )
 
         # Pad the index with empty indices
         index = index + tuple(_noop_index for _ in range(ndimension - len(index)))
@@ -2701,14 +2940,18 @@ class LinearOperator(ABC):
         *batch_indices, row_index, col_index = index
 
         # Helpers to determine what the final shape will be if we're tensor indexed
-        batch_has_tensor_index = bool(len(batch_indices)) and any(torch.is_tensor(index) for index in batch_indices)
+        batch_has_tensor_index = bool(len(batch_indices)) and any(
+            torch.is_tensor(index) for index in batch_indices
+        )
         row_has_tensor_index = torch.is_tensor(row_index)
         col_has_tensor_index = torch.is_tensor(col_index)
         # These are the cases where the row and/or column indices will be "absorbed" into other indices
         row_col_are_absorbed = any(
             (
-                batch_has_tensor_index and (row_has_tensor_index or col_has_tensor_index),
-                not batch_has_tensor_index and (row_has_tensor_index and col_has_tensor_index),
+                batch_has_tensor_index
+                and (row_has_tensor_index or col_has_tensor_index),
+                not batch_has_tensor_index
+                and (row_has_tensor_index and col_has_tensor_index),
             )
         )
 
@@ -2728,10 +2971,15 @@ class LinearOperator(ABC):
         if row_col_are_absorbed:
             # Get broadcasted size of existing tensor indices
             orig_indices = [*batch_indices, row_index, col_index]
-            tensor_index_shape = torch.broadcast_shapes(*[idx.shape for idx in orig_indices if torch.is_tensor(idx)])
+            tensor_index_shape = torch.broadcast_shapes(
+                *[idx.shape for idx in orig_indices if torch.is_tensor(idx)]
+            )
             # Flatten existing tensor indices
             flattened_orig_indices = [
-                idx.expand(tensor_index_shape).reshape(-1) if torch.is_tensor(idx) else idx for idx in orig_indices
+                idx.expand(tensor_index_shape).reshape(-1)
+                if torch.is_tensor(idx)
+                else idx
+                for idx in orig_indices
             ]
             # Convert all indices into tensor indices
             (
@@ -2765,13 +3013,17 @@ class LinearOperator(ABC):
                 raise RuntimeError(
                     "{}.__getitem__ failed! Expected a final shape of size {}, "
                     "got {}. This is a bug with LinearOperator, "
-                    "or your custom LinearOperator.".format(self.__class__.__name__, expected_shape, res.shape)
+                    "or your custom LinearOperator.".format(
+                        self.__class__.__name__, expected_shape, res.shape
+                    )
                 )
 
         # We're done!
         return res
 
-    def _isclose(self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> Tensor:
+    def _isclose(
+        self, other, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+    ) -> Tensor:
         # As the default we can fall back to just calling isclose on the dense tensors. This is problematic
         # if the represented tensor is massive (in which case using this method may not make a lot of sense.
         # Regardless, if possible it would make sense to overwrite this method on the subclasses if that can
@@ -2781,37 +3033,57 @@ class LinearOperator(ABC):
             "This may incur substantial performance and memory penalties.",
             PerformanceWarning,
         )
-        return torch.isclose(to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan)
+        return torch.isclose(
+            to_dense(self), to_dense(other), rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
 
-    def __matmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def __matmul__(
+        self, other: Union[torch.Tensor, LinearOperator]
+    ) -> Union[torch.Tensor, LinearOperator]:
         return self.matmul(other)
 
     @_implements_second_arg(torch.Tensor.matmul)
-    def __rmatmul__(self, other: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def __rmatmul__(
+        self, other: Union[torch.Tensor, LinearOperator]
+    ) -> Union[torch.Tensor, LinearOperator]:
         return self.rmatmul(other)
 
     @_implements_second_arg(torch.Tensor.mul)
-    def __mul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __mul__(
+        self, other: Union[torch.Tensor, LinearOperator, float]
+    ) -> LinearOperator:
         return self.mul(other)
 
     @_implements_second_arg(torch.Tensor.add)
-    def __radd__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __radd__(
+        self, other: Union[torch.Tensor, LinearOperator, float]
+    ) -> LinearOperator:
         return self + other
 
-    def __rmul__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __rmul__(
+        self, other: Union[torch.Tensor, LinearOperator, float]
+    ) -> LinearOperator:
         return self.mul(other)
 
     @_implements_second_arg(torch.sub)
     @_implements_second_arg(torch.Tensor.sub)
-    def __rsub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __rsub__(
+        self, other: Union[torch.Tensor, LinearOperator, float]
+    ) -> LinearOperator:
         return self.mul(-1) + other
 
-    def __sub__(self, other: Union[torch.Tensor, LinearOperator, float]) -> LinearOperator:
+    def __sub__(
+        self, other: Union[torch.Tensor, LinearOperator, float]
+    ) -> LinearOperator:
         return self + other.mul(-1)
 
     @classmethod
     def __torch_function__(
-        cls, func: Callable, types: Tuple[type, ...], args: Tuple[Any, ...] = (), kwargs: Dict[str, Any] = None
+        cls,
+        func: Callable,
+        types: Tuple[type, ...],
+        args: Tuple[Any, ...] = (),
+        kwargs: Dict[str, Any] = None,
     ) -> Any:
         if kwargs is None:
             kwargs = {}
@@ -2822,18 +3094,28 @@ class LinearOperator(ABC):
             ):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
-                kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
+                kwarg_classes = ", ".join(
+                    f"{key}={val.__class__.__name__}" for key, val in kwargs.items()
+                )
+                raise NotImplementedError(
+                    f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented."
+                )
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_SECOND_ARG_FUNCTIONS[func])
             return func(args[1], args[0], *args[2:], **kwargs)
         else:
-            if func not in _HANDLED_FUNCTIONS or not all(issubclass(t, (torch.Tensor, LinearOperator)) for t in types):
+            if func not in _HANDLED_FUNCTIONS or not all(
+                issubclass(t, (torch.Tensor, LinearOperator)) for t in types
+            ):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
-                kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
+                kwarg_classes = ", ".join(
+                    f"{key}={val.__class__.__name__}" for key, val in kwargs.items()
+                )
+                raise NotImplementedError(
+                    f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented."
+                )
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_FUNCTIONS[func])
@@ -2862,9 +3144,15 @@ def to_dense(obj: Union[LinearOperator, torch.Tensor]) -> torch.Tensor:
     elif isinstance(obj, LinearOperator):
         return obj.to_dense()
     else:
-        raise TypeError("object of class {} cannot be made into a Tensor".format(obj.__class__.__name__))
+        raise TypeError(
+            "object of class {} cannot be made into a Tensor".format(
+                obj.__class__.__name__
+            )
+        )
 
 
-_deprecate_renamed_methods(LinearOperator, inv_quad_log_det="inv_quad_logdet", log_det="logdet")
+_deprecate_renamed_methods(
+    LinearOperator, inv_quad_log_det="inv_quad_logdet", log_det="logdet"
+)
 
 __all__ = ["LinearOperator", "to_dense"]

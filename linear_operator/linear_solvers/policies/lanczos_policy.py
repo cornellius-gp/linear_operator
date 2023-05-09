@@ -12,15 +12,15 @@ from .linear_solver_policy import LinearSolverPolicy
 class NaiveLanczosPolicy(LinearSolverPolicy):
     """Policy choosing approximate eigenvectors as actions."""
 
-    def __init__(self, seeding: float = "random", precond: Optional["LinearOperator"] = None) -> None:
+    def __init__(
+        self, seeding: float = "random", precond: Optional["LinearOperator"] = None
+    ) -> None:
         self.seeding = seeding
         self.precond = precond
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-
         if solver_state.iteration == 0:
-
             # Seed vector
             if self.seeding == "random":
                 init_vec = torch.randn(
@@ -35,7 +35,10 @@ class NaiveLanczosPolicy(LinearSolverPolicy):
             # Cache initial vector
             solver_state.cache["init_vec"] = init_vec
 
-        action = solver_state.cache["init_vec"] - solver_state.problem.A @ solver_state.solution
+        action = (
+            solver_state.cache["init_vec"]
+            - solver_state.problem.A @ solver_state.solution
+        )
 
         if isinstance(self.precond, (torch.Tensor, LinearOperator)):
             action = self.precond @ action
@@ -53,9 +56,7 @@ class SubsetLanczosPolicy(LinearSolverPolicy):
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-
         if solver_state.iteration == 0:
-
             # Seed vector
             init_vec = torch.randn(
                 self.subset_size,
@@ -68,13 +69,29 @@ class SubsetLanczosPolicy(LinearSolverPolicy):
             solver_state.cache["init_vec"] = init_vec
 
         action = torch.zeros(
-            solver_state.problem.A.shape[1], dtype=solver_state.problem.A.dtype, device=solver_state.problem.A.device
+            solver_state.problem.A.shape[1],
+            dtype=solver_state.problem.A.dtype,
+            device=solver_state.problem.A.device,
         )
-        action[0 : self.subset_size] = (
-            solver_state.cache["init_vec"]
-            - solver_state.problem.A[0 : self.subset_size, 0 : self.subset_size]
-            @ solver_state.solution[0 : self.subset_size]
-        )
+
+        if solver_state.cache["compressed_solution"] is not None:
+            action[0 : self.subset_size] = (
+                solver_state.cache["init_vec"]
+                - solver_state.problem.A[0 : self.subset_size, 0 : self.subset_size]
+                @ solver_state.solution[0 : self.subset_size]
+            )
+        else:
+            action[0 : self.subset_size] = solver_state.cache["init_vec"]
+
+            if solver_state.iteration > 0:
+                action[0 : self.subset_size] = (
+                    action[0 : self.subset_size]
+                    - (
+                        solver_state.problem.A[0 : self.subset_size, :]
+                        @ solver_state.cache["prev_actions"]
+                    )
+                    @ solver_state.cache["compressed_solution"]
+                )
 
         return action
 
@@ -88,7 +105,6 @@ class LanczosPolicy(LinearSolverPolicy):
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-
         if solver_state.iteration == 0:
             # Compute approximate eigenvectors via Lanczos process
 
@@ -105,7 +121,9 @@ class LanczosPolicy(LinearSolverPolicy):
             Q, T = lanczos_tridiag(
                 solver_state.problem.A.matmul,
                 init_vecs=init_vecs,
-                max_iter=solver_state.problem.A.shape[1] if self.max_iter is None else self.max_iter,
+                max_iter=solver_state.problem.A.shape[1]
+                if self.max_iter is None
+                else self.max_iter,
                 dtype=solver_state.problem.A.dtype,
                 device=solver_state.problem.A.device,
                 matrix_shape=solver_state.problem.A.shape,
@@ -115,11 +133,15 @@ class LanczosPolicy(LinearSolverPolicy):
             evecs_lanczos = Q @ evecs_T
 
             # Cache approximate eigenvectors
-            solver_state.cache["evals_lanczos"], idcs = torch.sort(evals_lanczos, descending=self.descending)
+            solver_state.cache["evals_lanczos"], idcs = torch.sort(
+                evals_lanczos, descending=self.descending
+            )
             solver_state.cache["evecs_lanczos"] = evecs_lanczos[:, idcs]
 
             # Cache initial vector
-            solver_state.cache["init_vec"] = init_vecs.squeeze(-1).div(torch.linalg.vector_norm(init_vecs))
+            solver_state.cache["init_vec"] = init_vecs.squeeze(-1).div(
+                torch.linalg.vector_norm(init_vecs)
+            )
 
         # Return approximate eigenvectors according to strategy
         if solver_state.iteration < solver_state.cache["evecs_lanczos"].shape[1]:
