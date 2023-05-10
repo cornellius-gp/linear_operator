@@ -9,43 +9,64 @@ from ...utils.lanczos import lanczos_tridiag, lanczos_tridiag_to_diag
 from .linear_solver_policy import LinearSolverPolicy
 
 
-class NaiveLanczosPolicy(LinearSolverPolicy):
+class LanczosPolicy(LinearSolverPolicy):
     """Policy choosing approximate eigenvectors as actions."""
 
     def __init__(
-        self, seeding: float = "random", precond: Optional["LinearOperator"] = None
+        self,
+        seeding: float = "random",
+        precond: Optional["LinearOperator"] = None,
+        sparsification_threshold: float = 0.0,
+        num_non_zero: Optional[int] = None,
     ) -> None:
         self.seeding = seeding
         self.precond = precond
+        self.sparsification_threshold = sparsification_threshold
+        self.num_nonzero = num_non_zero
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-        if solver_state.iteration == 0:
-            # Seed vector
-            if self.seeding == "random":
-                init_vec = torch.randn(
-                    solver_state.problem.A.shape[1],
+        with torch.no_grad():
+            if not "init_vec" in solver_state.cache:
+                # Seed vector
+                if self.seeding == "random":
+                    init_vec = torch.randn(
+                        solver_state.problem.A.shape[1],
+                        dtype=solver_state.problem.A.dtype,
+                        device=solver_state.problem.A.device,
+                    )
+                    init_vec = init_vec.div(torch.linalg.vector_norm(init_vec))
+                else:
+                    raise NotImplementedError
+
+                # Cache initial vector
+                solver_state.cache["init_vec"] = init_vec
+
+            action = (
+                solver_state.cache["init_vec"]
+                - solver_state.problem.A @ solver_state.solution
+            )
+
+            if isinstance(self.precond, (torch.Tensor, LinearOperator)):
+                action = self.precond @ action
+            elif callable(self.precond):
+                action = self.precond(action).squeeze()
+
+            if self.sparsification_threshold > 0.0:
+                action[torch.abs(action) < self.sparsification_threshold] = 0.0
+
+            if self.num_nonzero is not None:
+                topk_vals, topk_idcs = torch.topk(
+                    torch.abs(action), k=self.num_nonzero, largest=True
+                )
+                action = torch.zeros(
+                    solver_state.problem.A.shape[0],
                     dtype=solver_state.problem.A.dtype,
                     device=solver_state.problem.A.device,
                 )
-                init_vec = init_vec.div(torch.linalg.vector_norm(init_vec))
-            else:
-                raise NotImplementedError
+                action[topk_idcs] = topk_vals
 
-            # Cache initial vector
-            solver_state.cache["init_vec"] = init_vec
-
-        action = (
-            solver_state.cache["init_vec"]
-            - solver_state.problem.A @ solver_state.solution
-        )
-
-        if isinstance(self.precond, (torch.Tensor, LinearOperator)):
-            action = self.precond @ action
-        elif callable(self.precond):
-            action = self.precond(action).squeeze()
-
-        return action
+            return action
 
 
 class SubsetLanczosPolicy(LinearSolverPolicy):
@@ -56,7 +77,7 @@ class SubsetLanczosPolicy(LinearSolverPolicy):
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-        if solver_state.iteration == 0:
+        if not "init_vec" in solver_state.cache:
             # Seed vector
             init_vec = torch.randn(
                 self.subset_size,
@@ -74,29 +95,16 @@ class SubsetLanczosPolicy(LinearSolverPolicy):
             device=solver_state.problem.A.device,
         )
 
-        if solver_state.cache["compressed_solution"] is not None:
-            action[0 : self.subset_size] = (
-                solver_state.cache["init_vec"]
-                - solver_state.problem.A[0 : self.subset_size, 0 : self.subset_size]
-                @ solver_state.solution[0 : self.subset_size]
-            )
-        else:
-            action[0 : self.subset_size] = solver_state.cache["init_vec"]
-
-            if solver_state.iteration > 0:
-                action[0 : self.subset_size] = (
-                    action[0 : self.subset_size]
-                    - (
-                        solver_state.problem.A[0 : self.subset_size, :]
-                        @ solver_state.cache["prev_actions"]
-                    )
-                    @ solver_state.cache["compressed_solution"]
-                )
+        action[0 : self.subset_size] = (
+            solver_state.cache["init_vec"]
+            - solver_state.problem.A[0 : self.subset_size, 0 : self.subset_size]
+            @ solver_state.solution[0 : self.subset_size]
+        )
 
         return action
 
 
-class LanczosPolicy(LinearSolverPolicy):
+class FullLanczosPolicy(LinearSolverPolicy):
     """Policy choosing approximate eigenvectors as actions."""
 
     def __init__(self, descending: bool = True, max_iter: Optional[int] = None) -> None:
