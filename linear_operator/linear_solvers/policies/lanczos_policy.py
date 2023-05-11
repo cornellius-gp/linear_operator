@@ -42,10 +42,19 @@ class LanczosPolicy(LinearSolverPolicy):
                 # Cache initial vector
                 solver_state.cache["init_vec"] = init_vec
 
-            action = (
-                solver_state.cache["init_vec"]
-                - solver_state.problem.A @ solver_state.solution
-            )
+            if "compressed_solution" in solver_state.cache:
+                if solver_state.cache["compressed_solution"] is None:
+                    action = solver_state.cache["init_vec"]
+                else:
+                    action = (
+                        solver_state.cache["init_vec"]
+                        - solver_state.cache["linear_op_actions_compressed_solution"]
+                    )
+            else:
+                action = (
+                    solver_state.cache["init_vec"]
+                    - solver_state.problem.A @ solver_state.solution
+                )
 
             if isinstance(self.precond, (torch.Tensor, LinearOperator)):
                 action = self.precond @ action
@@ -57,7 +66,7 @@ class LanczosPolicy(LinearSolverPolicy):
 
             if self.num_nonzero is not None:
                 topk_vals, topk_idcs = torch.topk(
-                    torch.abs(action), k=self.num_nonzero, largest=True
+                    torch.abs(action), k=self.num_nonzero, largest=True, sorted=False
                 )
                 action = torch.zeros(
                     solver_state.problem.A.shape[0],

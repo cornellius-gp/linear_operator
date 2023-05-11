@@ -25,24 +25,23 @@ class GradientPolicy(LinearSolverPolicy):
         super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
-        action = solver_state.residual
+        with torch.no_grad():
+            action = solver_state.residual
 
-        if isinstance(self.precond, (torch.Tensor, LinearOperator)):
-            action = self.precond @ action
-        elif callable(self.precond):
-            action = self.precond(action).squeeze()
+            if isinstance(self.precond, (torch.Tensor, LinearOperator)):
+                action = self.precond @ action
+            elif callable(self.precond):
+                action = self.precond(action).squeeze()
 
-        if self.num_nonzero is not None:
-            topk_vals, topk_idcs = torch.topk(
-                torch.abs(action), k=self.num_nonzero, largest=True
-            )
-            action = torch.zeros(
-                solver_state.problem.A.shape[0],
-                dtype=solver_state.problem.A.dtype,
-                device=solver_state.problem.A.device,
-            )
-            action[topk_idcs] = topk_vals
+            if self.num_nonzero is not None:
+                topk_vals, topk_idcs = torch.topk(
+                    torch.abs(action), k=self.num_nonzero, largest=True, sorted=False
+                )
+                action = torch.zeros(
+                    solver_state.problem.A.shape[0],
+                    dtype=solver_state.problem.A.dtype,
+                    device=solver_state.problem.A.device,
+                )
+                action[topk_idcs] = topk_vals
 
-            assert sum(action > 0.0) == self.num_nonzero
-
-        return action
+            return action

@@ -458,10 +458,13 @@ class PLSnew(LinearSolver):
             )
 
             # Update residual
+            solver_state.cache["linear_op_actions_compressed_solution"] = (
+                solver_state.cache["linear_op_actions"]
+                @ solver_state.cache["compressed_solution"]
+            )
             solver_state.residual = (
                 solver_state.problem.b
-                - solver_state.cache["linear_op_actions"]
-                @ solver_state.cache["compressed_solution"]
+                - solver_state.cache["linear_op_actions_compressed_solution"]
             )
             # TODO: Explicitly recomputing the residual improves stability a bit (for CG)
             #

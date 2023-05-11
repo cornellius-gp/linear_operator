@@ -48,7 +48,7 @@ class PseudoInputPolicy(LinearSolverPolicy):
 
             if self.num_nonzero is not None:
                 topk_vals, topk_idcs = torch.topk(
-                    torch.abs(action), k=self.num_nonzero, largest=True
+                    torch.abs(action), k=self.num_nonzero, largest=True, sorted=False
                 )
                 action = torch.zeros(
                     solver_state.problem.A.shape[0],
