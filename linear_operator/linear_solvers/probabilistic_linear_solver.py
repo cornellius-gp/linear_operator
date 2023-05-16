@@ -219,7 +219,7 @@ class PLS(LinearSolver):
         return solver_state
 
 
-class PLSnew(LinearSolver):
+class PLSsparse(LinearSolver):
     """Probabilistic linear solver.
 
     Iteratively solve linear systems of the form

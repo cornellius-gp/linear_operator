@@ -2,7 +2,7 @@
 
 from .conjugate_gradient import CG, CGGpytorch
 from .linear_solver import LinearSolver, LinearSolverState
-from .probabilistic_linear_solver import PLS, PLSnew
+from .probabilistic_linear_solver import PLS, PLSsparse
 
 __all__ = [
     "LinearSolver",
@@ -10,5 +10,5 @@ __all__ = [
     "CG",
     "CGGpytorch",
     "PLS",
-    "PLSnew",
+    "PLSsparse",
 ]
