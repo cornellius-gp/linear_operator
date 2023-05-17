@@ -5,6 +5,7 @@ from .linear_solver_policy import LinearSolverPolicy
 from .mixed_policy import MixedPolicy
 from .pseudo_input_policy import PseudoInputPolicy
 from .random_policy import RandomPolicy
+from .sinusoidal_policy import SinusoidalPolicy
 from .spectral_policy import SpectralPolicy
 from .unit_vector_policy import UnitVectorPolicy
 
@@ -20,4 +21,5 @@ __all__ = [
     "SpectralPolicy",
     "UnitVectorPolicy",
     "PseudoInputPolicy",
+    "SinusoidalPolicy",
 ]
