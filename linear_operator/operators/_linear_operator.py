@@ -589,7 +589,7 @@ class LinearOperator(object):
             return MulLinearOperator(self, other)
 
     def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
-        """
+        r"""
         (Optional) define a preconditioner (:math:`\mathbf P`) for linear conjugate gradients
 
         :return:
@@ -698,7 +698,7 @@ class LinearOperator(object):
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
     ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
-        """
+        r"""
         Returns the (usually low-rank) inverse root of a LinearOperator of a PSD matrix.
 
         ..note::
