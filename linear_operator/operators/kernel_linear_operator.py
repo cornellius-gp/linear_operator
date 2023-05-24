@@ -1,4 +1,4 @@
-from typing import Any, Callable, Union
+from typing import Any, Callable, Tuple, Union
 
 import torch
 
@@ -85,6 +85,11 @@ class KernelLinearOperator(LinearOperator):
     :param covar_func: The covariance function :math:`k_{\boldsymbol \theta}(\cdot, \cdot)`.
         Its arguments should be `x1`, `x2`, `*params`, `**kwargs`, and it should output the covariance matrix
         between :math:`\boldsymbol X_1` and :math:`\boldsymbol X_2`.
+    :param num_outputs_per_input: The number of outputs per data point.
+        This parameter should be 1 for most kernels, but will be >1 for multitask kernels,
+        gradient kernels, and any other kernels that require cross-covariance terms for multiple domains.
+        If a tuple is passed, there will be a different number of outputs per input dimension
+        for the rows/cols of the kernel matrix.
     :param kwargs: Any additional (non-hyperparameter) kwargs to pass into `covar_func`.
     """
 
@@ -94,13 +99,16 @@ class KernelLinearOperator(LinearOperator):
         x2: Float[Tensor, "... N D"],
         *params: Float[Tensor, "... #P #D"],
         covar_func: Callable[..., Float[Union[Tensor, LinearOperator], "... M N"]],
+        num_outputs_per_input: Union[int, Tuple[int, int]] = (1, 1),
         **kwargs: Any,
     ):
+        # Compute param_batch_shapes
+        param_batch_shapes = [param.shape[:-2] for param in params]
+        param_nonbatch_shapes = [param.shape[-2:] for param in params]
+
         # Ensure that x1, x2, and params can broadcast together
         try:
-            batch_broadcast_shape = torch.broadcast_shapes(
-                x1.shape[:-2], x2.shape[:-2], *[param.shape[:-2] for param in params]
-            )
+            batch_broadcast_shape = torch.broadcast_shapes(x1.shape[:-2], x2.shape[:-2], *param_batch_shapes)
         except RuntimeError:
             # Check if the issue is with x1 and x2
             try:
@@ -115,7 +123,7 @@ class KernelLinearOperator(LinearOperator):
 
             # If we've made here, this means that the parameter shapes aren't compatible with x1 and x2
             raise RuntimeError(
-                f"Shape of kernel parameters ({', '.join([tuple(param.shape) for param in params])}) "
+                f"Shape of kernel parameters ({', '.join([str(tuple(param.shape)) for param in params])}) "
                 f"is incompatible with data shapes x1.shape={tuple(x1.shape)}, x2.shape={tuple(x2.shape)}.\n"
                 "Recall that parameters passed to KernelLinearOperator should have dimensionality compatible "
                 "with the data (see documentation)."
@@ -124,15 +132,35 @@ class KernelLinearOperator(LinearOperator):
         # Create a version of each argument that is expanded to the broadcast batch shape
         x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous()
         x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous()
-        params = [param.expand(*batch_broadcast_shape, *param.shape[-2:]) for param in params]
+        params = [
+            param.expand(*batch_broadcast_shape, *param_nonbatch_shape)
+            for param, param_nonbatch_shape in zip(params, param_nonbatch_shapes)
+        ]
+        new_param_batch_shapes = [batch_broadcast_shape] * len(
+            params
+        )  # Everything should now have the same batch shape
+
+        # Maybe expand the num_outputs_per_input argument
+        if isinstance(num_outputs_per_input, int):
+            num_outputs_per_input = (num_outputs_per_input, num_outputs_per_input)
 
         # Standard constructor
-        super().__init__(x1, x2, *params, covar_func=covar_func, **kwargs)
+        super().__init__(
+            x1,
+            x2,
+            *params,
+            covar_func=covar_func,
+            num_outputs_per_input=num_outputs_per_input,
+            **kwargs,
+        )
         self.batch_broadcast_shape = batch_broadcast_shape
         self.x1 = x1
         self.x2 = x2
         self.params = params
         self.covar_func = covar_func
+        self.num_outputs_per_input = num_outputs_per_input
+        self.param_batch_shapes = new_param_batch_shapes
+        self.param_nonbatch_shapes = param_nonbatch_shapes
         self.kwargs = kwargs
 
     @cached(name="kernel_diag")
@@ -140,29 +168,17 @@ class KernelLinearOperator(LinearOperator):
         # Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
         # We will do this by shoving all of the data into a batch dimension (i.e. compute a ... x N x 1 x 1 kernel)
         # and then squeeze out the batch dimensions
-        x1 = self.x1.unsqueeze(-2)
-        x2 = self.x2.unsqueeze(-2)
-        params = [param.unsqueeze(-3) for param in self.params]
+        x1 = self.x1.unsqueeze(0).transpose(0, -2)
+        x2 = self.x2.unsqueeze(0).transpose(0, -2)
+        params = [param.unsqueeze(0) for param in self.params]
         diag_mat = to_dense(self.covar_func(x1, x2, *params, **self.kwargs))
         assert diag_mat.shape[-2:] == torch.Size([1, 1])
-        return diag_mat[..., 0, 0]
+        return diag_mat.transpose(0, -2)[0, ..., 0]
 
     @property
     @cached(name="covar_mat")
     def covar_mat(self: Float[LinearOperator, "... M N"]) -> Float[Union[Tensor, LinearOperator], "... M N"]:
         return self.covar_func(self.x1, self.x2, *self.params, **self.kwargs)
-
-    def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
-        return self.covar_mat @ rhs.contiguous()
-
-    def _size(self) -> torch.Size:
-        return torch.Size([*self.batch_broadcast_shape, self.x1.shape[-2], self.x2.shape[-2]])
-
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
-        return self.__class__(self.x2, self.x1, *self.params, covar_func=self.covar_func, **self.kwargs)
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         x1_ = self.x1[(*batch_indices, row_index)].unsqueeze(-2)
@@ -174,6 +190,62 @@ class KernelLinearOperator(LinearOperator):
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         dim_index = _noop_index
+
+        # If we have multiple outputs per input, then the indices won't directly
+        # correspond to the entries of row/col. We'll have to do a little pre-processing
+        num_outs_per_in_rows, num_outs_per_in_cols = self.num_outputs_per_input
+        if num_outs_per_in_rows != 1 or num_outs_per_in_cols != 1:
+            if not isinstance(row_index, slice) or not isinstance(col_index, slice):
+                # It's too complicated to deal with tensor indices in this case - we'll use the super method
+                try:
+                    return self.covar_mat._getitem(row_index, col_index, *batch_indices)
+                except Exception:
+                    raise TypeError(
+                        f"{self.__class__.__name__} does not accept non-slice indices. "
+                        f"Got {','.join(type(t) for t in [*batch_indices, row_index, col_index])}"
+                    )
+
+            # Now we know that x1 and x2 are slices
+            # Let's make sure that the slice dimensions perfectly correspond with the number of
+            # outputs per input that we have
+            *batch_shape, num_rows, num_cols = self._size()
+            row_start, row_end, row_step = (
+                row_index.start if row_index.start is not None else 0,
+                row_index.stop if row_index.stop is not None else num_rows,
+                row_index.step if row_index.step is not None else 1,
+            )
+            col_start, col_end, col_step = (
+                col_index.start if col_index.start is not None else 0,
+                col_index.stop if col_index.stop is not None else num_cols,
+                col_index.step if col_index.step is not None else 1,
+            )
+            if row_step is not None or col_step is not None:
+                # It's too complicated to deal with tensor indices in this case - we'll try to evaluate the kernel
+                # and use the super method
+                try:
+                    return self.covar_mat._getitem(row_index, col_index, *batch_indices)
+                except Exception:
+                    raise TypeError(f"{self.covar_mat.__class__.__name__} does not accept slices with steps.")
+            if (
+                (row_start % num_outs_per_in_rows)
+                or (col_start % num_outs_per_in_cols)
+                or (row_end % num_outs_per_in_rows)
+                or (col_end % num_outs_per_in_cols)
+            ):
+                # It's too complicated to deal with tensor indices in this case - we'll try to evaluate the kernel
+                # and use the super method
+                try:
+                    return self.covar_mat._getitem(row_index, col_index, *batch_indices)
+                except Exception:
+                    raise TypeError(
+                        f"{self.covar_mat.__class__.__name__} received an invalid slice. "
+                        "Since the covariance function produces multiple outputs for input, the slice "
+                        "should perfectly correspond with the number of outputs per input."
+                    )
+
+            # Otherwise - let's divide the slices by the number of outputs per input
+            row_index = slice(row_start // num_outs_per_in_rows, row_end // num_outs_per_in_rows, None)
+            col_index = slice(col_start // num_outs_per_in_cols, col_end // num_outs_per_in_cols, None)
 
         # Get the indices of x1 and x2 that matter for the kernel
         # Call x1[*batch_indices, row_index, :]
@@ -211,7 +283,72 @@ class KernelLinearOperator(LinearOperator):
                 x2 = x2[(*batch_indices, row_index, dim_index)]
 
         # Call params[*batch_indices, :, :]
-        params = [param[(*batch_indices, _noop_index, _noop_index)] for param in self.params]
+        params = [
+            param[(*batch_indices, *([_noop_index] * len(param_nonbatch_shape)))]
+            for param, param_nonbatch_shape in zip(self.params, self.param_nonbatch_shapes)
+        ]
 
         # Now construct a kernel with those indices
-        return self.__class__(x1, x2, *params, covar_func=self.covar_func, **self.kwargs)
+        return self.__class__(
+            x1,
+            x2,
+            *params,
+            covar_func=self.covar_func,
+            num_outputs_per_input=self.num_outputs_per_input,
+            **self.kwargs,
+        )
+
+    def _matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
+    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        return self.covar_mat @ rhs.contiguous()
+
+    def _permute_batch(self, *dims: int) -> LinearOperator:
+        x1 = self.x1.permute(*dims, -2, -1)
+        x2 = self.x2.permute(*dims, -2, -1)
+        params = [
+            param.permute(*dims, *range(-len(param_nonbatch_shape), 0))
+            for param, param_nonbatch_shape in zip(self.params, self.param_nonbatch_shapes)
+        ]
+        return self.__class__(
+            x1,
+            x2,
+            *params,
+            covar_func=self.covar_func,
+            num_outputs_per_input=self.num_outputs_per_input,
+            **self.kwargs,
+        )
+
+    def _size(self) -> torch.Size:
+        num_outs_per_in_rows, num_outs_per_in_cols = self.num_outputs_per_input
+        return torch.Size(
+            [
+                *self.batch_broadcast_shape,
+                self.x1.shape[-2] * num_outs_per_in_rows,
+                self.x2.shape[-2] * num_outs_per_in_cols,
+            ]
+        )
+
+    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+        return self.__class__(
+            self.x2,
+            self.x1,
+            *self.params,
+            covar_func=self.covar_func,
+            num_outputs_per_input=self.num_outputs_per_input,
+            **self.kwargs,
+        )
+
+    def _unsqueeze_batch(self, dim: int) -> LinearOperator:
+        x1 = self.x1.unsqueeze(dim)
+        x2 = self.x2.unsqueeze(dim)
+        params = [param.unsqueeze(dim) for param in self.params]
+        return self.__class__(
+            x1,
+            x2,
+            *params,
+            covar_func=self.covar_func,
+            num_outputs_per_input=self.num_outputs_per_input,
+            **self.kwargs,
+        )
