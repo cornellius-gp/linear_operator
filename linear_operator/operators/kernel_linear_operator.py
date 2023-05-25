@@ -10,6 +10,30 @@ from ..utils.memoize import cached
 from ._linear_operator import LinearOperator, to_dense
 
 
+def _x_getitem(x, batch_indices, data_index):
+    """
+    Helper function to compute x[*batch_indices, data_index, :] in an efficient way.
+    (Sometimes x needs to be expanded before calling x[*batch_indices, data_index, :]; i.e. if
+    the batch_indices broadcast. We try to prevent this expansion if possible.
+    """
+    try:
+        x = x[(*batch_indices, data_index, _noop_index)]
+    # We're going to handle multi-batch indexing with a try-catch loop
+    # This way - in the default case, we can avoid doing expansions of x1 which can be timely
+    except IndexError:
+        if isinstance(batch_indices, slice):
+            x = x.expand(1, *x.shape[-2:])[(*batch_indices, data_index, _noop_index)]
+        elif isinstance(batch_indices, tuple):
+            if any([not isinstance(bi, slice) for bi in batch_indices]):
+                raise RuntimeError(
+                    "Attempting to tensor index a non-batch matrix's batch dimensions. "
+                    f"Got batch index {batch_indices} but my shape was {x.shape}"
+                )
+            x = x.expand(*([1] * len(batch_indices)), *x.shape[-2:])
+            x = x[(*batch_indices, data_index, _noop_index)]
+    return x
+
+
 class KernelLinearOperator(LinearOperator):
     r"""
     Represents the kernel matrix :math:`\boldsymbol K`
@@ -70,7 +94,7 @@ class KernelLinearOperator(LinearOperator):
         # Broadcasting lengthscale and output parameters
         lengthscale = torch.randn(2, 1, 1, 6)
         outputscale = torch.randn(2, 1, 1, 1)
-        kern = KernelLinearOperator(x1, x2, lengthscale, outputscale, covar_func=covar_func)
+        kern = KernelLinearOperator(x1, x2, lengthscale=lengthscale, outputscale=outputscale, covar_func=covar_func)
 
         # kern is of size 2 x 3 x 5 x 4
 
@@ -205,8 +229,6 @@ class KernelLinearOperator(LinearOperator):
         return indices_mat[..., 0, 0]
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
-        dim_index = _noop_index
-
         # If we have multiple outputs per input, then the indices won't directly
         # correspond to the entries of row/col. We'll have to do a little pre-processing
         num_outs_per_in_rows, num_outs_per_in_cols = self.num_outputs_per_input
@@ -264,39 +286,9 @@ class KernelLinearOperator(LinearOperator):
             col_index = slice(col_start // num_outs_per_in_cols, col_end // num_outs_per_in_cols, None)
 
         # Get the indices of x1 and x2 that matter for the kernel
-        # Call x1[*batch_indices, row_index, :]
-        try:
-            x1 = self.x1[(*batch_indices, row_index, dim_index)]
-        # We're going to handle multi-batch indexing with a try-catch loop
-        # This way - in the default case, we can avoid doing expansions of x1 which can be timely
-        except IndexError:
-            if isinstance(batch_indices, slice):
-                x1 = self.x1.expand(1, *self.x1.shape[-2:])[(*batch_indices, row_index, dim_index)]
-            elif isinstance(batch_indices, tuple):
-                if any(not isinstance(bi, slice) for bi in batch_indices):
-                    raise RuntimeError(
-                        "Attempting to tensor index a non-batch matrix's batch dimensions. "
-                        f"Got batch index {batch_indices} but my shape was {self.shape}"
-                    )
-                x1 = self.x1.expand(*([1] * len(batch_indices)), *self.x1.shape[-2:])
-                x1 = x1[(*batch_indices, row_index, dim_index)]
-
-        # Call x2[*batch_indices, col_index, :]
-        try:
-            x2 = self.x2[(*batch_indices, col_index, dim_index)]
-        # We're going to handle multi-batch indexing with a try-catch loop
-        # This way - in the default case, we can avoid doing expansions of x1 which can be timely
-        except IndexError:
-            if isinstance(batch_indices, slice):
-                x2 = self.x2.expand(1, *self.x2.shape[-2:])[(*batch_indices, row_index, dim_index)]
-            elif isinstance(batch_indices, tuple):
-                if any([not isinstance(bi, slice) for bi in batch_indices]):
-                    raise RuntimeError(
-                        "Attempting to tensor index a non-batch matrix's batch dimensions. "
-                        f"Got batch index {batch_indices} but my shape was {self.shape}"
-                    )
-                x2 = self.x2.expand(*([1] * len(batch_indices)), *self.x2.shape[-2:])
-                x2 = x2[(*batch_indices, row_index, dim_index)]
+        # Call x1[*batch_indices, row_index, :] and x2[*batch_indices, col_index, :]
+        x1 = _x_getitem(self.x1, batch_indices, row_index)
+        x2 = _x_getitem(self.x2, batch_indices, col_index)
 
         # Call params[*batch_indices, :, :]
         tensor_params = dict(
