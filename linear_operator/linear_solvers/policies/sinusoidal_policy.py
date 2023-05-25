@@ -14,10 +14,12 @@ class SinusoidalPolicy(LinearSolverPolicy):
 
     def __init__(
         self,
+        train_data: torch.Tensor,
         frequency_order: str = "interleaved",
         phase: float = -0.5 * pi,
         num_non_zero: Optional[int] = None,
     ) -> None:
+        self.train_data = train_data
         self.frequency_order = frequency_order
         self.phase = phase
         self.num_nonzero = num_non_zero
@@ -27,7 +29,7 @@ class SinusoidalPolicy(LinearSolverPolicy):
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
         with torch.no_grad():
             frequencies = torch.linspace(
-                0,
+                1e-3,
                 1,
                 solver_state.problem.A.shape[1],
                 dtype=solver_state.problem.A.dtype,
@@ -45,16 +47,12 @@ class SinusoidalPolicy(LinearSolverPolicy):
                     )
                 ).flatten()
 
-            ts = torch.linspace(
-                0,
-                1,
-                solver_state.problem.A.shape[1],
-                dtype=solver_state.problem.A.dtype,
-                device=solver_state.problem.A.device,
-            )
-            # TODO: this completely ignores the order of the datapoints, and therefore doesnt reflect sine waves in input space
             action = torch.sin(
-                2 * pi * frequencies[solver_state.iteration] * ts + self.phase
+                2
+                * pi
+                * frequencies[solver_state.iteration]
+                * self.train_data.sum(dim=1)
+                + self.phase
             )
 
             if self.num_nonzero is not None:
