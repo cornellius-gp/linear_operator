@@ -79,6 +79,9 @@ class KernelLinearOperator(LinearOperator):
         `covar_func` should not close over any parameters. Any parameters that are closed over will not have
         propagated gradients.
 
+        See the example above: the lengthscale and outputscale of _covar_func are passed in as arguments,
+        rather than being externally defined variables.
+
     :param x1: The data :math:`\boldsymbol X_1.`
     :param x2: The data :math:`\boldsymbol X_2.`
     :param covar_func: The covariance function :math:`k_{\boldsymbol \theta}(\cdot, \cdot)`.
