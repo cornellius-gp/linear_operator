@@ -362,7 +362,7 @@ class LinearOperator(object):
         # Construct a detached version of each argument in the linear operator
         args = []
         for arg in self.representation():
-            if torch.is_tensor(arg) and arg.dtype.is_floating_point:
+            if torch.is_tensor(arg) and arg.dtype.is_floating_point and arg.requires_grad:
                 args.append(arg.detach().requires_grad_(True))
             else:
                 args.append(arg.detach())
@@ -468,10 +468,13 @@ class LinearOperator(object):
         self._args_memo = args
 
     @property
+    def _differentiable_kwargs(self) -> Dict[str, Union[Tensor, "LinearOperator"]]:
+        return dict(zip(self._differentiable_kwarg_names, self._differentiable_kwarg_vals))
+
+    @property
     def _kwargs(self) -> Dict[str, Any]:
-        kwargs = dict(
-            zip(self._differentiable_kwarg_names, self._differentiable_kwarg_vals), **self._nondifferentiable_kwargs
-        )
+        kwargs = self._differentiable_kwargs
+        kwargs.update(self._nondifferentiable_kwargs)
         return kwargs
 
     def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:

@@ -141,10 +141,13 @@ class KernelLinearOperator(LinearOperator):
             )
 
         # Create a version of each argument that is expanded to the broadcast batch shape
-        x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous()
-        x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous()
+        #
+        # NOTE: we must explicitly call requires_grad on each of these arguments
+        # for the automatic _bilinear_derivative to work in torch.autograd.Functions
+        x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous().requires_grad_(x1.requires_grad)
+        x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous().requires_grad_(x2.requires_grad)
         tensor_params = dict(
-            (name, val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]))
+            (name, val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]).requires_grad_(val.requires_grad))
             for name, val in tensor_params.items()
         )
         new_param_batch_shapes = dict((name, batch_broadcast_shape) for name in param_batch_shapes.keys())
