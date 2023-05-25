@@ -1,4 +1,5 @@
-from typing import Any, Callable, Tuple, Union
+from collections import defaultdict
+from typing import Any, Callable, Dict, Tuple, Union
 
 import torch
 
@@ -48,9 +49,13 @@ class KernelLinearOperator(LinearOperator):
 
     .. note ::
 
-        Each of the passed parameters should have a minimum of 2 (likely singleton) dimensions.
-        Any additional dimension will be considered a batch dimension that broadcasts with the batch dimensions
-        of x1 and x2.
+        All hyperparameters have some number of batch dimensions (which broadcast with the
+        batch dimensions of x1 and x2) and some number of non-batch dimensions
+        (dimensions that would exist if we were computing a single covariance matrix).
+
+        By default, each hyperparameter is assumed to have 2 (potentially singleton) non-batch
+        dimensions. However, the number of non_batch dimensions can be specified on a
+        per-hyperparameter through the optional `num_nonbatch_dimensions` dictionary argument.
 
         For example, to implement the RBF kernel
 
@@ -67,10 +72,10 @@ class KernelLinearOperator(LinearOperator):
         - `x1`: `(*batch_shape x N x D)`
         - `x2`: `(*batch_shape x M x D)`
         - `lengthscale`: `(*batch_shape x 1 x D)`
-        - `outputscale`: `(*batch_shape x 1 x 1)`
+        - `outputscale`: `(*batch_shape)`  # Note this parameter does not have non-batch dimensions
 
-        Not adding the appropriate singleton dimensions to `lengthscale` and `outputscale` will lead to erroneous
-        kernel matrix outputs.
+        We would then supply the dictionary `num_nonbatch_dimensions = {"outputscale": 0}`.
+        (We do not need to include lengthscale in the dictionary since it has 2 non-batch dimensions.)
 
     .. code-block:: python
 
@@ -80,11 +85,11 @@ class KernelLinearOperator(LinearOperator):
             # x1: ... x N x D
             # x2: ... x M x D
             # lengthscale: ... x 1 x D
-            # outputscale: ... x 1 x 1
+            # outputscale: ...
             x1 = x1.div(lengthscale)
             x2 = x2.div(lengthscale)
             sq_dist = (x1.unsqueeze(-2) - x2.unsqueeze(-3)).square().sum(dim=-1)
-            kern = sq_dist.div(-2.0).exp().mul(outputscale.square())
+            kern = sq_dist.div(-2.0).exp().mul(outputscale[..., None, None].square())
             return kern
 
 
@@ -92,9 +97,12 @@ class KernelLinearOperator(LinearOperator):
         x1 = torch.randn(3, 5, 6)
         x2 = torch.randn(3, 4, 6)
         # Broadcasting lengthscale and output parameters
-        lengthscale = torch.randn(2, 1, 1, 6)
-        outputscale = torch.randn(2, 1, 1, 1)
-        kern = KernelLinearOperator(x1, x2, lengthscale=lengthscale, outputscale=outputscale, covar_func=covar_func)
+        lengthscale = torch.randn(2, 1, 1, 6)  # Batch shape is 2 x 1, with 2 non-batch dimensions
+        outputscale = torch.randn(2, 1)  # Batch shape is 2 x 1, no non-batch dimensions
+        kern = KernelLinearOperator(
+            x1, x2, lengthscale=lengthscale, outputscale=outputscale,
+            covar_func=covar_func, num_nonbatch_dimensions={"outputscale": 0}
+        )
 
         # kern is of size 2 x 3 x 5 x 4
 
@@ -125,8 +133,12 @@ class KernelLinearOperator(LinearOperator):
         x2: Float[Tensor, "... N D"],
         covar_func: Callable[..., Float[Union[Tensor, LinearOperator], "... M N"]],
         num_outputs_per_input: Union[int, Tuple[int, int]] = (1, 1),
-        **params: Union[Float[Tensor, "... #P #D"], Any],
+        num_nonbatch_dimensions: Dict[str, int] = dict(),
+        **params: Union[Tensor, Any],
     ):
+        # Change num_nonbatch_dimensions into a default dict
+        num_nonbatch_dimensions = defaultdict(lambda: 2, **num_nonbatch_dimensions)
+
         # Divide params into tensors and non-tensors
         tensor_params = dict()
         nontensor_params = dict()
@@ -140,8 +152,12 @@ class KernelLinearOperator(LinearOperator):
         param_batch_shapes = dict()
         param_nonbatch_shapes = dict()
         for name, val in tensor_params.items():
-            param_batch_shapes[name] = val.shape[:-2]
-            param_nonbatch_shapes[name] = val.shape[-2:]
+            if num_nonbatch_dimensions[name] == 0:
+                param_batch_shapes[name] = val.shape
+                param_nonbatch_shapes[name] = torch.Size([])
+            else:
+                param_batch_shapes[name] = val.shape[: -num_nonbatch_dimensions[name]]
+                param_nonbatch_shapes[name] = val.shape[-num_nonbatch_dimensions[name] :]
 
         # Ensure that x1, x2, and params can broadcast together
         try:
@@ -171,13 +187,16 @@ class KernelLinearOperator(LinearOperator):
         #
         # NOTE: we must explicitly call requires_grad on each of these arguments
         # for the automatic _bilinear_derivative to work in torch.autograd.Functions
-        x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous().requires_grad_(x1.requires_grad)
-        x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous().requires_grad_(x2.requires_grad)
-        tensor_params = dict(
-            (name, val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]).requires_grad_(val.requires_grad))
-            for name, val in tensor_params.items()
-        )
-        new_param_batch_shapes = dict((name, batch_broadcast_shape) for name in param_batch_shapes.keys())
+        if len(batch_broadcast_shape):  # Otherwise all tensors are non-batch, and we don't need to expand
+            x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous().requires_grad_(x1.requires_grad)
+            x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous().requires_grad_(x2.requires_grad)
+            tensor_params = dict(
+                (
+                    name,
+                    val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]).requires_grad_(val.requires_grad),
+                )
+                for name, val in tensor_params.items()
+            )
         # Everything should now have the same batch shape
 
         # Maybe expand the num_outputs_per_input argument
@@ -190,6 +209,7 @@ class KernelLinearOperator(LinearOperator):
             x2,
             covar_func=covar_func,
             num_outputs_per_input=num_outputs_per_input,
+            num_nonbatch_dimensions=num_nonbatch_dimensions,
             **tensor_params,
             **nontensor_params,
         )
@@ -200,8 +220,7 @@ class KernelLinearOperator(LinearOperator):
         self.nontensor_params = nontensor_params
         self.covar_func = covar_func
         self.num_outputs_per_input = num_outputs_per_input
-        self.param_batch_shapes = new_param_batch_shapes
-        self.param_nonbatch_shapes = param_nonbatch_shapes
+        self.num_nonbatch_dimensions = num_nonbatch_dimensions
 
     @cached(name="kernel_diag")
     def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
@@ -292,7 +311,7 @@ class KernelLinearOperator(LinearOperator):
 
         # Call params[*batch_indices, :, :]
         tensor_params = dict(
-            (name, val[(*batch_indices, *([_noop_index] * len(self.param_nonbatch_shapes[name])))])
+            (name, val[(*batch_indices, *([_noop_index] * self.num_nonbatch_dimensions[name]))])
             for name, val in self.tensor_params.items()
         )
 
@@ -302,6 +321,7 @@ class KernelLinearOperator(LinearOperator):
             x2,
             covar_func=self.covar_func,
             num_outputs_per_input=self.num_outputs_per_input,
+            num_nonbatch_dimensions=self.num_nonbatch_dimensions,
             **tensor_params,
             **self.nontensor_params,
         )
@@ -316,7 +336,7 @@ class KernelLinearOperator(LinearOperator):
         x1 = self.x1.permute(*dims, -2, -1)
         x2 = self.x2.permute(*dims, -2, -1)
         tensor_params = dict(
-            (name, val.permute(*dims, *range(-len(self.param_nonbatch_shapes[name]), 0)))
+            (name, val.permute(*dims, *range(-self.num_nonbatch_dimensions[name], 0)))
             for name, val in self.tensor_params.items()
         )
         return self.__class__(
@@ -324,6 +344,7 @@ class KernelLinearOperator(LinearOperator):
             x2,
             covar_func=self.covar_func,
             num_outputs_per_input=self.num_outputs_per_input,
+            num_nonbatch_dimensions=self.num_nonbatch_dimensions,
             **tensor_params,
             **self.nontensor_params,
         )
@@ -344,6 +365,7 @@ class KernelLinearOperator(LinearOperator):
             self.x1,
             covar_func=self.covar_func,
             num_outputs_per_input=self.num_outputs_per_input,
+            num_nonbatch_dimensions=self.num_nonbatch_dimensions,
             **self.tensor_params,
             **self.nontensor_params,
         )
@@ -357,6 +379,7 @@ class KernelLinearOperator(LinearOperator):
             x2,
             covar_func=self.covar_func,
             num_outputs_per_input=self.num_outputs_per_input,
+            num_nonbatch_dimensions=self.num_nonbatch_dimensions,
             **tensor_params,
             **self.nontensor_params,
         )
