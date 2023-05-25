@@ -367,6 +367,10 @@ class LinearOperator(object):
             else:
                 args.append(arg.detach())
 
+        # If no arguments require gradients, then we're done!
+        if not any(arg.requires_grad for arg in args):
+            return (None,) * len(args)
+
         # We'll use the autograd to get us a derivative
         with torch.autograd.enable_grad():
             lin_op = self.representation_tree()(*args)
