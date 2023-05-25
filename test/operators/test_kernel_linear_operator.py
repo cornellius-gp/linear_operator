@@ -46,10 +46,10 @@ class TestKernelLinearOperatorRectangular(RectangularLinearOperatorTestCase, uni
         x2 = torch.randn(2, 4, 6)
         lengthscale = torch.nn.Parameter(torch.ones(1, 6))
         outputscale = torch.nn.Parameter(torch.ones(3, 2, 1, 1))
-        return KernelLinearOperator(x1, x2, lengthscale, outputscale, covar_func=_covar_func)
+        return KernelLinearOperator(x1, x2, lengthscale=lengthscale, outputscale=outputscale, covar_func=_covar_func)
 
     def evaluate_linear_op(self, linop):
-        return _covar_func(linop.x1, linop.x2, *linop.params)
+        return _covar_func(linop.x1, linop.x2, **linop.tensor_params)
 
 
 class TestKernelLinearOperator(LinearOperatorTestCase, unittest.TestCase):
@@ -59,10 +59,10 @@ class TestKernelLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         x = torch.randn(3, 5, 6)
         lengthscale = torch.nn.Parameter(torch.ones(3, 1, 6))
         outputscale = torch.nn.Parameter(torch.ones(2, 1, 1, 1))
-        return KernelLinearOperator(x, x, lengthscale, outputscale, covar_func=_covar_func)
+        return KernelLinearOperator(x, x, lengthscale=lengthscale, outputscale=outputscale, covar_func=_covar_func)
 
     def evaluate_linear_op(self, linop):
-        return _covar_func(linop.x1, linop.x2, *linop.params)
+        return _covar_func(linop.x1, linop.x2, **linop.tensor_params)
 
 
 class TestKernelLinearOperatorRectangularLinOpReturn(TestKernelLinearOperatorRectangular, unittest.TestCase):
@@ -74,10 +74,17 @@ class TestKernelLinearOperatorRectangularLinOpReturn(TestKernelLinearOperatorRec
         inducing_points = torch.randn(3, 6)
         lengthscale = torch.nn.Parameter(torch.ones(3, 1, 6))
         outputscale = torch.nn.Parameter(torch.ones(2, 1, 1, 1))
-        return KernelLinearOperator(x1, x2, lengthscale, outputscale, inducing_points, covar_func=_nystrom_covar_func)
+        return KernelLinearOperator(
+            x1,
+            x2,
+            lengthscale=lengthscale,
+            outputscale=outputscale,
+            inducing_points=inducing_points,
+            covar_func=_nystrom_covar_func,
+        )
 
     def evaluate_linear_op(self, linop):
-        return _nystrom_covar_func(linop.x1, linop.x2, *linop.params).to_dense()
+        return _nystrom_covar_func(linop.x1, linop.x2, **linop.tensor_params).to_dense()
 
 
 class TestKernelLinearOperatorLinOpReturn(TestKernelLinearOperator, unittest.TestCase):
@@ -88,7 +95,14 @@ class TestKernelLinearOperatorLinOpReturn(TestKernelLinearOperator, unittest.Tes
         inducing_points = torch.randn(20, 6)  # Overparameterized nystrom approx for invertibility
         lengthscale = torch.nn.Parameter(torch.ones(3, 1, 6))
         outputscale = torch.nn.Parameter(torch.ones(2, 1, 1, 1))
-        return KernelLinearOperator(x, x, lengthscale, outputscale, inducing_points, covar_func=_nystrom_covar_func)
+        return KernelLinearOperator(
+            x,
+            x,
+            lengthscale=lengthscale,
+            outputscale=outputscale,
+            inducing_points=inducing_points,
+            covar_func=_nystrom_covar_func,
+        )
 
     def evaluate_linear_op(self, linop):
-        return _nystrom_covar_func(linop.x1, linop.x2, *linop.params).to_dense()
+        return _nystrom_covar_func(linop.x1, linop.x2, **linop.tensor_params).to_dense()
