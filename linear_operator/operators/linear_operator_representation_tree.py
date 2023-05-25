@@ -4,11 +4,12 @@
 class LinearOperatorRepresentationTree(object):
     def __init__(self, linear_op):
         self._cls = linear_op.__class__
-        self._kwargs = linear_op._kwargs
+        self._differentiable_kwarg_names = linear_op._differentiable_kwarg_names
+        self._nondifferentiable_kwargs = linear_op._nondifferentiable_kwargs
 
         counter = 0
         self.children = []
-        for arg in linear_op._args:
+        for arg in list(linear_op._args) + list(linear_op._differentiable_kwarg_vals):
             if hasattr(arg, "representation") and callable(arg.representation):  # Is it a lazy tensor?
                 representation_size = len(arg.representation())
                 self.children.append((slice(counter, counter + representation_size, None), arg.representation_tree()))
@@ -27,4 +28,14 @@ class LinearOperatorRepresentationTree(object):
                 sub_representation = flattened_representation[index]
                 unflattened_representation.append(subtree(*sub_representation))
 
-        return self._cls(*unflattened_representation, **self._kwargs)
+        if len(self._differentiable_kwarg_names):
+            args = unflattened_representation[: -len(self._differentiable_kwarg_names)]
+            differentiable_kwargs = dict(
+                zip(
+                    self._differentiable_kwarg_names,
+                    unflattened_representation[-len(self._differentiable_kwarg_names) :],
+                )
+            )
+            return self._cls(*args, **differentiable_kwargs, **self._nondifferentiable_kwargs)
+        else:
+            return self._cls(*unflattened_representation, **self._nondifferentiable_kwargs)

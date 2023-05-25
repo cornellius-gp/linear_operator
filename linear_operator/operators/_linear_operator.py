@@ -150,7 +150,16 @@ class LinearOperator(object):
                 raise ValueError(err)
 
         self._args = args
-        self._kwargs = kwargs
+        self._differentiable_kwarg_names = []
+        self._differentiable_kwarg_vals = []
+        self._nondifferentiable_kwargs = dict()
+        for name, val in sorted(kwargs.items()):
+            # Sorting is necessary so that the flattening in the representation tree is deterministic
+            if torch.is_tensor(val) or isinstance(val, LinearOperator):
+                self._differentiable_kwarg_names.append(name)
+                self._differentiable_kwarg_vals.append(val)
+            else:
+                self._nondifferentiable_kwargs[name] = val
 
     ####
     # The following methods need to be defined by the LinearOperator
@@ -457,6 +466,13 @@ class LinearOperator(object):
     @_args.setter
     def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator", int], ...]) -> None:
         self._args_memo = args
+
+    @property
+    def _kwargs(self) -> Dict[str, Any]:
+        kwargs = dict(
+            zip(self._differentiable_kwarg_names, self._differentiable_kwarg_vals), **self._nondifferentiable_kwargs
+        )
+        return kwargs
 
     def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
         """
@@ -2018,7 +2034,7 @@ class LinearOperator(object):
         Returns the Tensors that are used to define the LinearOperator
         """
         representation = []
-        for arg in self._args:
+        for arg in list(self._args) + list(self._differentiable_kwarg_vals):
             if torch.is_tensor(arg):
                 representation.append(arg)
             elif hasattr(arg, "representation") and callable(arg.representation):  # Is it a LinearOperator?
