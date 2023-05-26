@@ -375,7 +375,8 @@ class LinearOperator(object):
         with torch.autograd.enable_grad():
             lin_op = self.representation_tree()(*args)
             loss = (left_vecs * lin_op._matmul(right_vecs)).sum()
-            actual_grads = deque(torch.autograd.grad(loss, args, allow_unused=True))
+            args_with_grads = [arg for arg in args if arg.requires_grad]
+            actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
 
         # Now make sure that the object we return has one entry for every item in args
         grads = []
