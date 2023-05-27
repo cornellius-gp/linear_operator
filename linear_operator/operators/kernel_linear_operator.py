@@ -335,10 +335,10 @@ class KernelLinearOperator(LinearOperator):
     def _permute_batch(self, *dims: int) -> LinearOperator:
         x1 = self.x1.permute(*dims, -2, -1)
         x2 = self.x2.permute(*dims, -2, -1)
-        tensor_params = dict(
-            (name, val.permute(*dims, *range(-self.num_nonbatch_dimensions[name], 0)))
+        tensor_params = {
+            name: val.permute(*dims, *range(-self.num_nonbatch_dimensions[name], 0))
             for name, val in self.tensor_params.items()
-        )
+        }
         return self.__class__(
             x1,
             x2,
