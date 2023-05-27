@@ -9,7 +9,7 @@ class LinearOperatorRepresentationTree(object):
 
         counter = 0
         self.children = []
-        for arg in list(linear_op._args) + list(linear_op._differentiable_kwarg_vals):
+        for arg in itertools.chain(linear_op._args, linear_op._differentiable_kwarg_vals):
             if hasattr(arg, "representation") and callable(arg.representation):  # Is it a lazy tensor?
                 representation_size = len(arg.representation())
                 self.children.append((slice(counter, counter + representation_size, None), arg.representation_tree()))
