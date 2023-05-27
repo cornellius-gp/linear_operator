@@ -2042,7 +2042,7 @@ class LinearOperator(object):
         Returns the Tensors that are used to define the LinearOperator
         """
         representation = []
-        for arg in list(self._args) + list(self._differentiable_kwarg_vals):
+        for arg in itertools.chain(self._args, self._differentiable_kwarg_vals):
             if torch.is_tensor(arg):
                 representation.append(arg)
             elif hasattr(arg, "representation") and callable(arg.representation):  # Is it a LinearOperator?
