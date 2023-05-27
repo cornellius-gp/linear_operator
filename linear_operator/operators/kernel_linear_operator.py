@@ -25,7 +25,7 @@ def _x_getitem(x, batch_indices, data_index):
         if isinstance(batch_indices, slice):
             x = x.expand(1, *x.shape[-2:])[(*batch_indices, data_index, _noop_index)]
         elif isinstance(batch_indices, tuple):
-            if any([not isinstance(bi, slice) for bi in batch_indices]):
+            if any(not isinstance(bi, slice) for bi in batch_indices):
                 raise RuntimeError(
                     "Attempting to tensor index a non-batch matrix's batch dimensions. "
                     f"Got batch index {batch_indices} but my shape was {x.shape}"
