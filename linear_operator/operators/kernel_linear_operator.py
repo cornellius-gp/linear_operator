@@ -157,8 +157,9 @@ class KernelLinearOperator(LinearOperator):
                 param_batch_shapes[name] = val.shape
                 param_nonbatch_shapes[name] = torch.Size([])
             else:
-                param_batch_shapes[name] = val.shape[: -num_nonbatch_dimensions[name]]
-                param_nonbatch_shapes[name] = val.shape[-num_nonbatch_dimensions[name] :]
+                nonbatch_dim = num_nonbatch_dimensions[name]
+                param_batch_shapes[name] = val.shape[: -nonbatch_dim]
+                param_nonbatch_shapes[name] = val.shape[-nonbatch_dim :]
 
         # Ensure that x1, x2, and params can broadcast together
         try:
