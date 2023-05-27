@@ -191,13 +191,12 @@ class KernelLinearOperator(LinearOperator):
         if len(batch_broadcast_shape):  # Otherwise all tensors are non-batch, and we don't need to expand
             x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous().requires_grad_(x1.requires_grad)
             x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous().requires_grad_(x2.requires_grad)
-            tensor_params = dict(
-                (
-                    name,
-                    val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]).requires_grad_(val.requires_grad),
-                )
+            tensor_params = {
+                name : val.expand(
+                    *batch_broadcast_shape, *param_nonbatch_shapes[name]
+                ).requires_grad_(val.requires_grad)
                 for name, val in tensor_params.items()
-            )
+            }
         # Everything should now have the same batch shape
 
         # Maybe expand the num_outputs_per_input argument
