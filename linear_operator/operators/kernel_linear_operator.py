@@ -230,7 +230,7 @@ class KernelLinearOperator(LinearOperator):
         # and then squeeze out the batch dimensions
         x1 = self.x1.unsqueeze(0).transpose(0, -2)
         x2 = self.x2.unsqueeze(0).transpose(0, -2)
-        tensor_params = dict((name, val.unsqueeze(0)) for name, val in self.tensor_params.items())
+        tensor_params = {name: val.unsqueeze(0) for name, val in self.tensor_params.items()}
         diag_mat = to_dense(self.covar_func(x1, x2, **tensor_params, **self.nontensor_params))
         assert diag_mat.shape[-2:] == torch.Size([1, 1])
         return diag_mat.transpose(0, -2)[0, ..., 0]
