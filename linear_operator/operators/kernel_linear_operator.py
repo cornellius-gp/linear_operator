@@ -242,7 +242,7 @@ class KernelLinearOperator(LinearOperator):
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         x1_ = self.x1[(*batch_indices, row_index)].unsqueeze(-2)
         x2_ = self.x2[(*batch_indices, col_index)].unsqueeze(-2)
-        tensor_params_ = dict((name, val[batch_indices]) for name, val in self.tensor_params.items())
+        tensor_params_ = {name: val[batch_indices] for name, val in self.tensor_params.items()}
         indices_mat = to_dense(self.covar_func(x1_, x2_, **tensor_params_, **self.nontensor_params))
         assert indices_mat.shape[-2:] == torch.Size([1, 1])
         return indices_mat[..., 0, 0]
