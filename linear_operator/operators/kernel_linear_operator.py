@@ -23,7 +23,8 @@ def _x_getitem(x, batch_indices, data_index):
     # This way - in the default case, we can avoid doing expansions of x1 which can be timely
     except IndexError:
         if isinstance(batch_indices, slice):
-            x = x.expand(1, *x.shape[-2:])[(*batch_indices, data_index, _noop_index)]
+            x = x.expand(1, *x.shape[-2:])
+            x = [(*batch_indices, data_index, _noop_index)]
         elif isinstance(batch_indices, tuple):
             if any(not isinstance(bi, slice) for bi in batch_indices):
                 raise RuntimeError(
