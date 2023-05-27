@@ -310,10 +310,10 @@ class KernelLinearOperator(LinearOperator):
         x2 = _x_getitem(self.x2, batch_indices, col_index)
 
         # Call params[*batch_indices, :, :]
-        tensor_params = dict(
-            (name, val[(*batch_indices, *([_noop_index] * self.num_nonbatch_dimensions[name]))])
+        tensor_params = {
+            name: val[(*batch_indices, *([_noop_index] * self.num_nonbatch_dimensions[name]))]
             for name, val in self.tensor_params.items()
-        )
+        }
 
         # Now construct a kernel with those indices
         return self.__class__(
