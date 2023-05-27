@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import torch
 
@@ -133,12 +133,15 @@ class KernelLinearOperator(LinearOperator):
         x1: Float[Tensor, "... M D"],
         x2: Float[Tensor, "... N D"],
         covar_func: Callable[..., Float[Union[Tensor, LinearOperator], "... M N"]],
-        num_outputs_per_input: Union[int, Tuple[int, int]] = (1, 1),
-        num_nonbatch_dimensions: Dict[str, int] = dict(),
+        num_outputs_per_input: Tuple[int, int] = (1, 1),
+        num_nonbatch_dimensions: Optional[Dict[str, int]] = None,
         **params: Union[Tensor, Any],
     ):
         # Change num_nonbatch_dimensions into a default dict
-        num_nonbatch_dimensions = defaultdict(lambda: 2, **num_nonbatch_dimensions)
+        if num_nonbatch_dimensions is None:
+            num_nonbatch_dimensions = defaultdict(lambda: 2)
+        else:
+            num_nonbatch_dimensions = defaultdict(lambda: 2, **num_nonbatch_dimensions)
 
         # Divide params into tensors and non-tensors
         tensor_params = dict()
@@ -158,8 +161,8 @@ class KernelLinearOperator(LinearOperator):
                 param_nonbatch_shapes[name] = torch.Size([])
             else:
                 nonbatch_dim = num_nonbatch_dimensions[name]
-                param_batch_shapes[name] = val.shape[: -nonbatch_dim]
-                param_nonbatch_shapes[name] = val.shape[-nonbatch_dim :]
+                param_batch_shapes[name] = val.shape[:-nonbatch_dim]
+                param_nonbatch_shapes[name] = val.shape[-nonbatch_dim:]
 
         # Ensure that x1, x2, and params can broadcast together
         try:
@@ -193,16 +196,10 @@ class KernelLinearOperator(LinearOperator):
             x1 = x1.expand(*batch_broadcast_shape, *x1.shape[-2:]).contiguous().requires_grad_(x1.requires_grad)
             x2 = x2.expand(*batch_broadcast_shape, *x2.shape[-2:]).contiguous().requires_grad_(x2.requires_grad)
             tensor_params = {
-                name : val.expand(
-                    *batch_broadcast_shape, *param_nonbatch_shapes[name]
-                ).requires_grad_(val.requires_grad)
+                name: val.expand(*batch_broadcast_shape, *param_nonbatch_shapes[name]).requires_grad_(val.requires_grad)
                 for name, val in tensor_params.items()
             }
         # Everything should now have the same batch shape
-
-        # Maybe expand the num_outputs_per_input argument
-        if isinstance(num_outputs_per_input, int):
-            num_outputs_per_input = (num_outputs_per_input, num_outputs_per_input)
 
         # Standard constructor
         super().__init__(

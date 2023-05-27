@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
+import itertools
 
 
 class LinearOperatorRepresentationTree(object):
     def __init__(self, linear_op):
         self._cls = linear_op.__class__
-        self._differentiable_kwarg_names = linear_op._differentiable_kwarg_names
+        self._differentiable_kwarg_names = linear_op._differentiable_kwargs.keys()
         self._nondifferentiable_kwargs = linear_op._nondifferentiable_kwargs
 
         counter = 0
         self.children = []
-        for arg in itertools.chain(linear_op._args, linear_op._differentiable_kwarg_vals):
+        for arg in itertools.chain(linear_op._args, linear_op._differentiable_kwargs.values()):
             if hasattr(arg, "representation") and callable(arg.representation):  # Is it a lazy tensor?
                 representation_size = len(arg.representation())
                 self.children.append((slice(counter, counter + representation_size, None), arg.representation_tree()))
