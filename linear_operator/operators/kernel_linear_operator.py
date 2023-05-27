@@ -373,7 +373,7 @@ class KernelLinearOperator(LinearOperator):
     def _unsqueeze_batch(self, dim: int) -> LinearOperator:
         x1 = self.x1.unsqueeze(dim)
         x2 = self.x2.unsqueeze(dim)
-        tensor_params = dict((name, val.unsqueeze(dim)) for name, val in self.tensor_params.items())
+        tensor_params = {name: val.unsqueeze(dim) for name, val in self.tensor_params.items()}
         return self.__class__(
             x1,
             x2,
