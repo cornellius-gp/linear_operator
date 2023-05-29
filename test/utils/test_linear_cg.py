@@ -3,10 +3,12 @@
 import os
 import random
 import unittest
+import warnings
 
 import torch
 
 from linear_operator.utils.linear_cg import linear_cg
+from linear_operator.utils.warnings import NumericalWarning
 
 
 class TestLinearCG(unittest.TestCase):
@@ -69,15 +71,17 @@ class TestLinearCG(unittest.TestCase):
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
         rhs = torch.randn(size, 50, dtype=torch.float64)
-        solves, t_mats = linear_cg(
-            matrix.matmul,
-            rhs=rhs,
-            n_tridiag=5,
-            max_tridiag_iter=10,
-            max_iter=size,
-            tolerance=0,
-            eps=1e-15,
-        )
+        with warnings.catch_warnings(record=True) as ws:
+            solves, t_mats = linear_cg(
+                matrix.matmul,
+                rhs=rhs,
+                n_tridiag=5,
+                max_tridiag_iter=10,
+                max_iter=size,
+                tolerance=0,
+                eps=1e-15,
+            )
+            self.assertTrue(any(issubclass(w.category, NumericalWarning) for w in ws))
 
         # Check cg
         matrix_chol = torch.linalg.cholesky(matrix)
@@ -115,15 +119,17 @@ class TestLinearCG(unittest.TestCase):
         matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
 
         rhs = torch.randn(batch, size, 10, dtype=torch.float64)
-        solves, t_mats = linear_cg(
-            matrix.matmul,
-            rhs=rhs,
-            n_tridiag=8,
-            max_iter=size,
-            max_tridiag_iter=10,
-            tolerance=0,
-            eps=1e-30,
-        )
+        with warnings.catch_warnings(record=True) as ws:
+            solves, t_mats = linear_cg(
+                matrix.matmul,
+                rhs=rhs,
+                n_tridiag=8,
+                max_iter=size,
+                max_tridiag_iter=10,
+                tolerance=0,
+                eps=1e-30,
+            )
+            self.assertTrue(any(issubclass(w.category, NumericalWarning) for w in ws))
 
         # Check cg
         matrix_chol = torch.linalg.cholesky(matrix)
