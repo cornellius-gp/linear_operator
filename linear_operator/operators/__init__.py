@@ -6,6 +6,7 @@ from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 from .block_diag_linear_operator import BlockDiagLinearOperator
 from .block_interleaved_linear_operator import BlockInterleavedLinearOperator
 from .block_linear_operator import BlockLinearOperator
+from .block_tensor_linear_operator import BlockTensorLinearOperator
 from .cat_linear_operator import cat, CatLinearOperator
 from .chol_linear_operator import CholLinearOperator
 from .constant_mul_linear_operator import ConstantMulLinearOperator
@@ -44,6 +45,7 @@ __all__ = [
     "BlockLinearOperator",
     "BlockDiagLinearOperator",
     "BlockInterleavedLinearOperator",
+    "BlockTensorLinearOperator",
     "CatLinearOperator",
     "CholLinearOperator",
     "ConstantDiagLinearOperator",
