@@ -1,6 +1,7 @@
 from typing import List, Union
 
 import torch
+from jaxtyping import Float
 from torch import Tensor
 
 from ._linear_operator import LinearOperator
@@ -30,22 +31,22 @@ class BlockTensorLinearOperator(LinearOperator):
                 tmp.append([])
             output.append(tmp)
 
-        if isinstance(other, self.__class__):
+        if isinstance(rhs, self.__class__):
             # TO DO: Check size is the same
             for i in range(T):
                 for j in range(T):
                     out_ij = to_linear_operator(
-                        torch.zeros(self.linear_operators[0][0].shape[0], other.linear_operators[0][0].shape[1])
+                        torch.zeros(self.linear_operators[0][0].shape[0], rhs.linear_operators[0][0].shape[1])
                     )
                     for k in range(T):
-                        out_ij += self.linear_operators[i][k] @ other.linear_operators[k][j]
+                        out_ij += self.linear_operators[i][k] @ rhs.linear_operators[k][j]
                     output[i][j] = out_ij
-        elif isinstance(other, Tensor):
+        elif isinstance(rhs, Tensor):
             # Check both matrix dims divisible by T,
             # reshape to (T, T, ), call .from_tensor
             pass
 
-        elif isinstance(other, LinearOperator):
+        elif isinstance(rhs, LinearOperator):
             pass
 
         else:
