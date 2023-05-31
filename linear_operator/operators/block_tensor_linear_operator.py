@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -10,7 +10,8 @@ from .dense_linear_operator import to_linear_operator
 
 class BlockTensorLinearOperator(LinearOperator):
     def __init__(self, linear_operators: List[List[LinearOperator]]) -> None:
-        assert len(linear_operators) > 0, "must have nested list"
+        assert isinstance(linear_operators, list)
+        assert len(linear_operators) > 0, "must have non-empty list"
         assert len(linear_operators[0]) == len(linear_operators), "must be square over block dimensions"
 
         super().__init__(linear_operators)
@@ -19,6 +20,17 @@ class BlockTensorLinearOperator(LinearOperator):
         self.num_tasks = len(self.linear_operators)
         self.block_rows = linear_operators[0][0].shape[0]
         self.block_cols = linear_operators[0][0].shape[1]
+
+    @staticmethod
+    def square_ops(T):
+        """Return an empty (square) list of operators of shape TxT"""
+        ops = []
+        for i in range(T):
+            tmp = []
+            for j in range(T):
+                tmp.append([])
+            ops.append(tmp)
+        return ops
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
@@ -30,12 +42,7 @@ class BlockTensorLinearOperator(LinearOperator):
         # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
         # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
         if isinstance(rhs, self.__class__) and self.num_tasks == rhs.num_tasks and self.block_cols == rhs.block_rows:
-            output = []
-            for i in range(T):
-                tmp = []
-                for j in range(T):
-                    tmp.append([])
-                output.append(tmp)
+            output = BlockTensorLinearOperator.square_ops(T)
             for i in range(T):
                 for j in range(T):
                     out_ij = self.linear_operators[i][0] @ rhs.linear_operators[0][j]
@@ -57,6 +64,7 @@ class BlockTensorLinearOperator(LinearOperator):
                 rhs_op = BlockTensorLinearOperator.from_tensor(rhs_blocks, T)
                 return self._matmul(rhs_op)
 
+        # Failover implementation. Convert to dense and multiply matricies
         A = self.to_dense()
         B = rhs.to_dense()
         res = A @ B
@@ -74,6 +82,24 @@ class BlockTensorLinearOperator(LinearOperator):
     def _size(self) -> torch.Size:
         sz = self.linear_operators[0][0].size()
         return torch.Size([self.num_tasks * sz[0], self.num_tasks * sz[1]])
+
+    @property
+    def dtype(self) -> Optional[torch.dtype]:
+        return self.linear_operators[0][0].dtype
+
+    @property
+    def device(self) -> Optional[torch.device]:
+        return self.linear_operators[0][0].device
+
+    def representation(self) -> Tuple[torch.Tensor, ...]:
+        """
+        Returns the Tensors that are used to define the LinearOperator
+        """
+        representation = []
+        for op_row in self.linear_operators:
+            for op in op_row:
+                representation += tuple(op.representation())
+        return tuple(representation)
 
     def _diag(self):
         out = []

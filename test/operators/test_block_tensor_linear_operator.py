@@ -46,7 +46,6 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
 
 
 rem = """
-
 class TestBlockTensorLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = False
@@ -61,7 +60,7 @@ class TestBlockTensorLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     # A = torch.randn(T, T, N, M)  # Need to make something +ve definite
 
     def create_linear_op(self):
-        A_blo = BlockBLockLinearOperator.from_tensor(self.A_blocks)
+        A_blo = BlockTensorLinearOperator.from_tensor(self.A_blocks, self.T)
         return A_blo
 
     def evaluate_linear_op(self, linear_op):
