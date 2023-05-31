@@ -4,7 +4,7 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ._linear_operator import LinearOperator
+from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import DenseLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
 
@@ -51,7 +51,7 @@ class BlockTensorLinearOperator(LinearOperator):
                         out_ij += self.linear_operators[i][k] @ rhs.linear_operators[k][j]
                     output[i][j] = out_ij
             return self.__class__(output)
-        elif isinstance(rhs, Tensor):
+        elif isinstance(rhs, Tensor) and rhs.ndim == 2:
             # Check both matrix dims divisible by T,
             # reshape to (T, T, ), call block multiplication
             if rhs.size(0) % T == 0 and rhs.size(1) % T == 0:
@@ -70,6 +70,12 @@ class BlockTensorLinearOperator(LinearOperator):
         B = rhs.to_dense()
         res = A @ B
         return res
+
+    def matmul(
+        self: Float[LinearOperator, "*batch M N"],
+        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
+    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
+        return self._matmul(other)
 
     def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         out = []
@@ -110,7 +116,20 @@ class BlockTensorLinearOperator(LinearOperator):
         return torch.concat(out, axis=1)
 
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
-        return self  # Diagonal matrices are symmetric
+        out = []
+        for i in range(self.num_tasks):
+            rows = []
+            for j in range(self.num_tasks):
+                rows.append(self.linear_operators[j][i].mT)
+            out.append(rows)
+        return BlockTensorLinearOperator(out)
+
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
+        # Perform the __getitem__
+        # TODO make this faster, see block_linear_operator
+        tsr = self.to_dense()
+        res = tsr[(*batch_indices, row_index, col_index)]
+        return DenseLinearOperator(res)
 
     @classmethod
     def from_tensor(cls, tensor: Tensor, num_tasks: int):

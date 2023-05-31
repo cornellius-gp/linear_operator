@@ -6,8 +6,7 @@ import torch
 
 from linear_operator.operators import BlockTensorLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
-
-# from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
+from linear_operator.test.linear_operator_core_test_case import CoreLinearOperatorTestCase
 
 
 class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
@@ -83,8 +82,7 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         self.assertAllClose(B_dense, B_blo.to_dense())
 
 
-rem = """
-class TestBlockTensorLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+class TestLinearOperatorBlockTensorLinearOperator(CoreLinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = False
     T = 2
@@ -104,7 +102,6 @@ class TestBlockTensorLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         D = linear_op.to_dense()
         return D
-"""
 
 
 if __name__ == "__main__":
