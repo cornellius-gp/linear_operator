@@ -5,7 +5,8 @@ from jaxtyping import Float
 from torch import Tensor
 
 from ._linear_operator import LinearOperator
-from .dense_linear_operator import to_linear_operator
+from .dense_linear_operator import DenseLinearOperator
+from .zero_linear_operator import ZeroLinearOperator
 
 
 class BlockTensorLinearOperator(LinearOperator):
@@ -113,7 +114,13 @@ class BlockTensorLinearOperator(LinearOperator):
 
     @classmethod
     def from_tensor(cls, tensor: Tensor, num_tasks: int):
+        def tensor_to_linear_op(t):
+            if torch.count_nonzero(t) > 0:
+                return DenseLinearOperator(t)
+            return ZeroLinearOperator(*t.size(), dtype=t.dtype, device=t.device)
+
         linear_ops = [
-            [to_linear_operator(t[0]) for t in list(torch.tensor_split(tensor[i], num_tasks))] for i in range(num_tasks)
+            [tensor_to_linear_op(t[0]) for t in list(torch.tensor_split(tensor[i], num_tasks))]
+            for i in range(num_tasks)
         ]
         return cls(linear_ops)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import itertools
 import unittest
 
 import torch
@@ -11,6 +11,13 @@ from linear_operator.test.base_test_case import BaseTestCase
 
 
 class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
+    def dense_to_4d(self, A_dense, T):
+        Ne = A_dense.size(0) // T
+        Me = A_dense.size(1) // T
+        A_blocks_est = A_dense.reshape(T, Ne, T, Me)
+        A_blocks_est = A_blocks_est.permute(0, 2, 1, 3)
+        return A_blocks_est
+
     def test_multiply(self):
         T = 2
         N = 4
@@ -33,16 +40,47 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         self.assertAllClose(B_dense, B_blo.to_dense())
 
         # Convert dense format back to blocks and compare
-        Ne = A_dense.size(0) // T
-        Me = A_dense.size(1) // T
-        A_blocks_est = A_dense.reshape(T, Ne, T, Me)
-        A_blocks_est = A_blocks_est.permute(0, 2, 1, 3)
+        A_blocks_est = self.dense_to_4d(A_dense, T)
         self.assertAllClose(A, A_blocks_est)
 
         # Check Tensor multiplication
         res_tensor_AB = A_blo._matmul(B_dense)
         res_tensor_dense_AB = res_tensor_AB.to_dense()
         self.assertAllClose(res_dense_AB, res_tensor_dense_AB)
+
+    def test_sparse_multiply(self):
+        T, N, M = 2, 4, 3
+        As = [torch.rand(N, M) for _ in range(T)]
+        Bs = [[torch.rand(M, M) for _ in range(T)] for _ in range(T)]
+        Cs = [torch.rand(N, N) for _ in range(T)]
+        # L = torch.rand(T, T)
+
+        A_dense = torch.zeros((N * T, M * T))  # BlockDiag (non-square)
+        B_dense = torch.zeros((M * T, M * T))  # Dense
+        C_dense = torch.zeros((N * T, N * T))  # BlockDiag
+        # L_dense = torch.kron(L, torch.eye(N))  # Kroneker
+
+        for t in range(T):
+            A_dense[N * t : N * (t + 1), M * t : M * (t + 1)] = As[t]
+            C_dense[N * t : N * (t + 1), N * t : N * (t + 1)] = Cs[t]
+
+        for t1, t2 in itertools.product(range(T), range(T)):
+            B_dense[M * t1 : M * (t1 + 1), M * t2 : M * (t2 + 1)] = Bs[t1][t2]
+
+        # Convert dense formats to blocks
+        A = self.dense_to_4d(A_dense, T)
+        B = self.dense_to_4d(B_dense, T)
+
+        # A_blo will contain dense operators along the diagonal + Zero operators off diagonal
+        A_blo = BlockTensorLinearOperator.from_tensor(A, T)
+        B_blo = BlockTensorLinearOperator.from_tensor(B, T)
+        res_AB = A_blo._matmul(B_blo)
+        res_dense_AB = res_AB.to_dense()
+
+        expected = A_dense @ B_dense
+        self.assertAllClose(res_dense_AB, expected)
+        self.assertAllClose(A_dense, A_blo.to_dense())
+        self.assertAllClose(B_dense, B_blo.to_dense())
 
 
 rem = """
