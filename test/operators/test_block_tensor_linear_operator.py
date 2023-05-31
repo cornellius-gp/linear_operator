@@ -87,13 +87,9 @@ class TestLinearOperatorBlockTensorLinearOperator(CoreLinearOperatorTestCase, un
     should_test_sample = False
     T = 2
     N = M = 4  # Try a square for this set of tests
-    # N = 4
-    # M = 3
 
     A_dense = torch.eye(T * N)
     A_blocks = A_dense.reshape(T, N, T, M).permute(0, 2, 1, 3)
-
-    # A = torch.randn(T, T, N, M)  # Need to make something +ve definite
 
     def create_linear_op(self):
         A_blo = BlockTensorLinearOperator.from_tensor(self.A_blocks, self.T)
