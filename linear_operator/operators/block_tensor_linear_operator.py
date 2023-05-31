@@ -17,6 +17,8 @@ class BlockTensorLinearOperator(LinearOperator):
 
         self.linear_operators = linear_operators
         self.num_tasks = len(self.linear_operators)
+        self.block_rows = linear_operators[0][0].shape[0]
+        self.block_cols = linear_operators[0][0].shape[1]
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
@@ -24,35 +26,41 @@ class BlockTensorLinearOperator(LinearOperator):
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
 
         T = self.num_tasks
-        output = []
-        for i in range(T):
-            tmp = []
-            for j in range(T):
-                tmp.append([])
-            output.append(tmp)
 
-        if isinstance(rhs, self.__class__):
-            # TO DO: Check size is the same
+        # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
+        # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
+        if isinstance(rhs, self.__class__) and self.num_tasks == rhs.num_tasks and self.block_cols == rhs.block_rows:
+            output = []
+            for i in range(T):
+                tmp = []
+                for j in range(T):
+                    tmp.append([])
+                output.append(tmp)
             for i in range(T):
                 for j in range(T):
-                    out_ij = to_linear_operator(
-                        torch.zeros(self.linear_operators[0][0].shape[0], rhs.linear_operators[0][0].shape[1])
-                    )
-                    for k in range(T):
+                    out_ij = self.linear_operators[i][0] @ rhs.linear_operators[0][j]
+                    for k in range(1, T):
                         out_ij += self.linear_operators[i][k] @ rhs.linear_operators[k][j]
                     output[i][j] = out_ij
+            return self.__class__(output)
         elif isinstance(rhs, Tensor):
             # Check both matrix dims divisible by T,
-            # reshape to (T, T, ), call .from_tensor
-            pass
+            # reshape to (T, T, ), call block multiplication
+            if rhs.size(0) % T == 0 and rhs.size(1) % T == 0:
+                # A is block [N * T, M * T] and B is a general tensor/operator of shape [O, P].
+                # If O and P are both divisible by T,
+                # then interpret B as a [O//T * T, P//T * T] block matrix
+                O_T = rhs.size(0) // T
+                P_T = rhs.size(1) // T
+                rhs_blocks_raw = rhs.reshape(T, O_T, T, P_T)
+                rhs_blocks = rhs_blocks_raw.permute(0, 2, 1, 3)
+                rhs_op = BlockTensorLinearOperator.from_tensor(rhs_blocks, T)
+                return self._matmul(rhs_op)
 
-        elif isinstance(rhs, LinearOperator):
-            pass
-
-        else:
-            raise Exception("")
-
-        return self.__class__(output)
+        A = self.to_dense()
+        B = rhs.to_dense()
+        res = A @ B
+        return res
 
     def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
         out = []

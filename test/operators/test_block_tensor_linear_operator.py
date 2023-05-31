@@ -10,7 +10,7 @@ from linear_operator.test.base_test_case import BaseTestCase
 # from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestBlockBlockSimple(BaseTestCase, unittest.TestCase):
+class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
     def test_multiply(self):
         T = 2
         N = 4
@@ -32,7 +32,7 @@ class TestBlockBlockSimple(BaseTestCase, unittest.TestCase):
         self.assertAllClose(A_dense, A_blo.to_dense())
         self.assertAllClose(B_dense, B_blo.to_dense())
 
-        # Try to convert dense to block
+        # Convert dense format back to blocks and compare
         Ne = A_dense.size(0) // T
         Me = A_dense.size(1) // T
         A_blocks_est = A_dense.reshape(T, Ne, T, Me)
@@ -40,14 +40,14 @@ class TestBlockBlockSimple(BaseTestCase, unittest.TestCase):
         self.assertAllClose(A, A_blocks_est)
 
         # Check Tensor multiplication
-        # res_tensor_AB = A_blo._matmul(B_dense)
-        # res_tensor_dense_AB = res_tensor_AB.to_dense()
-        # self.assertAllClose(res_dense_AB, res_tensor_dense_AB)
+        res_tensor_AB = A_blo._matmul(B_dense)
+        res_tensor_dense_AB = res_tensor_AB.to_dense()
+        self.assertAllClose(res_dense_AB, res_tensor_dense_AB)
 
 
 rem = """
 
-class TestBlockBlockLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+class TestBlockTensorLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = False
     T = 2
