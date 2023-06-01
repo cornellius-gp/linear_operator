@@ -48,6 +48,13 @@ class CoreLinearOperatorTestCase(BaseTestCase):
         res_evaluated = to_dense(res)
         self.assertAllClose(res_evaluated, actual)
 
+        # grad = torch.randn_like(res_evaluated)
+        # res_evaluated.backward(gradient=grad)
+        # actual.backward(gradient=grad)
+        # for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+        #     if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+        #         self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["matmul"])
+
         # Test __torch_function__
         res = torch.matmul(linear_op, rhs)
         actual = evaluated.matmul(rhs)
@@ -83,6 +90,13 @@ class CoreLinearOperatorTestCase(BaseTestCase):
         actual = torch.matmul(lhs, evaluated)
         self.assertAllClose(res_evaluated, actual)
 
+        # grad = torch.randn_like(res)
+        # res.backward(gradient=grad)
+        # actual.backward(gradient=grad)
+        # for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
+        #     if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+        #         self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["matmul"])
+
     def test_add(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -100,6 +114,9 @@ class CoreLinearOperatorTestCase(BaseTestCase):
 
         rhs = torch.randn(linear_op.matrix_shape)
         self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
+
+        # rhs = torch.randn(2, *linear_op.shape)
+        # self.assertAllClose((linear_op + rhs).to_dense(), evaluated + rhs)
 
         self.assertAllClose((linear_op + linear_op).to_dense(), evaluated * 2)
 
@@ -180,6 +197,37 @@ class CoreLinearOperatorTestCase(BaseTestCase):
             actual = evaluated[0:2, ..., 2]
             self.assertAllClose(res, actual)
 
+        # # Batch case
+        # else:
+        #     res = linear_op[1].to_dense()
+        #     actual = evaluated[1]
+        #     self.assertAllClose(res, actual)
+        #     res = linear_op[0:2].to_dense()
+        #     actual = evaluated[0:2]
+        #     self.assertAllClose(res, actual)
+        #     res = linear_op[:, 0:2].to_dense()
+        #     actual = evaluated[:, 0:2]
+        #     self.assertAllClose(res, actual)
+        #
+        #     for batch_index in product([1, slice(0, 2, None)], repeat=(linear_op.dim() - 2)):
+        #         res = linear_op.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None))).to_dense()
+        #         actual = evaluated.__getitem__((*batch_index, slice(0, 1, None), slice(0, 2, None)))
+        #         self.assertAllClose(res, actual)
+        #         res = linear_op.__getitem__((*batch_index, 1, slice(0, 2, None)))
+        #         actual = evaluated.__getitem__((*batch_index, 1, slice(0, 2, None)))
+        #         self.assertAllClose(res, actual)
+        #         res = linear_op.__getitem__((*batch_index, slice(1, None, None), 2))
+        #         actual = evaluated.__getitem__((*batch_index, slice(1, None, None), 2))
+        #         self.assertAllClose(res, actual)
+        #
+        #     # Ellipsis
+        #     res = linear_op.__getitem__((Ellipsis, slice(1, None, None), 2))
+        #     actual = evaluated.__getitem__((Ellipsis, slice(1, None, None), 2))
+        #     self.assertAllClose(res, actual)
+        #     res = linear_op.__getitem__((slice(1, None, None), Ellipsis, 2))
+        #     actual = evaluated.__getitem__((slice(1, None, None), Ellipsis, 2))
+        #     self.assertAllClose(res, actual)
+
     def test_getitem_tensor_index(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -205,6 +253,53 @@ class CoreLinearOperatorTestCase(BaseTestCase):
             res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
 
+        # # Batch case
+        # else:
+        #     for batch_index in product(
+        #         [torch.tensor([0, 1, 1, 0]), slice(None, None, None)],
+        #         repeat=(linear_op.dim() - 2),
+        #     ):
+        #         index = (
+        #             *batch_index,
+        #             torch.tensor([0, 1, 0, 2]),
+        #             torch.tensor([1, 2, 0, 1]),
+        #         )
+        #         res, actual = linear_op[index], evaluated[index]
+        #         self.assertAllClose(res, actual)
+        #         index = (
+        #             *batch_index,
+        #             torch.tensor([0, 1, 0, 2]),
+        #             slice(None, None, None),
+        #         )
+        #         res, actual = (
+        #             linear_operator.to_dense(linear_op[index]),
+        #             evaluated[index],
+        #         )
+        #         self.assertAllClose(res, actual)
+        #         index = (
+        #             *batch_index,
+        #             slice(None, None, None),
+        #             torch.tensor([0, 1, 2, 1]),
+        #         )
+        #         res, actual = (
+        #             linear_operator.to_dense(linear_op[index]),
+        #             evaluated[index],
+        #         )
+        #         self.assertAllClose(res, actual)
+        #         index = (*batch_index, slice(None, None, None), slice(None, None, None))
+        #         res, actual = linear_op[index].to_dense(), evaluated[index]
+        #         self.assertAllClose(res, actual)
+        #
+        #     # Ellipsis
+        #     res = linear_op.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
+        #     actual = evaluated.__getitem__((Ellipsis, torch.tensor([0, 1, 0, 2]), torch.tensor([1, 2, 0, 1])))
+        #     self.assertAllClose(res, actual)
+        #     res = linear_operator.to_dense(
+        #         linear_op.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
+        #     )
+        #     actual = evaluated.__getitem__((torch.tensor([0, 1, 0, 1]), Ellipsis, torch.tensor([1, 2, 0, 1])))
+        #     self.assertAllClose(res, actual)
+
     def test_getitem_broadcasted_tensor_index(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -224,6 +319,62 @@ class CoreLinearOperatorTestCase(BaseTestCase):
             )
             res, actual = linear_op[index], evaluated[index]
             self.assertAllClose(res, actual)
+
+        # # Batch case
+        # else:
+        #     for batch_index in product(
+        #         [torch.tensor([0, 1, 1]).view(-1, 1, 1), slice(None, None, None)],
+        #         repeat=(linear_op.dim() - 2),
+        #     ):
+        #         index = (
+        #             *batch_index,
+        #             torch.tensor([0, 1]).view(-1, 1),
+        #             torch.tensor([1, 2, 0, 1]).view(1, -1),
+        #         )
+        #         res, actual = linear_op[index], evaluated[index]
+        #         self.assertAllClose(res, actual)
+        #         res, actual = (
+        #             linear_operator.to_dense(linear_op[index]),
+        #             evaluated[index],
+        #         )
+        #         self.assertAllClose(res, actual)
+        #         index = (*batch_index, slice(None, None, None), slice(None, None, None))
+        #         res, actual = linear_op[index].to_dense(), evaluated[index]
+        #         self.assertAllClose(res, actual)
+        #
+        #     # Ellipsis
+        #     res = linear_op.__getitem__(
+        #         (
+        #             Ellipsis,
+        #             torch.tensor([0, 1, 0]).view(-1, 1, 1),
+        #             torch.tensor([1, 2, 0, 1]).view(1, 1, -1),
+        #         )
+        #     )
+        #     actual = evaluated.__getitem__(
+        #         (
+        #             Ellipsis,
+        #             torch.tensor([0, 1, 0]).view(-1, 1, 1),
+        #             torch.tensor([1, 2, 0, 1]).view(1, 1, -1),
+        #         )
+        #     )
+        #     self.assertAllClose(res, actual)
+        #     res = linear_operator.to_dense(
+        #         linear_op.__getitem__(
+        #             (
+        #                 torch.tensor([0, 1, 0]).view(1, -1),
+        #                 Ellipsis,
+        #                 torch.tensor([1, 2, 0, 1]).view(-1, 1),
+        #             )
+        #         )
+        #     )
+        #     actual = evaluated.__getitem__(
+        #         (
+        #             torch.tensor([0, 1, 0]).view(1, -1),
+        #             Ellipsis,
+        #             torch.tensor([1, 2, 0, 1]).view(-1, 1),
+        #         )
+        #     )
+        #     self.assertAllClose(res, actual)
 
     def test_permute(self):
         linear_op = self.create_linear_op()
@@ -268,6 +419,44 @@ class CoreLinearOperatorTestCase(BaseTestCase):
         rhs = DiagLinearOperator(diag)
         return self._test_matmul(rhs)
 
+    # def test_matmul_matrix_broadcast(self):
+    #     linear_op = self.create_linear_op()
+    #
+    #     # Right hand size has one more batch dimension
+    #     batch_shape = torch.Size((3, *linear_op.batch_shape))
+    #     rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+    #     self._test_matmul(rhs)
+    #
+    #     if linear_op.ndimension() > 2:
+    #         # Right hand size has one fewer batch dimension
+    #         batch_shape = torch.Size(linear_op.batch_shape[1:])
+    #         rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+    #         self._test_matmul(rhs)
+    #
+    #         # Right hand size has a singleton dimension
+    #         batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+    #         rhs = torch.randn(*batch_shape, linear_op.size(-1), 4)
+    #         self._test_matmul(rhs)
+    #
+    # def test_rmatmul_matrix_broadcast(self):
+    #     linear_op = self.create_linear_op()
+    #
+    #     # Left hand size has one more batch dimension
+    #     batch_shape = torch.Size((3, *linear_op.batch_shape))
+    #     lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+    #     self._test_rmatmul(lhs)
+    #
+    #     if linear_op.ndimension() > 2:
+    #         # Left hand size has one fewer batch dimension
+    #         batch_shape = torch.Size(linear_op.batch_shape[1:])
+    #         lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+    #         self._test_rmatmul(lhs)
+    #
+    #         # Left hand size has a singleton dimension
+    #         batch_shape = torch.Size((*linear_op.batch_shape[:-1], 1))
+    #         lhs = torch.randn(*batch_shape, 4, linear_op.size(-2))
+    #         self._test_rmatmul(lhs)
+
     def test_rsub(self):
         linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
@@ -298,6 +487,26 @@ class CoreLinearOperatorTestCase(BaseTestCase):
             self.assertAllClose(torch.sum(linear_op, -3).to_dense(), torch.sum(evaluated, -3))
         if linear_op.ndimension() > 3:
             self.assertAllClose(torch.sum(linear_op, -4).to_dense(), torch.sum(evaluated, -4))
+
+    # def test_squeeze_unsqueeze(self):
+    #     linear_operator = self.create_linear_op()
+    #     evaluated = self.evaluate_linear_op(linear_operator)
+    #
+    #     unsqueezed = torch.unsqueeze(linear_operator, -3)
+    #     self.assertAllClose(unsqueezed.to_dense(), evaluated.unsqueeze(-3))
+    #
+    #     squeezed = torch.squeeze(unsqueezed, -3)
+    #     self.assertAllClose(squeezed.to_dense(), evaluated)
+    #
+    # def test_transpose_batch(self):
+    #     linear_op = self.create_linear_op()
+    #     evaluated = self.evaluate_linear_op(linear_op)
+    #
+    #     if linear_op.dim() >= 4:
+    #         for i, j in combinations(range(linear_op.dim() - 2), 2):
+    #             res = torch.transpose(linear_op, i, j).to_dense()
+    #             actual = torch.transpose(evaluated, i, j)
+    #             self.assertAllClose(res, actual, **self.tolerances["transpose"])
 
     def test_add_jitter(self):
         linear_op = self.create_linear_op()
