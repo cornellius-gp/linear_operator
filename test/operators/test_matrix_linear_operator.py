@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import BlockTensorLinearOperator
+from linear_operator.operators import MatrixLinearOperator
 from linear_operator.test.base_test_case import BaseTestCase
 from linear_operator.test.linear_operator_core_test_case import CoreLinearOperatorTestCase
 
@@ -26,8 +26,8 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         A = torch.randn(T, T, N, M)
         B = torch.randn(T, T, M, K)
 
-        A_blo = BlockTensorLinearOperator.from_tensor(A, T)
-        B_blo = BlockTensorLinearOperator.from_tensor(B, T)
+        A_blo = MatrixLinearOperator.from_tensor(A, T)
+        B_blo = MatrixLinearOperator.from_tensor(B, T)
         res_AB = A_blo._matmul(B_blo)
         res_dense_AB = res_AB.to_dense()
 
@@ -71,8 +71,8 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         B = self.dense_to_4d(B_dense, T)
 
         # A_blo will contain dense operators along the diagonal + Zero operators off diagonal
-        A_blo = BlockTensorLinearOperator.from_tensor(A, T)
-        B_blo = BlockTensorLinearOperator.from_tensor(B, T)
+        A_blo = MatrixLinearOperator.from_tensor(A, T)
+        B_blo = MatrixLinearOperator.from_tensor(B, T)
         res_AB = A_blo._matmul(B_blo)
         res_dense_AB = res_AB.to_dense()
 
@@ -92,7 +92,7 @@ class TestLinearOperatorBlockTensorLinearOperator(CoreLinearOperatorTestCase, un
     A_blocks = A_dense.reshape(T, N, T, M).permute(0, 2, 1, 3)
 
     def create_linear_op(self):
-        A_blo = BlockTensorLinearOperator.from_tensor(self.A_blocks, self.T)
+        A_blo = MatrixLinearOperator.from_tensor(self.A_blocks, self.T)
         return A_blo
 
     def evaluate_linear_op(self, linear_op):

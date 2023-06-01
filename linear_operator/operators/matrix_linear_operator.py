@@ -9,7 +9,13 @@ from .dense_linear_operator import DenseLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
 
 
-class BlockTensorLinearOperator(LinearOperator):
+class MatrixLinearOperator(LinearOperator):
+    """
+    A TxT matrix of LinearOperators
+
+    :param linear_operators: A TxT nested list of linear operators reprsenting a 2-D matrix
+    """
+
     def __init__(self, linear_operators: List[List[LinearOperator]]) -> None:
         assert isinstance(linear_operators, list), f"{self.__class__.__name__} expects a nested list of LinearOperators"
         assert len(linear_operators) > 0, "must have non-empty list"
@@ -54,7 +60,7 @@ class BlockTensorLinearOperator(LinearOperator):
         # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
         # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
         if isinstance(rhs, self.__class__) and self.num_tasks == rhs.num_tasks and self.block_cols == rhs.block_rows:
-            output = BlockTensorLinearOperator.create_square_ops_output(T)
+            output = MatrixLinearOperator.create_square_ops_output(T)
             for i in range(T):
                 for j in range(T):
                     out_ij = self.linear_operators[i][0] @ rhs.linear_operators[0][j]
@@ -73,7 +79,7 @@ class BlockTensorLinearOperator(LinearOperator):
                 P_T = rhs.size(1) // T
                 rhs_blocks_raw = rhs.reshape(T, O_T, T, P_T)
                 rhs_blocks = rhs_blocks_raw.permute(0, 2, 1, 3)
-                rhs_op = BlockTensorLinearOperator.from_tensor(rhs_blocks, T)
+                rhs_op = MatrixLinearOperator.from_tensor(rhs_blocks, T)
                 return self._matmul(rhs_op)
 
         # Failover implementation. Convert to dense and multiply matricies
@@ -134,7 +140,7 @@ class BlockTensorLinearOperator(LinearOperator):
             for j in range(self.num_tasks):
                 rows.append(self.linear_operators[j][i].mT)
             out.append(rows)
-        return BlockTensorLinearOperator(out)
+        return MatrixLinearOperator(out)
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Perform the __getitem__
@@ -143,7 +149,7 @@ class BlockTensorLinearOperator(LinearOperator):
         return DenseLinearOperator(res)
 
     @classmethod
-    def from_tensor(cls, tensor: Tensor, num_tasks: int) -> "BlockTensorLinearOperator":
+    def from_tensor(cls, tensor: Tensor, num_tasks: int) -> "MatrixLinearOperator":
         def tensor_to_linear_op(t: Tensor) -> LinearOperator:
             if torch.count_nonzero(t) > 0:
                 return DenseLinearOperator(t)
