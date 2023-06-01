@@ -132,7 +132,7 @@ class BlockTensorLinearOperator(LinearOperator):
         return DenseLinearOperator(res)
 
     @classmethod
-    def from_tensor(cls, tensor: Tensor, num_tasks: int):
+    def from_tensor(cls, tensor: Tensor, num_tasks: int) -> "BlockTensorLinearOperator":
         def tensor_to_linear_op(t):
             if torch.count_nonzero(t) > 0:
                 return DenseLinearOperator(t)
