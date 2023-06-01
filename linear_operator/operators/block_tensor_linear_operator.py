@@ -11,7 +11,7 @@ from .zero_linear_operator import ZeroLinearOperator
 
 class BlockTensorLinearOperator(LinearOperator):
     def __init__(self, linear_operators: List[List[LinearOperator]]) -> None:
-        assert isinstance(linear_operators, list), f"{self.__class__.__name__} expects a nested list of LinearOperators`
+        assert isinstance(linear_operators, list), f"{self.__class__.__name__} expects a nested list of LinearOperators"
         assert len(linear_operators) > 0, "must have non-empty list"
         assert len(linear_operators[0]) == len(linear_operators), "must be square over block dimensions"
 
@@ -22,8 +22,19 @@ class BlockTensorLinearOperator(LinearOperator):
         self.block_rows = linear_operators[0][0].shape[0]
         self.block_cols = linear_operators[0][0].shape[1]
 
+        # Check that provided operators all have the same shape
+        T = self.num_tasks
+        for i in range(T):
+            for j in range(T):
+                assert (
+                    linear_operators[i][j].shape[0] == self.block_rows
+                ), "the number of rows much match for all linear operators"
+                assert (
+                    linear_operators[i][j].shape[1] == self.block_cols
+                ), "the number of columns much match for all linear operators"
+
     @staticmethod
-    def square_ops(T):
+    def create_square_ops_output(T: int) -> List[List[LinearOperator]]:
         """Return an empty (square) list of operators of shape TxT"""
         ops = []
         for i in range(T):
@@ -43,7 +54,7 @@ class BlockTensorLinearOperator(LinearOperator):
         # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
         # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
         if isinstance(rhs, self.__class__) and self.num_tasks == rhs.num_tasks and self.block_cols == rhs.block_rows:
-            output = BlockTensorLinearOperator.square_ops(T)
+            output = BlockTensorLinearOperator.create_square_ops_output(T)
             for i in range(T):
                 for j in range(T):
                     out_ij = self.linear_operators[i][0] @ rhs.linear_operators[0][j]
@@ -111,6 +122,7 @@ class BlockTensorLinearOperator(LinearOperator):
     def _diag(self):
         out = []
         for i in range(self.num_tasks):
+            # The underlying operators will test if they are square
             diagonal = self.linear_operators[i][i].diagonal()
             out.append(diagonal)
         return torch.concat(out, axis=1)
@@ -126,14 +138,13 @@ class BlockTensorLinearOperator(LinearOperator):
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Perform the __getitem__
-        # TODO make this faster, see block_linear_operator
         tsr = self.to_dense()
         res = tsr[(*batch_indices, row_index, col_index)]
         return DenseLinearOperator(res)
 
     @classmethod
     def from_tensor(cls, tensor: Tensor, num_tasks: int) -> "BlockTensorLinearOperator":
-        def tensor_to_linear_op(t):
+        def tensor_to_linear_op(t: Tensor) -> LinearOperator:
             if torch.count_nonzero(t) > 0:
                 return DenseLinearOperator(t)
             return ZeroLinearOperator(*t.size(), dtype=t.dtype, device=t.device)
