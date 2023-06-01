@@ -131,7 +131,7 @@ class BlockMatrixLinearOperator(LinearOperator):
                 representation += tuple(op.representation())
         return tuple(representation)
 
-    def _diag(self):
+    def _diag(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         out = []
         for i in range(self.num_tasks):
             # The underlying operators will test if they are square
