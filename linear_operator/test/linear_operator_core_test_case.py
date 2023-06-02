@@ -8,8 +8,8 @@ import linear_operator
 from linear_operator.operators import DiagLinearOperator, to_dense
 from .base_test_case import BaseTestCase
 
-rem = """
-In code, a LinearOperator is a class that
+"""
+From the project description, a LinearOperator is a class that
 
 specifies the tensor(s) needed to define the LinearOperator,
 specifies a _matmul function (how the LinearOperator is applied to a vector),
@@ -17,6 +17,8 @@ specifies a _size function (how big is the LinearOperator if it is represented a
 specifies a _transpose_nonbatch function (the adjoint of the LinearOperator).
 (optionally) defines other functions (e.g. logdet, eigh, etc.) to accelerate computations for which efficient
 sturcture-exploiting routines exist.
+
+What follows is a class to test these core LinearOperator operations
 """
 
 
