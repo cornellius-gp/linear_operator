@@ -6,6 +6,7 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from ..utils.broadcasting import _pad_with_singletons
 from ..utils.getitem import _noop_index, IndexType
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator, to_dense
@@ -223,14 +224,26 @@ class KernelLinearOperator(LinearOperator):
     @cached(name="kernel_diag")
     def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         # Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
-        # We will do this by shoving all of the data into a batch dimension (i.e. compute a ... x N x 1 x 1 kernel)
+        # We will do this by shoving all of the data into a batch dimension (i.e. compute a N x ... x  1 x 1 kernel
+        # or a N x ... x num_outs-per_in x num_outs_per_in kernel)
         # and then squeeze out the batch dimensions
         x1 = self.x1.unsqueeze(0).transpose(0, -2)
         x2 = self.x2.unsqueeze(0).transpose(0, -2)
         tensor_params = {name: val.unsqueeze(0) for name, val in self.tensor_params.items()}
         diag_mat = to_dense(self.covar_func(x1, x2, **tensor_params, **self.nontensor_params))
-        assert diag_mat.shape[-2:] == torch.Size([1, 1])
-        return diag_mat.transpose(0, -2)[0, ..., 0]
+        assert diag_mat.shape[-2:] == torch.Size(self.num_outputs_per_input)
+
+        # Easy case: the kernel only has one output per input (standard kernels)
+        if self.num_outputs_per_input == (1, 1):
+            return diag_mat.transpose(0, -2)[0, ..., 0]
+        # Complicated case: the kernel only has multiple output per input (e.g. multitask kernels)
+        else:
+            # First: reshape the matrix to be ... x N x num_outputs_per_input x num_outputs_per_input
+            diag_mat = diag_mat.permute(*range(1, diag_mat.dim() - 2), 0, -2, -1)
+            # Next: get the diagonal vector, so that we have ... x N x num_outputs_per_input
+            unflattened_diag = diag_mat.diagonal(dim1=-1, dim2=-2)
+            # Finally: flatten the diagonal vector, so that we have ... x (N * num_outputs_per_input)
+            return unflattened_diag.reshape(*unflattened_diag.shape[:-2], -1)
 
     @property
     @cached(name="covar_mat")
@@ -238,12 +251,41 @@ class KernelLinearOperator(LinearOperator):
         return self.covar_func(self.x1, self.x2, **self.tensor_params, **self.nontensor_params)
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
-        x1_ = self.x1[(*batch_indices, row_index)].unsqueeze(-2)
-        x2_ = self.x2[(*batch_indices, col_index)].unsqueeze(-2)
-        tensor_params_ = {name: val[batch_indices] for name, val in self.tensor_params.items()}
+        # Similar to diagonal will do this by shoving all of the data into a batch dimension
+        # (i.e. compute a N x ... x  1 x 1 kernel or a N x ... x num_outs_per_in x num_outs_per_in kernel)
+        # and then squeeze out the batch dimensions
+        num_outs_per_in_rows, num_outs_per_in_cols = self.num_outputs_per_input
+        x1_ = self.x1[(*batch_indices, row_index.div(num_outs_per_in_rows, rounding_mode="floor"))].unsqueeze(
+            -2
+        )  # x1 will have shape ... x 1 x 1
+        x2_ = self.x2[(*batch_indices, col_index.div(num_outs_per_in_rows, rounding_mode="floor"))].unsqueeze(
+            -2
+        )  # x2 will have shape ... x 1 x 1
+        tensor_params_ = {name: val[batch_indices] for name, val in self.tensor_params.items()}  # will have shape ...
         indices_mat = to_dense(self.covar_func(x1_, x2_, **tensor_params_, **self.nontensor_params))
-        assert indices_mat.shape[-2:] == torch.Size([1, 1])
-        return indices_mat[..., 0, 0]
+        assert indices_mat.shape[-2:] == torch.Size(self.num_outputs_per_input)
+        # Easy case: the kernel only has one output per input (standard kernels)
+        if self.num_outputs_per_input == (1, 1):
+            return indices_mat[..., 0, 0]
+        # Complicated case: the kernel only has multiple output per input (e.g. multitask kernels)
+        else:
+            # The current shape of indices mat is ... x num_outs_per_in_row x num_outs_per_in_col
+            # And we want the final shape to be ...
+            # Therefore, figure out which of outputs we want to keep
+            row_output_index = row_index % num_outs_per_in_rows
+            col_output_index = col_index % num_outs_per_in_cols
+            # Now we select those specific outputs
+            # We neeed iterative tensors to select the appropriate elements from the batch dimensions
+            # of indices_mat
+            batch_indices = [
+                _pad_with_singletons(
+                    torch.arange(size, device=indices_mat.device),
+                    num_singletons_before=i,
+                    num_singletons_after=(indices_mat.dim() - 3 - i),
+                )
+                for i, size in enumerate(indices_mat.shape[:-2])
+            ]
+            return indices_mat[(*batch_indices, row_output_index, col_output_index)]
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # If we have multiple outputs per input, then the indices won't directly
