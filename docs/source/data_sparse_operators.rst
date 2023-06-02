@@ -36,6 +36,12 @@ Data-Sparse LinearOperators
 .. autoclass:: linear_operator.operators.IdentityLinearOperator
    :members:
 
+:hidden:`KernelLinearOperator`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: linear_operator.operators.KernelLinearOperator
+   :members:
+
 :hidden:`RootLinearOperator`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

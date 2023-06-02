@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import functools
+import itertools
 import math
 import numbers
 import warnings
 from abc import abstractmethod
+from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -150,7 +152,14 @@ class LinearOperator(object):
                 raise ValueError(err)
 
         self._args = args
-        self._kwargs = kwargs
+        self._differentiable_kwargs = OrderedDict()
+        self._nondifferentiable_kwargs = dict()
+        for name, val in sorted(kwargs.items()):
+            # Sorting is necessary so that the flattening in the representation tree is deterministic
+            if torch.is_tensor(val) or isinstance(val, LinearOperator):
+                self._differentiable_kwargs[name] = val
+            else:
+                self._nondifferentiable_kwargs[name] = val
 
     ####
     # The following methods need to be defined by the LinearOperator
@@ -350,17 +359,24 @@ class LinearOperator(object):
         """
         from collections import deque
 
-        args = tuple(self.representation())
-        args_with_grads = tuple(arg for arg in args if arg.requires_grad)
+        # Construct a detached version of each argument in the linear operator
+        args = []
+        for arg in self.representation():
+            # All arguments here are guaranteed to be tensors
+            if arg.dtype.is_floating_point and arg.requires_grad:
+                args.append(arg.detach().requires_grad_(True))
+            else:
+                args.append(arg.detach())
 
-        # Easy case: if we don't require any gradients, then just return!
-        if not len(args_with_grads):
-            return tuple(None for _ in args)
+        # If no arguments require gradients, then we're done!
+        if not any(arg.requires_grad for arg in args):
+            return (None,) * len(args)
 
-        # Normal case: we'll use the autograd to get us a derivative
+        # We'll use the autograd to get us a derivative
         with torch.autograd.enable_grad():
-            loss = (left_vecs * self._matmul(right_vecs)).sum()
-            loss.requires_grad_(True)
+            lin_op = self.representation_tree()(*args)
+            loss = (left_vecs * lin_op._matmul(right_vecs)).sum()
+            args_with_grads = [arg for arg in args if arg.requires_grad]
             actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
 
         # Now make sure that the object we return has one entry for every item in args
@@ -456,6 +472,10 @@ class LinearOperator(object):
     @_args.setter
     def _args(self, args: Tuple[Union[torch.Tensor, "LinearOperator", int], ...]) -> None:
         self._args_memo = args
+
+    @property
+    def _kwargs(self) -> Dict[str, Any]:
+        return {**self._differentiable_kwargs, **self._nondifferentiable_kwargs}
 
     def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
         """
@@ -1344,7 +1364,11 @@ class LinearOperator(object):
         (In practice, this function removes all Tensors that make up the
         :obj:`~linear_operator.opeators.LinearOperator` from the computation graph.)
         """
-        return self.clone().detach_()
+        detached_args = [arg.detach() if hasattr(arg, "detach") else arg for arg in self._args]
+        detached_kwargs = dict(
+            (key, val.detach() if hasattr(val, "detach") else val) for key, val in self._kwargs.items()
+        )
+        return self.__class__(*detached_args, **detached_kwargs)
 
     def detach_(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
         """
@@ -2013,7 +2037,7 @@ class LinearOperator(object):
         Returns the Tensors that are used to define the LinearOperator
         """
         representation = []
-        for arg in self._args:
+        for arg in itertools.chain(self._args, self._differentiable_kwargs.values()):
             if torch.is_tensor(arg):
                 representation.append(arg)
             elif hasattr(arg, "representation") and callable(arg.representation):  # Is it a LinearOperator?
