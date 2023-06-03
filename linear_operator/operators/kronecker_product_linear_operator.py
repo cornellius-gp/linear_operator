@@ -87,10 +87,10 @@ class KroneckerProductLinearOperator(LinearOperator):
         if len(batch_broadcast_shape):  # Otherwise all linear_ops are non-batch, and we don't need to expand
             # NOTE: we must explicitly call requires_grad on each of these arguments
             # for the automatic _bilinear_derivative to work in torch.autograd.Functions
-            linear_ops = [
+            linear_ops = tuple(
                 linear_op._expand_batch(batch_broadcast_shape).requires_grad_(linear_op.requires_grad)
                 for linear_op in linear_ops
-            ]
+            )
 
         super().__init__(*linear_ops)
         self.linear_ops = linear_ops
