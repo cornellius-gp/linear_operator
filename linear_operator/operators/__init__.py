@@ -23,6 +23,7 @@ from .kronecker_product_linear_operator import (
 )
 from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 from .low_rank_root_linear_operator import LowRankRootLinearOperator
+from .masked_linear_operator import MaskedLinearOperator
 from .matmul_linear_operator import MatmulLinearOperator
 from .mul_linear_operator import MulLinearOperator
 from .permutation_linear_operator import PermutationLinearOperator, TransposePermutationLinearOperator
@@ -62,6 +63,7 @@ __all__ = [
     "SumKroneckerLinearOperator",
     "LowRankRootAddedDiagLinearOperator",
     "LowRankRootLinearOperator",
+    "MaskedLinearOperator",
     "MatmulLinearOperator",
     "MulLinearOperator",
     "PermutationLinearOperator",
