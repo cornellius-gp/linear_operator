@@ -4,9 +4,7 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
-from linear_operator import LinearOperator
-
-from linear_operator.utils.getitem import _is_noop_index, IndexType
+from ._linear_operator import IndexType, LinearOperator, _is_noop_index
 
 
 class MaskedLinearOperator(LinearOperator):
