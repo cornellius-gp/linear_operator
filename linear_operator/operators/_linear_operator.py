@@ -2645,22 +2645,28 @@ class LinearOperator(object):
         """
         attr_flag = _TYPES_DICT[dtype]
 
+        def _type_helper(arg):
+            if arg.dtype.is_floating_point:
+                return arg.to(dtype)
+            else:
+                return arg
+
         new_args = []
         new_kwargs = {}
         for arg in self._args:
             if hasattr(arg, attr_flag):
                 try:
-                    new_args.append(arg.clone().to(dtype))
+                    new_args.append(_type_helper(arg.clone()))
                 except AttributeError:
-                    new_args.append(deepcopy(arg).to(dtype))
+                    new_args.append(_type_helper(deepcopy(arg)))
             else:
                 new_args.append(arg)
         for name, val in self._kwargs.items():
             if hasattr(val, attr_flag):
                 try:
-                    new_kwargs[name] = val.clone().to(dtype)
+                    new_kwargs[name] = _type_helper(val.clone())
                 except AttributeError:
-                    new_kwargs[name] = deepcopy(val).to(dtype)
+                    new_kwargs[name] = _type_helper(deepcopy(val))
             else:
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
