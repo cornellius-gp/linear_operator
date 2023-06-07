@@ -4,7 +4,7 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
-from ._linear_operator import IndexType, LinearOperator, _is_noop_index
+from ._linear_operator import _is_noop_index, IndexType, LinearOperator
 
 
 class MaskedLinearOperator(LinearOperator):
@@ -27,7 +27,6 @@ class MaskedLinearOperator(LinearOperator):
         :param row_mask: A :obj:`torch.BoolTensor` containing the mask to apply to the rows.
         :param col_mask: A :obj:`torch.BoolTensor` containing the mask to apply to the columns.
         """
-        _args_memo = None
         super().__init__(base, row_mask, col_mask)
         self.base = base
         self.row_mask = row_mask
