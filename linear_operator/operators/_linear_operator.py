@@ -2029,6 +2029,10 @@ class LinearOperator(object):
                 "batches of a 2D LinearOperator.".format(tuple(sizes))
             )
 
+        # Short path if no repetition is necessary
+        if all(x == 1 for x in sizes) and len(sizes) == self.dim():
+            return self
+
         return BatchRepeatLinearOperator(self, batch_repeat=torch.Size(sizes[:-2]))
 
     # TODO: make this method private
