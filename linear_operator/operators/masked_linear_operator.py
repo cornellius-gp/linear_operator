@@ -104,5 +104,10 @@ class MaskedLinearOperator(LinearOperator):
         else:
             return super()._getitem(row_index, col_index, *batch_indices)
 
+    def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
+        row_mapping = torch.arange(self.base.size(-2), device=self.base.device)[self.row_mask]
+        col_mapping = torch.arange(self.base.size(-1), device=self.base.device)[self.col_mask]
+        return self.base._get_indices(row_mapping[row_index], col_mapping[col_index], *batch_indices)
+
     def _permute_batch(self, *dims: int) -> LinearOperator:
         return self.__class__(self.base._permute_batch(*dims), self.row_mask, self.col_mask)
