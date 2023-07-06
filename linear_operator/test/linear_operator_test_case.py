@@ -684,7 +684,10 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         )
 
         for dc, da in zip(deriv_custom, deriv_auto):
-            self.assertAllClose(dc, da)
+            if dc is None:
+                assert da is None
+            else:
+                self.assertAllClose(dc, da)
 
     def test_cat_rows(self):
         linear_op = self.create_linear_op()
