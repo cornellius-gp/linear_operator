@@ -2023,15 +2023,15 @@ class LinearOperator(object):
         """
         from .batch_repeat_linear_operator import BatchRepeatLinearOperator
 
+        # Short path if no repetition is necessary
+        if all(x == 1 for x in sizes) and len(sizes) == self.dim():
+            return self
+
         if len(sizes) < 3 or tuple(sizes[-2:]) != (1, 1):
             raise RuntimeError(
                 "Invalid repeat arguments {}. Currently, repeat only works to create repeated "
                 "batches of a 2D LinearOperator.".format(tuple(sizes))
             )
-
-        # Short path if no repetition is necessary
-        if all(x == 1 for x in sizes) and len(sizes) == self.dim():
-            return self
 
         return BatchRepeatLinearOperator(self, batch_repeat=torch.Size(sizes[:-2]))
 
