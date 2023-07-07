@@ -40,6 +40,12 @@ Composition/Decoration LinearOperators
 .. autoclass:: linear_operator.operators.KroneckerProductDiagLinearOperator
    :members:
 
+:hidden:`MaskedLinearOperator`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: linear_operator.operators.MaskedLinearOperator
+   :members:
+
 :hidden:`MatmulLinearOperator`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
