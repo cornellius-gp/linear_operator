@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 from typing import Optional, Tuple, Union
 
 import torch
@@ -13,6 +15,10 @@ from ._linear_operator import IndexType, LinearOperator
 
 class KeOpsLinearOperator(LinearOperator):
     def __init__(self, x1, x2, covar_func, **params):
+        warnings.warn(
+            "KeOpsLinearOperator is deprecated. Please use KernelLinearOperator instead.",
+            DeprecationWarning,
+        )
         super().__init__(x1, x2, covar_func=covar_func, **params)
 
         self.x1 = x1.contiguous()

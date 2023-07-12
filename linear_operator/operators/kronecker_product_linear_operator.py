@@ -62,23 +62,36 @@ def _t_matmul(linear_ops, kp_shape, rhs):
 
 class KroneckerProductLinearOperator(LinearOperator):
     r"""
-    Returns the Kronecker product of the given lazy tensors
+    Given linearOperators :math:`\boldsymbol K_1, \ldots, \boldsymbol K_P`,
+    this LinearOperator represents the Kronecker product :math:`\boldsymbol K_1 \otimes \ldots \otimes \boldsymbol K_P`.
 
-    Args:
-        :`linear_ops`: List of lazy tensors
+    :param linear_ops: :math:`\boldsymbol K_1, \ldots, \boldsymbol K_P`: the LinearOperators in the Kronecker product.
     """
 
-    def __init__(self, *linear_ops):
+    def __init__(self, *linear_ops: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]]):
         try:
             linear_ops = tuple(to_linear_operator(linear_op) for linear_op in linear_ops)
         except TypeError:
             raise RuntimeError("KroneckerProductLinearOperator is intended to wrap lazy tensors.")
-        for prev_linear_op, curr_linear_op in zip(linear_ops[:-1], linear_ops[1:]):
-            if prev_linear_op.batch_shape != curr_linear_op.batch_shape:
-                raise RuntimeError(
-                    "KroneckerProductLinearOperator expects lazy tensors with the "
-                    "same batch shapes. Got {}.".format([lv.batch_shape for lv in linear_ops])
-                )
+
+        # Make batch shapes the same for all operators
+        try:
+            batch_broadcast_shape = torch.broadcast_shapes(*(linear_op.batch_shape for linear_op in linear_ops))
+        except RuntimeError:
+            raise RuntimeError(
+                "Batch shapes of LinearOperators "
+                f"({', '.join([str(tuple(linear_op.shape)) for linear_op in linear_ops])}) "
+                "are incompatible for a Kronecker product."
+            )
+
+        if len(batch_broadcast_shape):  # Otherwise all linear_ops are non-batch, and we don't need to expand
+            # NOTE: we must explicitly call requires_grad on each of these arguments
+            # for the automatic _bilinear_derivative to work in torch.autograd.Functions
+            linear_ops = tuple(
+                linear_op._expand_batch(batch_broadcast_shape).requires_grad_(linear_op.requires_grad)
+                for linear_op in linear_ops
+            )
+
         super().__init__(*linear_ops)
         self.linear_ops = linear_ops
 
@@ -102,10 +115,6 @@ class KroneckerProductLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
-        r"""
-        Adds a diagonal to a KroneckerProductLinearOperator
-        """
-
         from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 
         if not self.is_square:
