@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import List, Optional, Tuple, Union
 
 import torch
@@ -16,7 +17,7 @@ from .dense_linear_operator import DenseLinearOperator
 from .triangular_linear_operator import TriangularLinearOperator
 
 
-class DiagLinearOperator(TriangularLinearOperator):
+class _DiagLinearOperator(TriangularLinearOperator):
     """
     Diagonal linear operator (... x N x N).
 
@@ -287,6 +288,22 @@ class DiagLinearOperator(TriangularLinearOperator):
         else:
             evecs = None
         return evals, evecs
+
+
+if os.getenv("USE_COLA"):
+    import cola
+    from .cola_linear_operator import ColaLinearOperator
+
+    class DiagLinearOperator(ColaLinearOperator):
+        def __init__(self, diag: Float[Tensor, "*#batch N"]):
+            lo = _DiagLinearOperator(diag)
+            super().__init__(lo)
+
+        def _generate_cola_lo(self):
+            return cola.ops.Diagonal(self._lo._diag)
+
+else:
+    DiagLinearOperator = _DiagLinearOperator
 
 
 class ConstantDiagLinearOperator(DiagLinearOperator):
