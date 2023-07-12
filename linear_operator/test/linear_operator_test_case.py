@@ -19,6 +19,9 @@ from ..utils.warnings import PerformanceWarning
 from .base_test_case import BaseTestCase
 
 
+import cola
+
+
 class RectangularLinearOperatorTestCase(BaseTestCase):
 
     tolerances = {
@@ -41,9 +44,7 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         rhs_evaluated = to_dense(rhs)
 
         # Test operator
-        print("HERE")
         res = linear_op @ rhs
-        print(linear_op, res)
         actual = evaluated.matmul(rhs_evaluated)
         res_evaluated = to_dense(res)
         self.assertAllClose(res_evaluated, actual)
