@@ -302,6 +302,13 @@ if os.getenv("USE_COLA"):
         def _generate_cola_lo(self):
             return cola.ops.Diagonal(self._lo._diag)
 
+        @property
+        def _diag(self):
+            print("lo", self._lo)
+            res = self._lo._diag
+            print("_diag", res)
+            return res
+
 else:
     DiagLinearOperator = _DiagLinearOperator
 
