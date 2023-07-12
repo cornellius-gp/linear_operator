@@ -20,7 +20,6 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         diag = linear_op._diag
-        print(diag)
         return torch.diag_embed(diag)
 
     def test_abs(self):

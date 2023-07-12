@@ -295,19 +295,17 @@ if os.getenv("USE_COLA"):
     from .cola_linear_operator import ColaLinearOperator
 
     class DiagLinearOperator(ColaLinearOperator):
-        def __init__(self, diag: Float[Tensor, "*#batch N"]):
-            lo = _DiagLinearOperator(diag)
-            super().__init__(lo)
+        def _generate_cola_lo(self, diag):
+            return cola.ops.Diagonal(diag)
 
-        def _generate_cola_lo(self):
-            return cola.ops.Diagonal(self._lo._diag)
+        def _generate_orig_lo(self, diag):
+            return _DiagLinearOperator(diag)
 
         @property
         def _diag(self):
-            print("lo", self._lo)
-            res = self._lo._diag
-            print("_diag", res)
-            return res
+            # This property is necessary for the evaluate_linear_operator
+            # method of the test case
+            return self._orig_lo._diag
 
 else:
     DiagLinearOperator = _DiagLinearOperator

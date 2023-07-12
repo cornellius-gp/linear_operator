@@ -65,37 +65,46 @@ def _implements_symmetric(torch_function: Callable) -> Callable:
 
 
 class ColaLinearOperator(ABC):
-    def __init__(self, lo):
-        self._lo = lo
+    def __init__(self, *args, **kwargs):
+        self._cola_lo = self._generate_cola_lo(*args, **kwargs)
+        self._orig_lo = self._generate_orig_lo(*args, **kwargs)
 
     @abstractmethod
-    def _generate_cola_lo(self):
+    def _generate_cola_lo(self, *args, **kwargs):
         raise NotImplementedError
 
-    @property
-    def _cola_lo(self):
-        return self._generate_cola_lo()
+    @abstractmethod
+    def _generate_orig_lo(self, *args, **kwargs):
+        raise NotImplementedError
 
     @property
     def batch_shape(self):
         # COLAIFY
-        return self._lo.batch_shape
+        return self._orig_lo.batch_shape
 
     @_implements(torch.clone)
     def clone(self):
-        return self.__class__(self._lo.clone())
+        # COLAIFY
+        cloned_lo = self._orig_lo.clone()
+        return self.__class__(*cloned_lo._args, **cloned_lo._kwargs)
 
     def detach(self):
         # COLAIFY
-        return self.__class__(self._lo.detach())
+        detached_lo = self._orig_lo.detach()
+        return self.__class__(*detached_lo._args, **detached_lo._kwargs)
 
+    @_implements(torch.matmul)
     def matmul(self, rhs):
         print("Using CoLA for matmul")
-        return self._col_lo @ rhs
+        return self._cola_lo @ rhs
+
+    def representation(self):
+        res, _ = self._cola_lo.flatten()
+        return tuple(*res)
 
     def requires_grad_(self, value):
         # COLAIFY
-        self._lo.requires_grad_(value)
+        self._orig_lo.requires_grad_(value)
         return self
 
     def size(self, dim):
@@ -105,7 +114,6 @@ class ColaLinearOperator(ABC):
         return shape
 
     def __matmul__(self, rhs):
-        print("Using CoLA for matmul")
         return self.matmul(rhs)
 
     @classmethod
