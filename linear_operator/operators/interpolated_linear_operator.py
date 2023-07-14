@@ -405,15 +405,6 @@ class InterpolatedLinearOperator(LinearOperator):
             block_diag, left_interp_indices, left_interp_values, right_interp_indices, right_interp_values
         )
 
-    def double(
-        self: Float[LinearOperator, "*batch M N"], device_id: Optional[str] = None
-    ) -> Float[LinearOperator, "*batch M N"]:
-        # We need to ensure that the indices remain integers.
-        new_lt = super().double(device_id=device_id)
-        new_lt.left_interp_indices = new_lt.left_interp_indices.type(torch.int64)
-        new_lt.right_interp_indices = new_lt.right_interp_indices.type(torch.int64)
-        return new_lt
-
     def matmul(
         self: Float[LinearOperator, "*batch M N"],
         other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
