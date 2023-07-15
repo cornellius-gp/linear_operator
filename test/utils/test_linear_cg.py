@@ -143,6 +143,26 @@ class TestLinearCG(unittest.TestCase):
                 approx_eigs = torch.linalg.eigvalsh(t_mats[j, i])
                 self.assertTrue(torch.allclose(eigs, approx_eigs, atol=1e-3, rtol=1e-4))
 
+    def test_batch_cg_init(self):
+        batch = 5
+        size = 100
+        matrix = torch.randn(batch, size, size, dtype=torch.float64)
+        matrix = matrix.matmul(matrix.mT)
+        matrix.div_(matrix.norm())
+        matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
+
+        # Initial solve
+        rhs = torch.randn(batch, size, 50, dtype=torch.float64)
+        solves = linear_cg(matrix.matmul, rhs=rhs, max_iter=size, max_tridiag_iter=0)
+
+        # Initialize with solve
+        solves_with_init = linear_cg(matrix.matmul, rhs=rhs, max_iter=1, initial_guess=solves, max_tridiag_iter=0)
+
+        # Check cg
+        matrix_chol = torch.linalg.cholesky(matrix)
+        actual = torch.cholesky_solve(rhs, matrix_chol)
+        self.assertTrue(torch.allclose(solves_with_init, actual, atol=1e-3, rtol=1e-4))
+
 
 if __name__ == "__main__":
     unittest.main()
