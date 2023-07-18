@@ -15,6 +15,7 @@ from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from .identity_linear_operator import IdentityLinearOperator
 from .interpolated_linear_operator import InterpolatedLinearOperator
 from .keops_linear_operator import KeOpsLinearOperator
+from .kernel_linear_operator import KernelLinearOperator
 from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
 from .kronecker_product_linear_operator import (
     KroneckerProductDiagLinearOperator,
@@ -23,6 +24,7 @@ from .kronecker_product_linear_operator import (
 )
 from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
 from .low_rank_root_linear_operator import LowRankRootLinearOperator
+from .masked_linear_operator import MaskedLinearOperator
 from .matmul_linear_operator import MatmulLinearOperator
 from .mul_linear_operator import MulLinearOperator
 from .permutation_linear_operator import PermutationLinearOperator, TransposePermutationLinearOperator
@@ -55,6 +57,7 @@ __all__ = [
     "IdentityLinearOperator",
     "InterpolatedLinearOperator",
     "KeOpsLinearOperator",
+    "KernelLinearOperator",
     "KroneckerProductLinearOperator",
     "KroneckerProductAddedDiagLinearOperator",
     "KroneckerProductDiagLinearOperator",
@@ -62,6 +65,7 @@ __all__ = [
     "SumKroneckerLinearOperator",
     "LowRankRootAddedDiagLinearOperator",
     "LowRankRootLinearOperator",
+    "MaskedLinearOperator",
     "MatmulLinearOperator",
     "MulLinearOperator",
     "PermutationLinearOperator",

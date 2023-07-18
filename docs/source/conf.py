@@ -116,14 +116,20 @@ def _dim_to_str(dim):
     if isinstance(dim, jaxtyping.array_types._NamedVariadicDim):
         return "..."
     elif isinstance(dim, jaxtyping.array_types._FixedDim):
-        return str(dim.size)
+        res = str(dim.size)
+        if dim.broadcastable:
+            res = "#" + res
+        return res
     elif isinstance(dim, jaxtyping.array_types._SymbolicDim):
         expr = code_deparse(dim.expr).text.strip().split("return ")[1]
         return f"({expr})"
     elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
         return "..."
     else:
-        return str(dim.name)
+        res = str(dim.name)
+        if dim.broadcastable:
+            res = "#" + res
+        return res
 
 
 # Function to format type hints
@@ -152,9 +158,15 @@ def _process(annotation, config):
     elif hasattr(annotation, "__name__"):
         res = _convert_internal_and_external_class_to_strings(annotation)
 
+    elif str(annotation).startswith("typing.Callable"):
+        if len(annotation.__args__) == 2:
+            res = f"Callable[{_process(annotation.__args__[0], config)} -> {_process(annotation.__args__[1], config)}]"
+        else:
+            res = "Callable"
+
     # Convert any Union[*A*, *B*, *C*] into "*A* or *B* or *C*"
     # Also, convert any Optional[*A*] into "*A*, optional"
-    elif "typing.Union" in str(annotation):
+    elif str(annotation).startswith("typing.Union"):
         is_optional_str = ""
         args = list(annotation.__args__)
         # Hack: Optional[*A*] are represented internally as Union[*A*, Nonetype]
@@ -166,13 +178,13 @@ def _process(annotation, config):
         res = " or ".join(processed_args) + is_optional_str
 
     # Convert any Tuple[*A*, *B*] into "(*A*, *B*)"
-    elif "typing.Tuple" in str(annotation):
+    elif str(annotation).startswith("typing.Tuple"):
         args = list(annotation.__args__)
         res = "(" + ", ".join(_process(arg, config) for arg in args) + ")"
 
     # Callable typing annotation
-    elif "typing." in str(annotation):
-        return str(annotation)
+    elif str(annotation).startswith("typing."):
+        return str(annotation)[7:]
 
     # Special cases for forward references.
     # This is brittle, as it only contains case for a select few forward refs

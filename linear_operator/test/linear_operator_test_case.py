@@ -493,7 +493,10 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         )
 
         for dc, da in zip(deriv_custom, deriv_auto):
-            self.assertAllClose(dc, da)
+            if dc is None:
+                assert da is None
+            else:
+                self.assertAllClose(dc, da)
 
     def test_cat_rows(self):
         linear_op = self.create_linear_op()
@@ -718,7 +721,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
     def test_logdet(self):
         tolerances = self.tolerances["logdet"]
 
-        linear_op = self.create_linear_op()
+        linear_op = self.create_linear_op().detach()
         linear_op_copy = linear_op.detach().clone()
         linear_op.requires_grad_(True)
         linear_op_copy.requires_grad_(True)
