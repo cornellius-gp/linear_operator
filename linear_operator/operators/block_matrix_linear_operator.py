@@ -4,6 +4,7 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from .. import settings
 from ._linear_operator import IndexType, LinearOperator
 from .dense_linear_operator import DenseLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
@@ -23,9 +24,12 @@ class BlockMatrixLinearOperator(LinearOperator):
     """
 
     def __init__(self, linear_operators: List[List[LinearOperator]]) -> None:
-        assert isinstance(linear_operators, list), f"{self.__class__.__name__} expects a nested list of LinearOperators"
-        assert len(linear_operators) > 0, "must have non-empty list"
-        assert len(linear_operators[0]) == len(linear_operators), "must be square over block dimensions"
+        if settings.debug.on():
+            assert hasattr(
+                linear_operators, "__iter__"
+            ), f"{self.__class__.__name__} expects a nested list (or iterable) of LinearOperators"
+            assert len(linear_operators) > 0, "must have non-empty list"
+            assert len(linear_operators[0]) == len(linear_operators), "must be square over block dimensions"
 
         super().__init__(linear_operators)
 
@@ -91,6 +95,10 @@ class BlockMatrixLinearOperator(LinearOperator):
         # Failover implementation. Convert to dense and multiply matricies
         A = self.to_dense()
         B = rhs.to_dense()
+
+        # Batch logic is not supported for now
+        assert B.ndim <= 2
+
         res = A @ B
         return res
 
