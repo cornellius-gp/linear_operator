@@ -58,9 +58,10 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         actual = evaluated.matmul(rhs)
         self.assertAllClose(to_dense(res), actual)
 
+    @torch.no_grad
     def _test_t_matmul(self, rhs):
-        linear_op = self.create_linear_op().detach().requires_grad_(True)
-        linear_op_copy = torch.clone(linear_op).detach().requires_grad_(True)
+        linear_op = self.create_linear_op()
+        linear_op_copy = torch.clone(linear_op)
         evaluated = self.evaluate_linear_op(linear_op_copy)
         rhs_evaluated = to_dense(rhs)
 
