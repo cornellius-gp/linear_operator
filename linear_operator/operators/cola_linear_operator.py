@@ -5,6 +5,7 @@ import functools
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
+import cola
 
 
 _HANDLED_FUNCTIONS = {}
@@ -68,6 +69,9 @@ class ColaLinearOperator(ABC):
     def __init__(self, *args, **kwargs):
         self._cola_lo = self._generate_cola_lo(*args, **kwargs)
         self._orig_lo = self._generate_orig_lo(*args, **kwargs)
+        self.shape = self._cola_lo.shape
+        self.dtype = self._cola_lo.dtype
+        self.matrix_shape = self.shape[-2:]
 
     @abstractmethod
     def _generate_cola_lo(self, *args, **kwargs):
@@ -76,6 +80,26 @@ class ColaLinearOperator(ABC):
     @abstractmethod
     def _generate_orig_lo(self, *args, **kwargs):
         raise NotImplementedError
+
+    def __add__(self, other):
+        # COLAIFY
+        if len(other.shape) >= 3:
+            return self._orig_lo + other
+        else:
+            if isinstance(other, ColaLinearOperator):
+                other = other._cola_lo
+            return self._cola_lo + cola.fns.lazify(other)
+
+    @_implements_second_arg(torch.Tensor.add)
+    def __radd__(self, other):
+        return self + cola.fns.lazify(other)
+
+    @_implements_symmetric(torch.add)
+    def add(self, other, alpha=None):
+        if alpha is None:
+            return self + other
+        else:
+            return self + alpha * other
 
     @property
     def batch_shape(self):
