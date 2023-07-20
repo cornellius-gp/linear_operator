@@ -13,7 +13,8 @@ from .. import settings
 from ..utils.memoize import cached
 from ..utils.warnings import NumericalWarning
 from ._linear_operator import LinearOperator
-from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from .diag_linear_operator import ConstantDiagLinearOperator
+from .diag_linear_operator import _DiagLinearOperator as DiagLinearOperator
 from .psd_sum_linear_operator import PsdSumLinearOperator
 from .root_linear_operator import RootLinearOperator
 from .sum_linear_operator import SumLinearOperator
