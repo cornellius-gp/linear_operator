@@ -391,6 +391,20 @@ class RectangularLinearOperatorTestCase(BaseTestCase):
         rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-1), 4)
         return self._test_matmul(rhs)
 
+    def test_t_matmul_matrix(self):
+        with torch.no_grad():
+            linear_op = self.create_linear_op()
+            rhs = torch.randn(*linear_op.batch_shape, linear_op.size(-2), 4)
+            linear_op_copy = torch.clone(linear_op)
+            evaluated = self.evaluate_linear_op(linear_op_copy)
+            rhs_evaluated = to_dense(rhs)
+
+            # Test operator
+            res = linear_op._t_matmul(rhs)
+            actual = evaluated.mT.matmul(rhs_evaluated)
+            res_evaluated = to_dense(res)
+            self.assertAllClose(res_evaluated, actual)
+
     def test_rmatmul_matrix(self):
         linear_op = self.create_linear_op()
         lhs = torch.randn(*linear_op.batch_shape, 4, linear_op.size(-2))
