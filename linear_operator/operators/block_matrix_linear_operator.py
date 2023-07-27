@@ -1,4 +1,5 @@
-from typing import List, Optional, Tuple, Union
+import math
+from typing import List, Optional, Union
 
 import torch
 from jaxtyping import Float
@@ -20,34 +21,24 @@ class BlockMatrixLinearOperator(LinearOperator):
     represented as T^2 lazy tensors of the same shape. Implement matrix multiplication between block matrices as
     the appropriate linear operators on the blocks.
 
-    :param linear_operators: A TxT nested list of linear operators representing a 2-D matrix
+    :param linear_operators: A T^2 (flattened) list of linear operators representing a 2-D TxT block matrix.
+        The list of linear operators should be flattened into a concatenation of block-rowsa.
     """
 
-    def __init__(self, linear_operators: List[List[LinearOperator]]) -> None:
+    def __init__(self, *flattened_linear_operators: LinearOperator) -> None:
+        self.num_tasks = int(math.sqrt(len(flattened_linear_operators)))
+
         if settings.debug.on():
-            assert hasattr(
-                linear_operators, "__iter__"
-            ), f"{self.__class__.__name__} expects a nested list (or iterable) of LinearOperators"
-            assert len(linear_operators) > 0, "must have non-empty list"
-            assert len(linear_operators[0]) == len(linear_operators), "must be square over block dimensions"
+            assert len(flattened_linear_operators) > 0, "must have non-empty list"
+            assert self.num_tasks**2 == len(flattened_linear_operators)
 
-        super().__init__(linear_operators)
+        super().__init__(*flattened_linear_operators)
 
-        self.linear_operators = linear_operators
-        self.num_tasks = len(self.linear_operators)
-        self.block_rows = linear_operators[0][0].shape[0]
-        self.block_cols = linear_operators[0][0].shape[1]
-
-        # Check that provided operators all have the same shape
-        T = self.num_tasks
-        for i in range(T):
-            for j in range(T):
-                assert (
-                    linear_operators[i][j].shape[0] == self.block_rows
-                ), "the number of rows much match for all linear operators"
-                assert (
-                    linear_operators[i][j].shape[1] == self.block_cols
-                ), "the number of columns much match for all linear operators"
+        self.linear_operators = tuple(
+            flattened_linear_operators[i * self.num_tasks : (i + 1) * self.num_tasks] for i in range(self.num_tasks)
+        )
+        self.block_rows = self.linear_operators[0][0].shape[0]
+        self.block_cols = self.linear_operators[0][0].shape[1]
 
     @staticmethod
     def create_square_ops_output(T: int) -> List[List[LinearOperator]]:
@@ -68,14 +59,14 @@ class BlockMatrixLinearOperator(LinearOperator):
         assert self.block_cols == other.block_rows
 
         T = self.num_tasks
-        output = BlockMatrixLinearOperator.create_square_ops_output(T)
+        output = []
         for i in range(T):
             for j in range(T):
                 out_ij = self.linear_operators[i][0] @ other.linear_operators[0][j]
                 for k in range(1, T):
                     out_ij += self.linear_operators[i][k] @ other.linear_operators[k][j]
-                output[i][j] = out_ij
-        return self.__class__(output)
+                output.append(out_ij)
+        return self.__class__(*output)
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
@@ -145,16 +136,6 @@ class BlockMatrixLinearOperator(LinearOperator):
     def device(self) -> Optional[torch.device]:
         return self.linear_operators[0][0].device
 
-    def representation(self) -> Tuple[torch.Tensor, ...]:
-        """
-        Returns the Tensors that are used to define the LinearOperator
-        """
-        representation = []
-        for op_row in self.linear_operators:
-            for op in op_row:
-                representation += tuple(op.representation())
-        return tuple(representation)
-
     def _diag(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         out = []
         for i in range(self.num_tasks):
@@ -166,11 +147,9 @@ class BlockMatrixLinearOperator(LinearOperator):
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         out = []
         for i in range(self.num_tasks):
-            rows = []
             for j in range(self.num_tasks):
-                rows.append(self.linear_operators[j][i].mT)
-            out.append(rows)
-        return BlockMatrixLinearOperator(out)
+                out.append(self.linear_operators[j][i].mT)
+        return BlockMatrixLinearOperator(*out)
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         # Perform the __getitem__
@@ -186,7 +165,6 @@ class BlockMatrixLinearOperator(LinearOperator):
             return ZeroLinearOperator(*t.size(), dtype=t.dtype, device=t.device)
 
         linear_ops = [
-            [tensor_to_linear_op(t[0]) for t in list(torch.tensor_split(tensor[i], num_tasks))]
-            for i in range(num_tasks)
+            tensor_to_linear_op(t[0]) for i in range(num_tasks) for t in list(torch.tensor_split(tensor[i], num_tasks))
         ]
-        return cls(linear_ops)
+        return cls(*linear_ops)
