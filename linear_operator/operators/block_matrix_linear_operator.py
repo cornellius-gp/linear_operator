@@ -106,7 +106,7 @@ class BlockMatrixLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch M N"],
         other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
-        # The base method wants to perform a matmul via broadcasting and a 
+        # The base method wants to perform a matmul via broadcasting and a
         # representation tree which this operator doesn't support.
         return self._matmul(other)
 
