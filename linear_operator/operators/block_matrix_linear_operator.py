@@ -5,7 +5,7 @@ from jaxtyping import Float
 from torch import Tensor
 
 from .. import settings
-from ._linear_operator import IndexType, LinearOperator
+from ._linear_operator import IndexType, LinearOperator, to_dense
 from .dense_linear_operator import DenseLinearOperator
 from .zero_linear_operator import ZeroLinearOperator
 
@@ -94,7 +94,7 @@ class BlockMatrixLinearOperator(LinearOperator):
 
         # Failover implementation. Convert to dense and multiply matricies
         A = self.to_dense()
-        B = rhs.to_dense()
+        B = to_dense(rhs)
 
         # Batch logic is not supported for now
         assert B.ndim <= 2
