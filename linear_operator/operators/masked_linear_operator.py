@@ -50,7 +50,7 @@ class MaskedLinearOperator(LinearOperator):
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         rhs_expanded = self._expand(rhs, self.col_mask)
-        res_expanded = self.base.matmul(rhs_expanded)
+        res_expanded = self.base._matmul(rhs_expanded)
         res = res_expanded[..., self.row_mask, :]
 
         return res
@@ -60,7 +60,7 @@ class MaskedLinearOperator(LinearOperator):
         rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
     ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
         rhs_expanded = self._expand(rhs, self.row_mask)
-        res_expanded = self.base.t_matmul(rhs_expanded)
+        res_expanded = self.base._t_matmul(rhs_expanded)
         res = res_expanded[..., self.col_mask, :]
         return res
 

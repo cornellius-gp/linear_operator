@@ -180,6 +180,7 @@ def linear_cg(
 
     # Let's normalize. We'll un-normalize afterwards
     rhs = rhs.div(rhs_norm)
+    initial_guess = initial_guess.div(rhs_norm)
 
     # residual: residual_{0} = b_vec - lhs x_{0}
     residual = rhs - matmul_closure(initial_guess)
