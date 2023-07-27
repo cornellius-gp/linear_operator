@@ -28,7 +28,7 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
 
         A_blo = BlockMatrixLinearOperator.from_tensor(A, T)
         B_blo = BlockMatrixLinearOperator.from_tensor(B, T)
-        res_AB = A_blo._matmul(B_blo)
+        res_AB = A_blo.matmul(B_blo)
         res_dense_AB = res_AB.to_dense()
 
         A_dense = A.permute(0, 2, 1, 3).reshape(T * N, T * M)
@@ -43,7 +43,7 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         self.assertAllClose(A, A_blocks_est)
 
         # Check Tensor multiplication
-        res_tensor_AB = A_blo._matmul(B_dense)
+        res_tensor_AB = A_blo.matmul(B_dense)
         res_tensor_dense_AB = res_tensor_AB.to_dense()
         self.assertAllClose(res_dense_AB, res_tensor_dense_AB)
 
@@ -73,7 +73,7 @@ class TestBlockTensorSimple(BaseTestCase, unittest.TestCase):
         # A_blo will contain dense operators along the diagonal + Zero operators off diagonal
         A_blo = BlockMatrixLinearOperator.from_tensor(A, T)
         B_blo = BlockMatrixLinearOperator.from_tensor(B, T)
-        res_AB = A_blo._matmul(B_blo)
+        res_AB = A_blo.matmul(B_blo)
         res_dense_AB = res_AB.to_dense()
 
         expected = A_dense @ B_dense

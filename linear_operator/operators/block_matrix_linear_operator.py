@@ -60,25 +60,30 @@ class BlockMatrixLinearOperator(LinearOperator):
             ops.append(tmp)
         return ops
 
+    def _matmul_two_block_matrix_linear_operators(
+        self: "BlockMatrixLinearOperator",
+        other: "BlockMatrixLinearOperator",
+    ) -> "BlockMatrixLinearOperator":
+        assert self.num_tasks == other.num_tasks
+        assert self.block_cols == other.block_rows
+
+        T = self.num_tasks
+        output = BlockMatrixLinearOperator.create_square_ops_output(T)
+        for i in range(T):
+            for j in range(T):
+                out_ij = self.linear_operators[i][0] @ other.linear_operators[0][j]
+                for k in range(1, T):
+                    out_ij += self.linear_operators[i][k] @ other.linear_operators[k][j]
+                output[i][j] = out_ij
+        return self.__class__(output)
+
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
-
         T = self.num_tasks
 
-        # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
-        # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
-        if isinstance(rhs, self.__class__) and self.num_tasks == rhs.num_tasks and self.block_cols == rhs.block_rows:
-            output = BlockMatrixLinearOperator.create_square_ops_output(T)
-            for i in range(T):
-                for j in range(T):
-                    out_ij = self.linear_operators[i][0] @ rhs.linear_operators[0][j]
-                    for k in range(1, T):
-                        out_ij += self.linear_operators[i][k] @ rhs.linear_operators[k][j]
-                    output[i][j] = out_ij
-            return self.__class__(output)
-        elif isinstance(rhs, Tensor) and rhs.ndim == 2:
+        if isinstance(rhs, Tensor) and rhs.ndim == 2:
             # Check both matrix dims divisible by T,
             # reshape to (T, T, ), call block multiplication
             if rhs.size(0) % T == 0 and rhs.size(1) % T == 0:
@@ -90,14 +95,13 @@ class BlockMatrixLinearOperator(LinearOperator):
                 rhs_blocks_raw = rhs.reshape(T, O_T, T, P_T)
                 rhs_blocks = rhs_blocks_raw.permute(0, 2, 1, 3)
                 rhs_op = BlockMatrixLinearOperator.from_tensor(rhs_blocks, T)
-                return self._matmul(rhs_op)
+                return self._matmul_two_block_matrix_linear_operators(rhs_op).to_dense()
 
         # Failover implementation. Convert to dense and multiply matricies
+        # Batch logic is not supported for now
+        assert rhs.dim() <= 2
         A = self.to_dense()
         B = to_dense(rhs)
-
-        # Batch logic is not supported for now
-        assert B.ndim <= 2
 
         res = A @ B
         return res
@@ -106,6 +110,16 @@ class BlockMatrixLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch M N"],
         other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
+        # A is block [N * T1, M * T2] and B is block [O * S1, P * S2]. If A and B have conformal block counts
+        # ie T2==S1 as well as M==O then use the blockwise algorithm. Else use to_dense()
+        if isinstance(other, self.__class__):
+            if self.num_tasks == other.num_tasks and self.block_cols == other.block_rows:
+                return self._matmul_two_block_matrix_linear_operators(other)
+        elif isinstance(other, LinearOperator):
+            from .matmul_linear_operator import MatmulLinearOperator
+
+            return MatmulLinearOperator(self, other)
+
         # The base method wants to perform a matmul via broadcasting and a
         # representation tree which this operator doesn't support.
         return self._matmul(other)
