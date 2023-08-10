@@ -10,6 +10,7 @@ from torch import Tensor
 
 from ..utils import sparse
 from ..utils.broadcasting import _pad_with_singletons
+from ..utils.generic import _to_helper
 from ..utils.getitem import _noop_index
 from ..utils.interpolation import left_interp, left_t_interp
 from ._linear_operator import IndexType, LinearOperator
@@ -454,3 +455,28 @@ class InterpolatedLinearOperator(LinearOperator):
         res = left_interp(self.left_interp_indices, self.left_interp_values, base_samples).contiguous()
         batch_iter = tuple(range(res.dim() - 1))
         return res.permute(-1, *batch_iter).contiguous()
+
+    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+
+        # Overwrite the to() method in _linear_operator to avoid converting index matrices to float.
+        # Will only convert both dtype and device when arg and dtype are both int/float.
+        # Otherwise, will only convert device.
+
+        device, dtype = _to_helper(*args, **kwargs)
+
+        new_args = []
+        new_kwargs = {}
+        for arg in self._args:
+            if hasattr(arg, "to"):
+                if arg.dtype.is_floating_point == dtype.is_floating_point:
+                    new_args.append(arg.to(dtype=dtype, device=device))
+                else:
+                    new_args.append(arg.to(device=device))
+            else:
+                new_args.append(arg)
+        for name, val in self._kwargs.items():
+            if hasattr(val, "to"):
+                new_kwargs[name] = val.to(dtype=dtype, device=device)
+            else:
+                new_kwargs[name] = val
+        return self.__class__(*new_args, **new_kwargs)
