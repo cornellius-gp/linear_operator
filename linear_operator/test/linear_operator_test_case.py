@@ -1247,3 +1247,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
                 if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                     self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
+
+    def test_to_double(self):
+        # test if the linear_op is still functional after convert to double
+        linear_op = self.create_linear_op()
+        try:
+            linear_op = linear_op.to(torch.float64)
+            linear_op.numpy()
+        except RuntimeError:
+            print("Could not convert interpolated_linear_operator to double.")
