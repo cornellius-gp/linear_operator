@@ -1255,4 +1255,4 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op = linear_op.to(torch.float64)
             linear_op.numpy()
         except RuntimeError:
-            print("Could not convert interpolated_linear_operator to double.")
+            raise TypeError(f"Could not convert {type(linear_op)} to double.")
