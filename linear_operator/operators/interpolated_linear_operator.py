@@ -468,7 +468,7 @@ class InterpolatedLinearOperator(LinearOperator):
         new_kwargs = {}
         for arg in self._args:
             if hasattr(arg, "to"):
-                if arg.dtype.is_floating_point == dtype.is_floating_point:
+                if hasattr(arg, "dtype") and arg.dtype.is_floating_point == dtype.is_floating_point:
                     new_args.append(arg.to(dtype=dtype, device=device))
                 else:
                     new_args.append(arg.to(device=device))

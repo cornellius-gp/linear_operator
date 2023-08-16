@@ -48,6 +48,23 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         actual = left_matrix.matmul(base_tensor).matmul(right_matrix.t())
         return actual
 
+    def test_to_double(self):
+        # overwrite the test_to_double under LinearOperatorTestCase.
+        # specifically check if the index matrices are still integer after conversion.
+        linear_op = self.create_linear_op()
+        try:
+            linear_op = linear_op.to(torch.float64)
+            linear_op.numpy()
+        except RuntimeError:
+            raise TypeError(f"Could not convert {type(linear_op)} to double.")
+        if linear_op.dtype != torch.float64:
+            raise TypeError(f"Could not convert {type(linear_op)} to double.")
+        if (
+            linear_op.left_interp_indices.dtype == torch.float64
+            or linear_op.right_interp_indices.dtype == torch.float64
+        ):
+            raise TypeError(f"Index tensor in {type(linear_op)} converted to double.")
+
 
 class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0

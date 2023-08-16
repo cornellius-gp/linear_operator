@@ -1249,10 +1249,12 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                     self.assertAllClose(arg.grad, arg_copy.grad, **self.tolerances["svd"])
 
     def test_to_double(self):
-        # test if the linear_op is still functional after convert to double
+        # test if the linear_op is still functional and converted to torch.float64 after calling to(torch.float64).
         linear_op = self.create_linear_op()
         try:
             linear_op = linear_op.to(torch.float64)
             linear_op.numpy()
         except RuntimeError:
+            raise TypeError(f"Could not convert {type(linear_op)} to double.")
+        if linear_op.dtype != torch.float64:
             raise TypeError(f"Could not convert {type(linear_op)} to double.")
