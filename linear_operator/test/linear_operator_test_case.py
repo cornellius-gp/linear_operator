@@ -1255,6 +1255,5 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
             linear_op = linear_op.to(torch.float64)
             linear_op.numpy()
         except RuntimeError:
-            raise TypeError(f"Could not convert {type(linear_op)} to double.")
-        if linear_op.dtype != torch.float64:
-            raise TypeError(f"Could not convert {type(linear_op)} to double.")
+            raise RuntimeError(f"Could not convert {type(linear_op)} to double.")
+        self.assertEqual(linear_op.dtype, torch.float64)
