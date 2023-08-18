@@ -4,6 +4,8 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
+from ..utils.generic import _to_helper
+
 from ._linear_operator import _is_noop_index, IndexType, LinearOperator
 
 
@@ -111,3 +113,28 @@ class MaskedLinearOperator(LinearOperator):
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
         return self.__class__(self.base._permute_batch(*dims), self.row_mask, self.col_mask)
+
+    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+
+        # Overwrite the to() method in _linear_operator to avoid converting mask matrices to float.
+        # Will only convert both dtype and device when arg's dtype is not torch.bool.
+        # Otherwise, will only convert device.
+
+        device, dtype = _to_helper(*args, **kwargs)
+
+        new_args = []
+        new_kwargs = {}
+        for arg in self._args:
+            if hasattr(arg, "to"):
+                if hasattr(arg, "dtype") and arg.dtype.is_floating_point == dtype.is_floating_point:
+                    new_args.append(arg.to(dtype=dtype, device=device))
+                else:
+                    new_args.append(arg.to(device=device))
+            else:
+                new_args.append(arg)
+        for name, val in self._kwargs.items():
+            if hasattr(val, "to"):
+                new_kwargs[name] = val.to(dtype=dtype, device=device)
+            else:
+                new_kwargs[name] = val
+        return self.__class__(*new_args, **new_kwargs)

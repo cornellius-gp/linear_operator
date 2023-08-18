@@ -57,8 +57,7 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             linear_op.numpy()
         except RuntimeError:
             raise RuntimeError(f"Could not convert {type(linear_op)} to double.")
-        if linear_op.dtype != torch.float64:
-            raise TypeError(f"Could not convert {type(linear_op)} to double.")
+        self.assertEqual(linear_op.dtype, torch.float64)
         self.assertFalse(linear_op.left_interp_indices.dtype.is_floating_point)
         self.assertFalse(linear_op.right_interp_indices.dtype.is_floating_point)
 
