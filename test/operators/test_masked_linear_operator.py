@@ -25,6 +25,19 @@ class TestMaskedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         base = linear_op.base.to_dense()
         return base[..., linear_op.row_mask, :][..., linear_op.col_mask]
 
+    def test_to_double(self):
+        # overwrite the test_to_double under LinearOperatorTestCase.
+        # specifically check if the mask matrices are still boolean after conversion.
+        linear_op = self.create_linear_op()
+        try:
+            linear_op = linear_op.to(torch.float64)
+            linear_op.numpy()
+        except RuntimeError:
+            raise RuntimeError(f"Could not convert {type(linear_op)} to double.")
+        self.assertEqual(linear_op.dtype, torch.float64)
+        self.assertEqual(linear_op.col_mask.dtype, torch.bool)
+        self.assertEqual(linear_op.row_mask.dtype, torch.bool)
+
 
 class TestMaskedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 2023

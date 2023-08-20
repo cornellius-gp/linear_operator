@@ -8,6 +8,8 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from ..utils.generic import _to_helper
+
 from ..utils.getitem import _compute_getitem_size, _is_noop_index
 from ..utils.memoize import cached
 from ._linear_operator import IndexType, LinearOperator
@@ -255,3 +257,28 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     ) -> Float[Tensor, "num_samples *batch N"]:
         base_samples = torch.randn(num_samples, *self.shape[:-1], dtype=self.dtype, device=self.device)
         return base_samples
+
+    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+
+        # Overwrite the to() method in _linear_operator to also convert the dtype and device saved in _kwargs.
+
+        device, dtype = _to_helper(*args, **kwargs)
+
+        new_args = []
+        new_kwargs = {}
+        for arg in self._args:
+            if hasattr(arg, "to"):
+                if hasattr(arg, "dtype") and arg.dtype.is_floating_point == dtype.is_floating_point:
+                    new_args.append(arg.to(dtype=dtype, device=device))
+                else:
+                    new_args.append(arg.to(device=device))
+            else:
+                new_args.append(arg)
+        for name, val in self._kwargs.items():
+            if hasattr(val, "to"):
+                new_kwargs[name] = val.to(dtype=dtype, device=device)
+            else:
+                new_kwargs[name] = val
+        new_kwargs["device"] = device
+        new_kwargs["dtype"] = dtype
+        return self.__class__(*new_args, **new_kwargs)
