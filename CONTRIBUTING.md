@@ -9,8 +9,7 @@ linting, testing, and building the documentation, run the following:
 ```bash
 git clone https://github.com/cornellius-gp/linear_operator.git
 cd linear_operator
-pip install -e .[dev,test]
-pip install -r docs/requirements.txt
+pip install -e ".[dev,docs,test]"
 pre-commit install
 ```
 

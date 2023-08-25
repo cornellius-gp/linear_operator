@@ -1,8 +1,0 @@
-jaxtyping>=0.2.9
-myst-parser
-setuptools_scm
-sphinx
-sphinx_rtd_theme
-sphinx-autodoc-typehints
-six
-uncompyle6
