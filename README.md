@@ -394,14 +394,7 @@ If you are contributing a pull request, it is best to perform a manual installat
 ```sh
 git clone https://github.com/cornellius-gp/linear_operator.git
 cd linear_operator
-pip install -e .[dev,test]
-```
-
-To generate the documentation locally, you will also need to run the following command
-from the linear_operator folder:
-
-```sh
-pip install -r docs/requirements.txt
+pip install -e ".[dev,docs,test]"
 ```
 
 

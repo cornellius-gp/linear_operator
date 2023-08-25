@@ -76,7 +76,16 @@ setup(
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
-        "dev": ["ufmt", "twine", "pre-commit"],
+        "dev": ["pre-commit", "setuptools_scm", "ufmt", "twine"],
+        "docs": [
+            "myst-parser",
+            "setuptools_scm",
+            "sphinx",
+            "six",
+            "sphinx_rtd_theme",
+            "sphinx-autodoc-typehints",
+            "uncompyle6",
+        ],
         "test": ["flake8==5.0.4", "flake8-print==5.0.0", "pytest"],
     },
     test_suite="test",
