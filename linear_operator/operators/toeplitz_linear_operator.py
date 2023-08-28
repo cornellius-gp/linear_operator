@@ -5,38 +5,51 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.toeplitz import sym_toeplitz_derivative_quadratic_form, toeplitz_matmul
+from ..utils.toeplitz import toeplitz_derivative_quadratic_form, toeplitz_matmul
 from ._linear_operator import IndexType, LinearOperator
 
 
 class ToeplitzLinearOperator(LinearOperator):
     def __init__(self, column, row=None):
         """
-        Construct a diagonal constant matrix (also nammed Toeplitz matrix) of 
-        size (len(column),len(row)).
+        Construct a Toeplitz matrix.
+        The Toeplitz matrix has constant diagonals, with `column` as its first
+        column and `row` as its first row. If `row` is not given, 
+        `row == conjugate(column)` is assumed.
+        
         Args:
             :attr: `column` (Tensor)
-                If `column` is a 1D Tensor of length `n`, this represents a
+                First column of the matrix. If `column` is a 1D Tensor of length `n`, this represents a
                 Toeplitz matrix with `column` as its first column.
                 If `column` is `b_1 x b_2 x ... x b_k x n`, then this represents a batch
                 `b_1 x b_2 x ... x b_k` of Toeplitz matrices.
             :attr: `row` (Tensor)
-                If `row` is a 1D Tensor of length `n`, this represents a
+                First row of the matrix If `row` is a 1D Tensor of length `n`, this represents a
                 Toeplitz matrix with `row` as its row column. 
-                Note `column[0]` must be equal to `row[0]`.
-                If `row` is `None` or is not supplied, construct a symetric Toeplitz
-                matrix based on the first column.
+                `row` tensor must have the same size as `column`, with `column[...,0]`
+                equal to `row[...,0]`.
+                If `row` is `None` or is not supplied, assumes `row == conjugate(column)`.
+                If `row[0]` is real, the result is a Hermitian matrix. 
+                Else, `row[0]` is ignored and the first row of the returned matrix is `[column[0], row[1:]]`
         """
-        super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
-        if row is None:
-            self.row = column
+        if row is None: 
+            super(ToeplitzLinearOperator, self).__init__(column)
+            self.sym = True
+            myrow = column.conj()
+            myrow.data[...,0] = column[...,0]
+            self.row = myrow
+        else:
+            super(ToeplitzLinearOperator, self).__init__(column, row)
+            self.sym = False
+            self.row = row
 
     def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         diag_term = self.column[..., 0]
+        size = min(self.column.size(-1), self.row.size(-1))
         if self.column.ndimension() > 1:
             diag_term = diag_term.unsqueeze(-1)
-        return diag_term.expand(*min(self.column.size(), self.row.size))
+        return diag_term.expand(*self.column.size()[:-1], size)
 
     def _expand_batch(
         #TODO !
@@ -62,22 +75,25 @@ class ToeplitzLinearOperator(LinearOperator):
         return toeplitz_matmul(self.row, self.column, rhs)
         
     def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
-        #TODO
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)
-
-        res = sym_toeplitz_derivative_quadratic_form(left_vecs, right_vecs)
+        
+        res_c, res_r = toeplitz_derivative_quadratic_form(left_vecs, right_vecs)
 
         # Collapse any expanded broadcast dimensions
-        if res.dim() > self.column.dim():
-            res = res.view(-1, *self.column.shape).sum(0)
-
-        return (res,)
+        if res_c.dim() > self.column.dim():
+            res_c = res_c.view(-1, *self.column.shape).sum(0)
+        if res_r.dim() > self.row.dim():
+            res_r = res_r.view(-1, *self.row.shape).sum(0)
+        
+        if self.sym:
+            return (res_c + res_r, None, )
+        else:
+            return (res_c, res_r,)
 
     def _size(self) -> torch.Size:
-        #TO VALIDATE
-        return torch.Size((*self.column.shape, self.column.size(-1)))
+        return torch.Size((*self.row.shape, self.column.size(-1)))
 
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         return ToeplitzLinearOperator(self.row, self.column)
@@ -85,7 +101,9 @@ class ToeplitzLinearOperator(LinearOperator):
     def add_jitter(
         self: Float[LinearOperator, "*batch N N"], jitter_val: float = 1e-3
     ) -> Float[LinearOperator, "*batch N N"]:
-        #TODO
         jitter = torch.zeros_like(self.column)
         jitter.narrow(-1, 0, 1).fill_(jitter_val)
-        return ToeplitzLinearOperator(self.column.add(jitter), self.row.add(jitter))
+        if self.sym:
+            return ToeplitzLinearOperator(self.column.add(jitter))
+        else:
+            return ToeplitzLinearOperator(self.column.add(jitter), self.row.add(jitter))

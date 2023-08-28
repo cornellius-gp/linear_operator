@@ -14,13 +14,25 @@ class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def create_linear_op(self):
         toeplitz_column = torch.tensor([4, 0.5, 0, 1], dtype=torch.float, requires_grad=True)
+        toeplitz_row = torch.tensor([4, 0.6, -0.1, -1], dtype=torch.float, requires_grad=True)
+        return ToeplitzLinearOperator(toeplitz_column, toeplitz_row)
+
+    def evaluate_linear_op(self, linear_op):
+        return toeplitz.toeplitz(linear_op.column, linear_op.row)
+
+
+class TestSymToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+    seed = 1
+
+    def create_linear_op(self):
+        toeplitz_column = torch.tensor([4, 0.5, 0, 1], dtype=torch.float, requires_grad=True)
         return ToeplitzLinearOperator(toeplitz_column)
 
     def evaluate_linear_op(self, linear_op):
         return toeplitz.sym_toeplitz(linear_op.column)
 
 
-class TestToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
+class TestSymToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_linear_op(self):
@@ -36,7 +48,7 @@ class TestToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase)
         )
 
 
-class TestToeplitzLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
+class TestSymToeplitzLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
 
     def create_linear_op(self):

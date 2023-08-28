@@ -201,3 +201,48 @@ def sym_toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
     res[..., 0] -= (left_vectors * right_vectors).view(*batch_shape, -1).sum(-1)
 
     return res
+
+
+def toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
+    r"""
+    Given a left vector v1 and a right vector v2, computes the quadratic form:
+                                v1'*(dT/dc_i)*v2
+    for all i, where dT/dc_i is the derivative of the Toeplitz matrix with respect to
+    the ith element of its first column. Note that dT/dc_i is the same for any
+    Toeplitz matrix T, so we do not require it as an argument.
+
+    In particular, dT/dc_i for i=-m..0..m is the matrix with ones on the ith sub- (i>0) and superdiagonal (i<0).
+
+    Args:
+        - left_vectors (vector m or matrix s x m) - s left vectors u[j] in the quadratic form.
+        - right_vectors (vector m or matrix s x m) - s right vectors v[j] in the quadratic form.
+    Returns:
+        - vector d_column - a vector so that the ith element is the result of \sum_j(u[j]*(dT/dc_i)*v[j]) 
+            (i<0, corresponding to derivative relative to column entries)
+        - vector d_row - a vector so that the ith element is the result of \sum_j(u[j]*(dT/dc_i)*v[j]) (i>0)
+            (i>0, corresponding to derivative relative to row entries)
+    """
+    if left_vectors.ndimension() == 1:
+        left_vectors = left_vectors.unsqueeze(1)
+        right_vectors = right_vectors.unsqueeze(1)
+
+    batch_shape = left_vectors.shape[:-2]
+    toeplitz_size = left_vectors.size(-2)
+    num_vectors = left_vectors.size(-1)
+
+    left_vectors = left_vectors.mT.contiguous()
+    right_vectors = right_vectors.mT.contiguous()
+
+    columns = torch.zeros_like(left_vectors)
+    columns[..., 0] = left_vectors[..., 0]
+    
+    res_r = toeplitz_matmul(columns, left_vectors, right_vectors.unsqueeze(-1))
+    rows = left_vectors.flip(dims=(-1,))
+    columns[..., 0] = rows[..., 0]
+    res_c = toeplitz_matmul(columns, rows, torch.flip(right_vectors, dims=(-1,)).unsqueeze(-1))
+
+    res_c = res_c.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2)
+    res_r = res_r.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2) 
+    res_r[..., 0] -= (left_vectors * right_vectors).view(*batch_shape, -1).sum(-1)
+    
+    return [res_c, res_r]
