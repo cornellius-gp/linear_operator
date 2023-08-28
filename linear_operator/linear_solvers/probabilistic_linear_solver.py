@@ -338,7 +338,7 @@ class PLSsparse(LinearSolver):
             # Normalization constant
             action_linear_op_action = torch.inner(linear_op_action, action)
 
-            search_dir_sqnorm = action_linear_op_action
+            search_dir_sqnorm = action_linear_op_action  # TODO: obsolete computation
 
             if solver_state.cache["actions"] is not None:
                 gram_inv_tilde_z = torch.cholesky_solve(
@@ -349,7 +349,7 @@ class PLSsparse(LinearSolver):
 
                 search_dir_sqnorm = search_dir_sqnorm - torch.inner(
                     prev_actions_linear_op_action, gram_inv_tilde_z
-                )
+                )  # TODO: obsolete computation
 
             solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
 
@@ -362,7 +362,7 @@ class PLSsparse(LinearSolver):
                 break
 
             # Step size
-            step_size = observ / search_dir_sqnorm
+            step_size = observ / search_dir_sqnorm  # TODO: obsolete
 
             if solver_state.cache["actions"] is None:
                 # Matrix of previous actions
