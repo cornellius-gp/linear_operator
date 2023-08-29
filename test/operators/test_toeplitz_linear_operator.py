@@ -20,6 +20,23 @@ class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         return toeplitz.toeplitz(linear_op.column, linear_op.row)
 
+    # Tests that we bypass because non symmetric ToeplitzLinearOperators are not symmetric or PSD
+
+    def test_add_low_rank(self):
+        pass
+
+    def test_cat_rows(self):
+        pass
+
+    def test_cholesky(self):
+        pass
+
+    def test_root_decomposition_cholesky(self, cholesky=False):
+        pass
+
+    def test_inv_quad_logdet_no_reduce_cholesky(self):
+        pass
+
 
 class TestSymToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1

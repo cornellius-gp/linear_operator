@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.toeplitz import toeplitz_derivative_quadratic_form, toeplitz_matmul
+from ..utils.errors import NotPSDError
+from ..utils.toeplitz import toeplitz_derivative_quadratic_form, toeplitz_matmul, toeplitz_solve_ld
 from ._linear_operator import IndexType, LinearOperator
 
 
@@ -43,6 +44,16 @@ class ToeplitzLinearOperator(LinearOperator):
             super(ToeplitzLinearOperator, self).__init__(column, row)
             self.sym = False
             self.row = row
+            if torch.allclose(row, column.conj()):
+                self.sym = True
+    
+    def _cholesky(
+        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
+    ) -> Float[LinearOperator, "*batch N N"]:
+        if not self.sym:
+            #Cholesky decompositions are for Hermitian matrix
+            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow a Cholesky decomposition")
+        return super(ToeplitzLinearOperator, self)._cholesky(upper)
 
     def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
         diag_term = self.column[..., 0]
@@ -52,15 +63,21 @@ class ToeplitzLinearOperator(LinearOperator):
         return diag_term.expand(*self.column.size()[:-1], size)
 
     def _expand_batch(
-        #TODO !
         self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
     ) -> Float[LinearOperator, "... M N"]:
-        return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
+        #return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
+        if self.sym:
+            return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
+        else:
+            return self.__class__(
+                self.column.expand(*batch_shape, self.column.size(-1)),
+                self.row.expand(*batch_shape, self.row.size(-1)),
+            )
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
-        #TODO !
         toeplitz_indices = (row_index - col_index).fmod(self.size(-1)).abs().long()
-        return self.column[(*batch_indices, toeplitz_indices)]
+        res = torch.where(row_index > col_index, self.column[(*batch_indices, toeplitz_indices)], self.row[(*batch_indices, toeplitz_indices)])
+        return res #self.column[(*batch_indices, toeplitz_indices)]
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
@@ -87,16 +104,66 @@ class ToeplitzLinearOperator(LinearOperator):
         if res_r.dim() > self.row.dim():
             res_r = res_r.view(-1, *self.row.shape).sum(0)
         
+        res_r[...,0] = 0. #set it to zero as already in res_c[...,0]
+        
         if self.sym:
             return (res_c + res_r, None, )
         else:
             return (res_c, res_r,)
 
+    def _root_decomposition(
+        self: Float[LinearOperator, "... N N"]
+    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
+        if not self.sym:
+            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow a root decomposition")
+        return super(ToeplitzLinearOperator, self)._root_decomposition()
+
+    def _root_inv_decomposition(
+        self: Float[LinearOperator, "*batch N N"],
+        initial_vectors: Optional[torch.Tensor] = None,
+        test_vectors: Optional[torch.Tensor] = None,
+    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
+        if not self.sym:
+            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow an inverse root decomposition")
+        return super(ToeplitzLinearOperator, self)._root_inv_decomposition(initial_vectors, test_vectors)
+
     def _size(self) -> torch.Size:
         return torch.Size((*self.row.shape, self.column.size(-1)))
+    
+    def _solve(
+        self: Float[LinearOperator, "... N N"],
+        rhs: Float[torch.Tensor, "... N C"],
+        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
+        num_tridiag: Optional[int] = 0,
+    ) -> Union[
+        Float[torch.Tensor, "... N C"],
+        Tuple[
+            Float[torch.Tensor, "... N C"],
+            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+        ],
+    ]:
+        r"""
+        TODO
+        """
+        squeeze = False
+        if rhs.dim() == 1:
+            rhs_ = rhs.unsqueeze(-1)
+            squeeze = True
+        else:
+            rhs_ = rhs
+        res = toeplitz_solve_ld(self.column, self.row, rhs_)
+        if squeeze:
+            res = res.squeeze(-1)
+        return res
 
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
-        return ToeplitzLinearOperator(self.row, self.column)
+        if self.sym:
+            return ToeplitzLinearOperator(self.column)
+        else:
+            myrow = torch.cat([self.column[...,0].unsqueeze(-1), self.row[1:]], dim=-1)
+            mycol = torch.clone(self.column)
+            mycol.data[...,0] = myrow[...,0]
+            return ToeplitzLinearOperator(myrow, mycol)
 
     def add_jitter(
         self: Float[LinearOperator, "*batch N N"], jitter_val: float = 1e-3

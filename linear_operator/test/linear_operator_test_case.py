@@ -665,7 +665,6 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
 
     def test_add_low_rank(self):
         linear_op = self.create_linear_op()
-        linear_op = self.create_linear_op()
         evaluated = self.evaluate_linear_op(linear_op)
         new_rows = torch.randn(*linear_op.shape[:-1], 3)
 

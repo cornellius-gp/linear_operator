@@ -160,6 +160,66 @@ def sym_toeplitz_matmul(toeplitz_column, tensor):
     return toeplitz_matmul(toeplitz_column, toeplitz_column, tensor)
 
 
+def sym_toeplitz_solve_ld(toeplitz_column, right_vectors):
+    """
+    Solve the linear system Tx=b where T is a symmetric Toeplitz matrix and b the right
+    hand side of the equation using the Levinson-Durbin recursion, which run in O(n^2) time.
+    Args:
+        - toeplitz_column (vector n or b x n) - First column of the Toeplitz matrix T.
+        - toeplitz_row (vector n or b x n) - First row of the Toeplitz matrix T.
+        - right_vectors (matrix n x p or b x n x p) - Right hand side in T x = b
+    Returns:
+        - tensor (n x p or b x n x p) - The solution to the system T x = b.
+            Shape of return matches shape of b.
+    """
+    return toeplitz_solve_ld(toeplitz_column, toeplitz_column, right_vectors)
+
+
+def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
+    """
+    Solve the linear system Tx=b where T is a general Toeplitz matrix and b the right
+    hand side of the equation. Use the Levinson-Durbin recursion, which run in O(n^2) time,
+    but may exhibit numerical stability issues.
+    Args:
+        - toeplitz_column (vector n or b x n) - First column of the Toeplitz matrix T.
+        - toeplitz_row (vector n or b x n) - First row of the Toeplitz matrix T.
+        - right_vectors (matrix n x p or b x n x p) - Right hand side in T x = b
+    Returns:
+        - tensor (n x p or b x n x p) - The solution to the system T x = b.
+            Shape of return matches shape of b.
+
+    May have a look at:
+    https://github.com/scipy/scipy/blob/v1.11.2/scipy/linalg/_solve_toeplitz.pyx
+    """
+    # f = forward vector , b = backward vector
+    # xi = vector at iterator i, xim = vector at iteration i-1
+    flipped_toeplitz_column = toeplitz_column[..., 1:].flip(dims=(-1,))
+    N = toeplitz_row.size(-1)
+    xi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
+    fi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
+    bi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
+    bim = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
+
+    # iteration 0
+    fi[...,0,:] = 1/toeplitz_column[...,0]
+    bi[...,N-1,:] = 1/toeplitz_column[...,0]
+    xi[...,0,:] = right_vectors[...,0,:]/toeplitz_column[...,0]
+
+    for i in range(1,len(toeplitz_column)):
+        #update
+        bim[:] = bi
+        #compute the new forward and backward vector
+        efi = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1], fi[...,:i,:])
+        ebi = torch.matmul(toeplitz_row[...,1:i+1], bim[...,N-i:,:])
+        bi[N-i-1:] = 1/(1-ebi*efi) * (bim[N-i-1:] - ebi * fi[:i+1])
+        fi[:i+1] = 1/(1-ebi*efi) * (fi[:i+1] - efi * bim[N-i-1:])
+        #update solution
+        exim = torch.matmul(flipped_toeplitz_column[N-i-1:N-1], xi[:i])
+        xi[:i+1] += bi[N-i-1:] * (right_vectors[...,i,:] - exim)
+
+    return xi
+
+
 def sym_toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
     r"""
     Given a left vector v1 and a right vector v2, computes the quadratic form:
@@ -242,7 +302,6 @@ def toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
     res_c = toeplitz_matmul(columns, rows, torch.flip(right_vectors, dims=(-1,)).unsqueeze(-1))
 
     res_c = res_c.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2)
-    res_r = res_r.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2) 
-    res_r[..., 0] -= (left_vectors * right_vectors).view(*batch_shape, -1).sum(-1)
+    res_r = res_r.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2)
     
     return [res_c, res_r]
