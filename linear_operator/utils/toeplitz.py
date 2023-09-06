@@ -104,8 +104,7 @@ def toeplitz_matmul(toeplitz_column, toeplitz_row, tensor):
     Returns:
         - tensor (n x p or b x n x p) - The result of the matrix multiply T * M.
     """
-    if toeplitz_column.size() != toeplitz_row.size():
-        raise RuntimeError("c and r should have the same length (Toeplitz matrices are necessarily square).")
+    toeplitz_input_check(toeplitz_column, toeplitz_row)
 
     toeplitz_shape = torch.Size((*toeplitz_column.shape, toeplitz_row.size(-1)))
     output_shape = broadcasting._matmul_broadcast_shape(toeplitz_shape, tensor.shape)
@@ -187,37 +186,64 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
     Returns:
         - tensor (n x p or b x n x p) - The solution to the system T x = b.
             Shape of return matches shape of b.
-
-    May have a look at:
-    https://github.com/scipy/scipy/blob/v1.11.2/scipy/linalg/_solve_toeplitz.pyx
     """
+    toeplitz_input_check(toeplitz_column, toeplitz_row)
+    #if right_vectors.size(-1) != toeplitz_column.size(-1):
+    #    raise RuntimeError("Incompatible size betwen the Toeplitz matrix and the right hand side")
+    
+    output_shape = right_vectors.shape
+    broadcasted_t_shape = output_shape[:-1] if right_vectors.dim() > 1 else output_shape
+    if right_vectors.ndimension() == 1:
+        right_vectors = right_vectors.unsqueeze(-1)
+    toeplitz_column = toeplitz_column.expand(*broadcasted_t_shape)
+    toeplitz_row = toeplitz_row.expand(*broadcasted_t_shape)
+    N = toeplitz_column.size(-1)
+    
     # f = forward vector , b = backward vector
     # xi = vector at iterator i, xim = vector at iteration i-1
     flipped_toeplitz_column = toeplitz_column[..., 1:].flip(dims=(-1,))
-    N = toeplitz_row.size(-1)
     xi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
     fi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
     bi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
     bim = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
 
     # iteration 0
-    fi[...,0,:] = 1/toeplitz_column[...,0]
-    bi[...,N-1,:] = 1/toeplitz_column[...,0]
-    xi[...,0,:] = right_vectors[...,0,:]/toeplitz_column[...,0]
+    fi[...,0,:] = 1/toeplitz_column[...,0,None]
+    bi[...,N-1,:] = 1/toeplitz_column[...,0,None]
+    xi[...,0,:] = right_vectors[...,0,:]/toeplitz_column[...,0,None]
+    if N == 1: return xi
 
-    for i in range(1,len(toeplitz_column)):
+    for i in range(1,N):
         #update
         bim[:] = bi
         #compute the new forward and backward vector
-        efi = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1], fi[...,:i,:])
-        ebi = torch.matmul(toeplitz_row[...,1:i+1], bim[...,N-i:,:])
-        bi[N-i-1:] = 1/(1-ebi*efi) * (bim[N-i-1:] - ebi * fi[:i+1])
-        fi[:i+1] = 1/(1-ebi*efi) * (fi[:i+1] - efi * bim[N-i-1:])
+        efi = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, fi[...,:i,:])
+        ebi = torch.matmul(toeplitz_row[...,1:i+1,None].mT, bim[...,N-i:,:])
+        coeff = 1/(1-ebi*efi)
+        bi[...,N-i-1:,:] = coeff * (bim[...,N-i-1:,:] - ebi * fi[...,:i+1,:])
+        fi[...,:i+1,:] = coeff * (fi[...,:i+1,:] - efi * bim[...,N-i-1:,:])
         #update solution
-        exim = torch.matmul(flipped_toeplitz_column[N-i-1:N-1], xi[:i])
-        xi[:i+1] += bi[N-i-1:] * (right_vectors[...,i,:] - exim)
+        exim = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, xi[...,:i,:])
+        xi[...,:i+1,:] += bi[...,N-i-1:,:] * (right_vectors[...,i,:,None].mT - exim)
 
     return xi
+
+
+def toeplitz_inverse(toeplitz_column, toeplitz_row):
+    """
+    Calculate the Toeplitz matrix inverse following the Trench algorithm.
+    (See: Shalhav Zohar (1969) - Toeplitz Matrix Inversion: The Algorithm of W. F. Trench)
+    Args:
+        - toeplitz_column (vector n or b x n) - First column of the Toeplitz matrix T.
+        - toeplitz_row (vector n or b x n) - First row of the Toeplitz matrix T.
+    Returns:
+        - tensor (m x m or s x m x m) - The inverse of the Toeplitz matrices.
+    """
+    # Algorithm taken from:
+    # https://dl.acm.org/doi/pdf/10.1145/321541.321549
+    if toeplitz_column[0] == 0.:
+        raise ValueError("The main diagonal term (i.e. first column and row element) must be non-zero")
+    return inv
 
 
 def sym_toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
@@ -305,3 +331,20 @@ def toeplitz_derivative_quadratic_form(left_vectors, right_vectors):
     res_r = res_r.reshape(*batch_shape, num_vectors, toeplitz_size).sum(-2)
     
     return [res_c, res_r]
+
+
+def toeplitz_input_check(toeplitz_column, toeplitz_row):
+    """
+    Helper routine to check if the input Toeplitz matrix is well defined.
+    """
+    if toeplitz_column.size() != toeplitz_row.size():
+        raise RuntimeError("c and r should have the same length (Toeplitz matrices are necessarily square).")
+    if not torch.equal(toeplitz_column[..., 0], toeplitz_row[..., 0]):
+        raise RuntimeError(
+            "The first column and first row of the Toeplitz matrix should have "
+            "the same first element, otherwise the value of T[0,0] is ambiguous. "
+            "Got: c[0]={} and r[0]={}".format(toeplitz_column[0], toeplitz_row[0])
+        )
+    if type(toeplitz_column) != type(toeplitz_row):
+        raise RuntimeError("toeplitz_column and toeplitz_row should be the same type.")
+    return True
