@@ -34,7 +34,7 @@ class ToeplitzLinearOperator(LinearOperator):
                 Else, `row[0]` is ignored and the first row of the returned matrix is `[column[0], row[1:]]`
         """
         self.column = column
-        if row is None: 
+        if row is None:
             super(ToeplitzLinearOperator, self).__init__(column)
             self.sym = True
             myrow = column.conj()
@@ -52,7 +52,7 @@ class ToeplitzLinearOperator(LinearOperator):
     ) -> Float[LinearOperator, "*batch N N"]:
         if not self.sym:
             #Cholesky decompositions are for Hermitian matrix
-            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow a Cholesky decomposition")
+            raise NotPSDError("Non-symmetric ToeplitzLinearOperator does not allow a Cholesky decomposition")
         return super(ToeplitzLinearOperator, self)._cholesky(upper)
 
     def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
@@ -115,7 +115,7 @@ class ToeplitzLinearOperator(LinearOperator):
         self: Float[LinearOperator, "... N N"]
     ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
         if not self.sym:
-            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow a root decomposition")
+            raise NotPSDError("Non-symmetric ToeplitzLinearOperator does not allow a root decomposition")
         return super(ToeplitzLinearOperator, self)._root_decomposition()
 
     def _root_inv_decomposition(
@@ -124,7 +124,7 @@ class ToeplitzLinearOperator(LinearOperator):
         test_vectors: Optional[torch.Tensor] = None,
     ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
         if not self.sym:
-            raise NotPSDError("No symmetric ToeplitzLinearOperator does not allow an inverse root decomposition")
+            raise NotPSDError("Non-symmetric ToeplitzLinearOperator does not allow an inverse root decomposition")
         return super(ToeplitzLinearOperator, self)._root_inv_decomposition(initial_vectors, test_vectors)
 
     def _size(self) -> torch.Size:
@@ -145,16 +145,33 @@ class ToeplitzLinearOperator(LinearOperator):
         r"""
         TODO
         """
-        squeeze = False
-        if rhs.dim() == 1:
-            rhs_ = rhs.unsqueeze(-1)
-            squeeze = True
+        if self.sym and num_tridiag:
+            #TODO, this can be optimized, i.e. using toeplitz_solve_ld and toeplitz_tridiag separately
+            res, res_tridiag = super(ToeplitzLinearOperator, self)._solve(rhs,preconditioner,num_tridiag)
+            #res_tridiag = lanczos_tridiag(
+            #    matmul_closure=self._matmul,
+            #    max_iter=settings.max_lanczos_quadrature_iterations.value(),
+            #    dtype=self.column.dtype,
+            #    device=self.column.device,
+            #    matrix_shape=self._size(),
+            #    batch_shape=self.batch_shape,
+            #)
+            return res, res_tridiag
+
+        if num_tridiag:
+            raise NotPSDError("Non-symmetric ToeplitzLinearOperator does not allow tridiagonalization")
         else:
-            rhs_ = rhs
-        res = toeplitz_solve_ld(self.column, self.row, rhs_)
-        if squeeze:
-            res = res.squeeze(-1)
-        return res
+            #solve
+            squeeze = False
+            if rhs.dim() == 1:
+                rhs_ = rhs.unsqueeze(-1)
+                squeeze = True
+            else:
+                rhs_ = rhs
+            res = toeplitz_solve_ld(self.column, self.row, rhs_)
+            if squeeze:
+                res = res.squeeze(-1)
+            return res
 
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         if self.sym:

@@ -10,6 +10,7 @@ from linear_operator.test.linear_operator_test_case import LinearOperatorTestCas
 
 
 class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+    should_call_cg = False
     seed = 1
 
     def create_linear_op(self):
@@ -19,8 +20,23 @@ class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
     def evaluate_linear_op(self, linear_op):
         return toeplitz.toeplitz(linear_op.column, linear_op.row)
+    
+    def _ensure_symmetric_grad(self, grad):
+        # Hack! we don't actually want symmetric grads for this LinearOperator test case
+        return grad
 
     # Tests that we bypass because non symmetric ToeplitzLinearOperators are not symmetric or PSD
+    def test_logdet(self):
+        pass
+
+    def test_inv_quad_logdet(self):
+        pass
+
+    def test_inv_quad_logdet_no_reduce(self):
+        pass
+
+    def test_inv_quad_logdet_no_reduce_cholesky(self):
+        pass
 
     def test_add_low_rank(self):
         pass
@@ -31,14 +47,42 @@ class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def test_cholesky(self):
         pass
 
+    def test_diagonalization(self, symeig=False):
+        pass
+
+    def test_eigh(self):
+        pass
+
+    def test_eigvalsh(self):
+        pass
+
+    def test_root_decomposition(self, cholesky=False):
+        pass
+
     def test_root_decomposition_cholesky(self, cholesky=False):
         pass
 
-    def test_inv_quad_logdet_no_reduce_cholesky(self):
+    def test_root_inv_decomposition(self, cholesky=False):
+        pass
+
+    def test_solve_matrix_cholesky(self):
+        pass
+
+    def test_solve_vector_with_left_cholesky(self):
+        pass
+
+    def test_sqrt_inv_matmul(self):
+        pass
+
+    def test_sqrt_inv_matmul_no_lhs(self):
+        pass
+
+    def test_svd(self):
         pass
 
 
 class TestSymToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+    should_call_cg = False
     seed = 1
 
     def create_linear_op(self):

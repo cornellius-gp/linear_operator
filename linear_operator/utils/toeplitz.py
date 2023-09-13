@@ -193,8 +193,10 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
     
     output_shape = right_vectors.shape
     broadcasted_t_shape = output_shape[:-1] if right_vectors.dim() > 1 else output_shape
+    unsqueezed_vec = False
     if right_vectors.ndimension() == 1:
         right_vectors = right_vectors.unsqueeze(-1)
+        unsqueezed_vec = True
     toeplitz_column = toeplitz_column.expand(*broadcasted_t_shape)
     toeplitz_row = toeplitz_row.expand(*broadcasted_t_shape)
     N = toeplitz_column.size(-1)
@@ -202,10 +204,10 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
     # f = forward vector , b = backward vector
     # xi = vector at iterator i, xim = vector at iteration i-1
     flipped_toeplitz_column = toeplitz_column[..., 1:].flip(dims=(-1,))
-    xi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
-    fi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
-    bi = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
-    bim = torch.zeros(right_vectors.shape, device=right_vectors.device, dtype=right_vectors.dtype)
+    xi = torch.zeros_like(right_vectors)
+    fi = torch.zeros_like(right_vectors)
+    bi = torch.zeros_like(right_vectors)
+    bim = torch.zeros_like(right_vectors)
 
     # iteration 0
     fi[...,0,:] = 1/toeplitz_column[...,0,None]
@@ -215,16 +217,19 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
 
     for i in range(1,N):
         #update
-        bim[:] = bi
+        bim = bi.clone()
         #compute the new forward and backward vector
-        efi = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, fi[...,:i,:])
+        efi = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, fi.clone()[...,:i,:])
         ebi = torch.matmul(toeplitz_row[...,1:i+1,None].mT, bim[...,N-i:,:])
         coeff = 1/(1-ebi*efi)
-        bi[...,N-i-1:,:] = coeff * (bim[...,N-i-1:,:] - ebi * fi[...,:i+1,:])
+        bi[...,N-i-1:,:] = coeff * (bim[...,N-i-1:,:] - ebi * fi.clone()[...,:i+1,:])
         fi[...,:i+1,:] = coeff * (fi[...,:i+1,:] - efi * bim[...,N-i-1:,:])
         #update solution
-        exim = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, xi[...,:i,:])
-        xi[...,:i+1,:] += bi[...,N-i-1:,:] * (right_vectors[...,i,:,None].mT - exim)
+        exim = torch.matmul(flipped_toeplitz_column[...,N-i-1:N-1,None].mT, xi.clone()[...,:i,:])
+        xi[...,:i+1,:] = xi[...,:i+1,:] + bi.clone()[...,N-i-1:,:] * (right_vectors[...,i,:,None].mT - exim)
+    
+    if unsqueezed_vec == 1:
+        xi = xi.squeeze()
 
     return xi
 

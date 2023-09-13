@@ -82,6 +82,29 @@ class TestToeplitz(unittest.TestCase):
         res = utils.toeplitz.toeplitz_solve_ld(col, row, rhs_mat)
         self.assertTrue(approx_equal(res, actual))
 
+    def test_toeplitz_solve_backward(self):
+        col = torch.tensor([1, 6, 4, 5], dtype=torch.float, requires_grad=True)
+        row = torch.tensor([1, 2, 1, 1], dtype=torch.float, requires_grad=True)
+        rhs_mat = torch.randn(4, 2)
+        jac_vec = torch.randn_like(rhs_mat)
+
+        # Actual
+        lhs_mat = utils.toeplitz.toeplitz(col, row)
+        actual = torch.linalg.solve(lhs_mat, rhs_mat)
+        actual.backward(gradient=jac_vec)
+        d_actual_d_row = row.grad
+        d_actual_d_col = col.grad
+
+        # Fast toeplitz
+        res = utils.toeplitz.toeplitz_solve_ld(col, row, rhs_mat)
+        self.assertTrue(approx_equal(res, actual))
+        row.grad[:] = 0.
+        col.grad[:] = 0.
+        res.backward(gradient=jac_vec)
+
+        self.assertTrue(approx_equal(d_actual_d_row, row.grad))
+        self.assertTrue(approx_equal(d_actual_d_col, col.grad))
+
     def test_toeplitz_solve_batch(self):
         cols = torch.tensor([[1, 6, 4, 5], [2, 3, 1, 0], [1, 2, 3, 1]], dtype=torch.float)
         rows = torch.tensor([[1, 2, 1, 1], [2, 0, 0, 1], [1, 5, 1, 0]], dtype=torch.float)
