@@ -111,8 +111,10 @@ class CatLinearOperator(LinearOperator):
         if slice_idx.step is not None:
             # TODO: Add support for this eventually.
             raise RuntimeError("Slicing a CatLinearOperator with a step is not currently supported!")
-        start_idx = slice_idx.start if slice_idx.start is not None else 0
-        stop_idx = slice_idx.stop if slice_idx.stop is not None else self.size(self.cat_dim)
+
+        cat_size = self.size(self.cat_dim)
+        start_idx = slice_idx.start % cat_size if slice_idx.start is not None else 0
+        stop_idx = slice_idx.stop % cat_size if slice_idx.stop is not None else cat_size
 
         first_tensor_idx = self.idx_to_tensor_idx[start_idx].item()
         last_tensor_idx = self.idx_to_tensor_idx[stop_idx - 1].item()
