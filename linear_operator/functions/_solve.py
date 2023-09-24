@@ -7,13 +7,33 @@ from .. import settings
 
 
 def _solve(linear_op, rhs):
-    from ..operators import CholLinearOperator, TriangularLinearOperator
+    from ..operators import (
+        CholLinearOperator,
+        TriangularLinearOperator,
+        KroneckerProductAddedDiagLinearOperator,
+        KroneckerProductLinearOperator,
+        KroneckerProductDiagLinearOperator,
+        KroneckerProductTriangularLinearOperator,
+        SumKroneckerLinearOperator,
+    )
 
-    if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
-        # May want to do this for some KroneckerProductLinearOperators and possibly
-        # KroneckerProductAddedDiagLinearOperators as well
+    if isinstance(
+        linear_op,
+        (
+            CholLinearOperator,
+            TriangularLinearOperator,
+            KroneckerProductAddedDiagLinearOperator,
+            KroneckerProductLinearOperator,
+            KroneckerProductDiagLinearOperator,
+            KroneckerProductTriangularLinearOperator,
+            SumKroneckerLinearOperator,
+        ),
+    ):
         return linear_op.solve(rhs)
-    if settings.fast_computations.solves.off() or linear_op.size(-1) <= settings.max_cholesky_size.value():
+    if (
+        settings.fast_computations.solves.off()
+        or linear_op.size(-1) <= settings.max_cholesky_size.value()
+    ):
         return linear_op.cholesky()._cholesky_solve(rhs)
     else:
         with torch.no_grad():
@@ -94,7 +114,9 @@ class Solve(Function):
 
             if not ctx.has_left:
                 # Compute self^{-1} grad_output
-                left_solves = Solve.apply(ctx.representation_tree, False, grad_output, *matrix_args)
+                left_solves = Solve.apply(
+                    ctx.representation_tree, False, grad_output, *matrix_args
+                )
 
                 if any(ctx.needs_input_grad[3:]):
                     # We call _bilinear_derivative to compute dl/dK
