@@ -187,12 +187,17 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
         - tensor (n x p or b x n x p) - The solution to the system T x = b.
             Shape of return matches shape of b.
     """
+    # check input
     toeplitz_input_check(toeplitz_column, toeplitz_row)
-    #if right_vectors.size(-1) != toeplitz_column.size(-1):
-    #    raise RuntimeError("Incompatible size betwen the Toeplitz matrix and the right hand side")
+    if right_vectors.ndimension() == 1:
+        if toeplitz_row.shape[-1] != len(right_vectors):
+            raise RuntimeError(f"Incompatible size betwen the Toeplitz matrix and the right vector: {toeplitz_column.shape} and {right_vectors.shape}")
+    else:
+        if toeplitz_row.shape[-1] != right_vectors.size(-2):
+            raise RuntimeError(f"Incompatible size betwen the Toeplitz matrix and the right vector: {toeplitz_column.shape} and {right_vectors.shape}")
     
-    output_shape = right_vectors.shape
-    broadcasted_t_shape = output_shape[:-1] if right_vectors.dim() > 1 else output_shape
+    output_shape = torch.broadcast_shapes(toeplitz_row.shape, right_vectors.shape[:-1])
+    broadcasted_t_shape = output_shape#[:-1] if right_vectors.dim() > 1 else output_shape
     unsqueezed_vec = False
     if right_vectors.ndimension() == 1:
         right_vectors = right_vectors.unsqueeze(-1)
@@ -204,10 +209,10 @@ def toeplitz_solve_ld(toeplitz_column, toeplitz_row, right_vectors):
     # f = forward vector , b = backward vector
     # xi = vector at iterator i, xim = vector at iteration i-1
     flipped_toeplitz_column = toeplitz_column[..., 1:].flip(dims=(-1,))
-    xi = torch.zeros_like(right_vectors)
-    fi = torch.zeros_like(right_vectors)
-    bi = torch.zeros_like(right_vectors)
-    bim = torch.zeros_like(right_vectors)
+    xi = torch.zeros_like(right_vectors).expand(*broadcasted_t_shape, right_vectors.shape[-1]).clone()
+    fi = torch.zeros_like(xi)
+    bi = torch.zeros_like(xi)
+    bim = torch.zeros_like(xi)
 
     # iteration 0
     fi[...,0,:] = 1/toeplitz_column[...,0,None]
@@ -248,6 +253,7 @@ def toeplitz_inverse(toeplitz_column, toeplitz_row):
     # https://dl.acm.org/doi/pdf/10.1145/321541.321549
     if toeplitz_column[0] == 0.:
         raise ValueError("The main diagonal term (i.e. first column and row element) must be non-zero")
+    raise NotImplementedError("To be implemented")
     return inv
 
 

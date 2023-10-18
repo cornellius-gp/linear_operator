@@ -6,7 +6,7 @@ from jaxtyping import Float
 from torch import Tensor
 
 from ..utils.errors import NotPSDError
-from ..utils.toeplitz import toeplitz_derivative_quadratic_form, toeplitz_matmul, toeplitz_solve_ld
+from ..utils.toeplitz import toeplitz_derivative_quadratic_form, toeplitz_matmul, toeplitz_solve_ld, toeplitz_inverse
 from ._linear_operator import IndexType, LinearOperator
 
 
@@ -31,7 +31,6 @@ class ToeplitzLinearOperator(LinearOperator):
                 equal to `row[...,0]`.
                 If `row` is `None` or is not supplied, assumes `row == conjugate(column)`.
                 If `row[0]` is real, the result is a Hermitian matrix. 
-                Else, `row[0]` is ignored and the first row of the returned matrix is `[column[0], row[1:]]`
         """
         self.column = column
         if row is None:
@@ -44,6 +43,8 @@ class ToeplitzLinearOperator(LinearOperator):
             super(ToeplitzLinearOperator, self).__init__(column, row)
             self.sym = False
             self.row = row
+            if torch.any(row[...,0] != column[...,0]):
+                raise ValueError("The first elements in column does not match the first values in row")
             if torch.allclose(row, column.conj()):
                 self.sym = True
     
@@ -130,56 +131,31 @@ class ToeplitzLinearOperator(LinearOperator):
     def _size(self) -> torch.Size:
         return torch.Size((*self.row.shape, self.column.size(-1)))
     
-    def _solve(
+    def solve(
         self: Float[LinearOperator, "... N N"],
-        rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        Float[torch.Tensor, "... N C"],
-        Tuple[
-            Float[torch.Tensor, "... N C"],
-            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
-        ],
-    ]:
-        r"""
-        TODO
-        """
-        if self.sym and num_tridiag:
-            #TODO, this can be optimized, i.e. using toeplitz_solve_ld and toeplitz_tridiag separately
-            res, res_tridiag = super(ToeplitzLinearOperator, self)._solve(rhs,preconditioner,num_tridiag)
-            #res_tridiag = lanczos_tridiag(
-            #    matmul_closure=self._matmul,
-            #    max_iter=settings.max_lanczos_quadrature_iterations.value(),
-            #    dtype=self.column.dtype,
-            #    device=self.column.device,
-            #    matrix_shape=self._size(),
-            #    batch_shape=self.batch_shape,
-            #)
-            return res, res_tridiag
-
-        if num_tridiag:
-            raise NotPSDError("Non-symmetric ToeplitzLinearOperator does not allow tridiagonalization")
+        right_tensor: Union[Float[Tensor, "... N P"], Float[Tensor, " N"]],
+        left_tensor: Optional[Float[Tensor, "... O N"]] = None,
+    ) -> Union[Float[Tensor, "... N P"], Float[Tensor, "... N"], Float[Tensor, "... O P"], Float[Tensor, "... O"]]:
+        squeeze = False
+        if right_tensor.dim() == 1:
+            rhs_ = right_tensor.unsqueeze(-1)
+            squeeze = True
         else:
-            #solve
-            squeeze = False
-            if rhs.dim() == 1:
-                rhs_ = rhs.unsqueeze(-1)
-                squeeze = True
-            else:
-                rhs_ = rhs
-            res = toeplitz_solve_ld(self.column, self.row, rhs_)
-            if squeeze:
-                res = res.squeeze(-1)
-            return res
+            rhs_ = right_tensor
+        res = toeplitz_solve_ld(self.column, self.row, rhs_)
+        if squeeze:
+            res = res.squeeze(-1)
+        if left_tensor is not None:
+            res = left_tensor @ res
+        return res
 
     def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
         if self.sym:
             return ToeplitzLinearOperator(self.column)
         else:
-            myrow = torch.cat([self.column[...,0].unsqueeze(-1), self.row[1:]], dim=-1)
+            myrow = torch.cat([self.column[...,0].unsqueeze(-1), self.row[...,1:]], dim=-1)
             mycol = torch.clone(self.column)
-            mycol.data[...,0] = myrow[...,0]
+            myrow.data[...,0] = mycol[...,0]
             return ToeplitzLinearOperator(myrow, mycol)
 
     def add_jitter(

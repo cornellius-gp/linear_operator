@@ -92,8 +92,25 @@ class TestSymToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         return toeplitz.sym_toeplitz(linear_op.column)
 
+    # Test inv_quad_logdet and cholesky still use CG
+    def test_inv_quad_logdet(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet()
+        self.__class__.should_call_cg = False
+
+    def test_inv_quad_logdet_no_reduce(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet_no_reduce()
+        self.__class__.should_call_cg = False
+
+    def test_root_decomposition_cholesky(self):
+        self.__class__.should_call_cg = True
+        super().test_root_decomposition_cholesky()
+        self.__class__.should_call_cg = False
+
 
 class TestSymToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
+    should_call_cg = False
     seed = 0
 
     def create_linear_op(self):
@@ -108,8 +125,25 @@ class TestSymToeplitzLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCa
             ]
         )
 
+    # Test inv_quad_logdet and cholesky still use CG
+    def test_inv_quad_logdet(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet()
+        self.__class__.should_call_cg = False
+
+    def test_inv_quad_logdet_no_reduce(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet_no_reduce()
+        self.__class__.should_call_cg = False
+
+    def test_root_decomposition_cholesky(self):
+        self.__class__.should_call_cg = True
+        super().test_root_decomposition_cholesky()
+        self.__class__.should_call_cg = False
+
 
 class TestSymToeplitzLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
+    should_call_cg = False
     seed = 0
 
     def create_linear_op(self):
@@ -129,6 +163,22 @@ class TestSymToeplitzLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.T
                 toeplitz.sym_toeplitz(linear_op.column[2, 1]).unsqueeze(0),
             ]
         ).view(3, 2, 4, 4)
+
+    # Test inv_quad_logdet and cholesky still use CG
+    def test_inv_quad_logdet(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet()
+        self.__class__.should_call_cg = False
+
+    def test_inv_quad_logdet_no_reduce(self):
+        self.__class__.should_call_cg = True
+        super().test_inv_quad_logdet_no_reduce()
+        self.__class__.should_call_cg = False
+
+    def test_root_decomposition_cholesky(self):
+        self.__class__.should_call_cg = True
+        super().test_root_decomposition_cholesky()
+        self.__class__.should_call_cg = False
 
 
 if __name__ == "__main__":
