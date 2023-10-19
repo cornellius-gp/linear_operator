@@ -108,7 +108,7 @@ class ToeplitzLinearOperator(LinearOperator):
         res_r[...,0] = 0. #set it to zero as already in res_c[...,0]
         
         if self.sym:
-            return (res_c + res_r, None, )
+            return (res_c + res_r,)
         else:
             return (res_c, res_r,)
 
