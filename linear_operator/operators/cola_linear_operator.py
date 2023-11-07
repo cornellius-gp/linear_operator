@@ -73,6 +73,15 @@ class ColaLinearOperator(ABC):
         self.dtype = self._cola_lo.dtype
         self.matrix_shape = self.shape[-2:]
 
+    def __mul__(self, x):
+        return self._cola_lo * x
+
+    def __rmul__(self, x):
+        return x * self._cola_lo
+
+    def __truediv__(self, x):
+        return self._cola_lo / x
+
     @abstractmethod
     def _generate_cola_lo(self, *args, **kwargs):
         raise NotImplementedError
@@ -121,6 +130,19 @@ class ColaLinearOperator(ABC):
     def matmul(self, rhs):
         print("Using CoLA for matmul")
         return self._cola_lo @ rhs
+
+    @_implements_symmetric(torch.mul)
+    def mul(self, rhs):
+        print("Using CoLA for mul")
+        return self._cola_lo * rhs
+
+    @_implements(torch.div)
+    def div(self, rhs):
+        print("Using CoLA for div")
+        return self._cola_lo / rhs
+
+    def ndimension(self):
+        return len(self._cola_lo.shape)
 
     def representation(self):
         res, _ = self._cola_lo.flatten()
