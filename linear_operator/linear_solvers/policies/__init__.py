@@ -8,6 +8,7 @@ from .random_policy import RandomPolicy
 from .sinusoidal_policy import SinusoidalPolicy
 from .spectral_policy import SpectralPolicy
 from .unit_vector_policy import UnitVectorPolicy
+from .rademacher_policy import RademacherPolicy
 
 __all__ = [
     "LinearSolverPolicy",
@@ -16,6 +17,7 @@ __all__ = [
     "FullLanczosPolicy",
     "SubsetLanczosPolicy",
     "RandomPolicy",
+    "RademacherPolicy",
     "MixedPolicy",
     "LanczosPolicy",
     "SpectralPolicy",
