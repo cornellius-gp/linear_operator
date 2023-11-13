@@ -37,7 +37,7 @@ class KeOpsLinearOperator(LinearOperator):
         # TODO: add test to check correctness
         # TODO: add context manager and setting to control naive sparsification
         nonzero_mask = rhs != 0.0
-        use_sparse_matmul = torch.sum(nonzero_mask) < 0.1 * math.prod(rhs.shape)
+        use_sparse_matmul = torch.sum(nonzero_mask).item() <= 0.1 * math.prod(rhs.shape)
 
         if use_sparse_matmul:
             if rhs.ndim == 1:
