@@ -582,6 +582,22 @@ class use_toeplitz(_feature_flag):
     _default = True
 
 
+class use_naive_sparsification(_feature_flag):
+    """
+    Whether to sparsify kernel matrix matrix products naively by searching for non-zero entries and subsetting.
+    """
+
+    _default = True
+
+
+class sparsification_fraction_non_zero(_value_context):
+    """
+    Sparsify kernel matrix-vector products if the fraction of non-zero entries is less than or equal to the given threshold.
+    """
+
+    _global_value = 2 * 1e-1
+
+
 class verbose_linalg(_feature_flag):
     """
     Print out information whenever running an expensive linear algebra routine (e.g. Cholesky, CG, Lanczos, CIQ, etc.)

@@ -9,6 +9,7 @@ from torch import Tensor
 from ..utils.getitem import _noop_index
 from ..utils.memoize import cached
 from ._linear_operator import LinearOperator
+from .. import settings
 
 
 class KeOpsLinearOperator(LinearOperator):
@@ -33,27 +34,32 @@ class KeOpsLinearOperator(LinearOperator):
         return self.covar_func(self.x1, self.x2, **self.params)
 
     def _matmul(self, rhs):
-        # If rhs contains lots of zeros, naively sparsify the kernel matrix
         # TODO: add test to check correctness
-        # TODO: add context manager and setting to control naive sparsification
-        nonzero_mask = rhs != 0.0
-        use_sparse_matmul = torch.sum(nonzero_mask).item() <= 0.2 * math.prod(rhs.shape)
+        # TODO: Check if rhs is a SparseLinearOperator and subset based on that? Or handle in SparseLinearOperator
+        if settings.use_naive_sparsification.on():
+            # If rhs contains lots of zeros, naively sparsify the kernel matrix
+            nonzero_mask = rhs != 0.0
+            use_sparse_matmul = torch.sum(
+                nonzero_mask
+            ).item() <= settings.sparsification_fraction_non_zero.value() * math.prod(rhs.shape)
 
-        if use_sparse_matmul:
-            if rhs.ndim == 1:
-                return self.covar_func(self.x1, self.x2[nonzero_mask], **self.params) @ rhs.contiguous()
-            else:
-                result_cols = []
-                for col_idx in range(rhs.shape[1]):
-                    result_cols.append(
-                        self.covar_func(self.x1, self.x2[nonzero_mask[:, col_idx]], **self.params)
-                        @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
-                    )
+            if use_sparse_matmul:
+                if rhs.ndim == 1:
+                    return self.covar_func(self.x1, self.x2[nonzero_mask], **self.params) @ rhs.contiguous()
+                else:
+                    result_cols = []
+                    for col_idx in range(rhs.shape[1]):
+                        result_cols.append(
+                            self.covar_func(self.x1, self.x2[nonzero_mask[:, col_idx]], **self.params)
+                            @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
+                        )
+                    # TODO: If we are willing to dig into the KeOps implementation, one might be able to do better here than a Python loop,
+                    # by letting KeOPS handle the chunking on the GPU (instead of doing everything sequentially).
 
-                return torch.stack(result_cols, dim=1)
-        else:
-            # If not, use regular matrix-free product
-            return self.covar_mat @ rhs.contiguous()
+                    return torch.stack(result_cols, dim=1)
+
+        # When not using sparsification, use regular matrix-free product
+        return self.covar_mat @ rhs.contiguous()
 
     def _size(self):
         return torch.Size(self.covar_mat.shape)
