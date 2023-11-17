@@ -54,7 +54,8 @@ class KeOpsLinearOperator(LinearOperator):
                             @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
                         )
                     # TODO: If we are willing to dig into the KeOps implementation, one might be able to do better here than a Python loop,
-                    # by letting KeOPS handle the chunking on the GPU (instead of doing everything sequentially).
+                    # by letting KeOPS handle the block sparsity on the GPU (instead of doing everything sequentially).
+                    # See also: https://www.kernel-operations.io/keops/python/sparsity.html
 
                     return torch.stack(result_cols, dim=1)
 
