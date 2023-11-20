@@ -44,10 +44,6 @@ class TestKroneckerProductLinearOperator(LinearOperatorTestCase, unittest.TestCa
         return res
 
 
-# class TestKroneckerProductDiagLinearOperator(TestDiagLinearOperator):
-# See test_diag_linear_operator for this test.
-
-
 class TestKroneckerProductLinearOperatorBatch(TestKroneckerProductLinearOperator):
     seed = 0
     should_call_lanczos = True
