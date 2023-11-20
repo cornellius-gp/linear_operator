@@ -17,9 +17,9 @@ from linear_operator.operators import LinearOperator, to_dense, to_linear_operat
 
 # Read version number as written by setuptools_scm
 try:
-    from linear_operator.version import version as __version__
+    from linear_operator.version import version as __version__  # @manual
 except Exception:  # pragma: no cover
-    __version__ = "Unknown"  # pragma: no cover
+    __version__ = "Unknown"
 
 __all__ = [
     # Base class
