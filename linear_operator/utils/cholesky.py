@@ -4,9 +4,9 @@ import warnings
 
 import torch
 
-from .. import settings
-from .errors import NanError, NotPSDError
-from .warnings import NumericalWarning
+from linear_operator import settings
+from linear_operator.utils.errors import NanError, NotPSDError
+from linear_operator.utils.warnings import NumericalWarning
 
 
 def _psd_safe_cholesky(A, out=None, jitter=None, max_tries=None):

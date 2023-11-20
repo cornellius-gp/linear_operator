@@ -8,9 +8,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.getitem import _compute_getitem_size
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+
+from linear_operator.utils.getitem import _compute_getitem_size
+from linear_operator.utils.memoize import cached
 
 
 class ZeroLinearOperator(LinearOperator):
@@ -131,7 +132,7 @@ class ZeroLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
-        from .diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if self.size(-1) != self.size(-2):
             raise RuntimeError("add_diag only defined for square matrices")

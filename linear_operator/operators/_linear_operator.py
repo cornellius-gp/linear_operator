@@ -24,21 +24,22 @@ from torch import Tensor
 
 import linear_operator
 
-from .. import settings, utils
-from ..functions._diagonalization import Diagonalization
-from ..functions._inv_quad import InvQuad
-from ..functions._inv_quad_logdet import InvQuadLogdet
-from ..functions._matmul import Matmul
-from ..functions._pivoted_cholesky import PivotedCholesky
-from ..functions._root_decomposition import RootDecomposition
-from ..functions._solve import Solve
-from ..functions._sqrt_inv_matmul import SqrtInvMatmul
-from ..utils.broadcasting import _matmul_broadcast_shape
-from ..utils.cholesky import psd_safe_cholesky
-from ..utils.deprecation import _deprecate_renamed_methods
-from ..utils.errors import CachingError
-from ..utils.generic import _to_helper
-from ..utils.getitem import (
+from linear_operator import settings, utils
+from linear_operator.functions._diagonalization import Diagonalization
+from linear_operator.functions._inv_quad import InvQuad
+from linear_operator.functions._inv_quad_logdet import InvQuadLogdet
+from linear_operator.functions._matmul import Matmul
+from linear_operator.functions._pivoted_cholesky import PivotedCholesky
+from linear_operator.functions._root_decomposition import RootDecomposition
+from linear_operator.functions._solve import Solve
+from linear_operator.functions._sqrt_inv_matmul import SqrtInvMatmul
+from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.cholesky import psd_safe_cholesky
+from linear_operator.utils.deprecation import _deprecate_renamed_methods
+from linear_operator.utils.errors import CachingError
+from linear_operator.utils.generic import _to_helper
+from linear_operator.utils.getitem import (
     _compute_getitem_size,
     _convert_indices_to_tensors,
     _is_noop_index,
@@ -46,11 +47,16 @@ from ..utils.getitem import (
     _noop_index,
     IndexType,
 )
-from ..utils.lanczos import _postprocess_lanczos_root_inv_decomp
-from ..utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache
-from ..utils.pinverse import stable_pinverse
-from ..utils.warnings import NumericalWarning, PerformanceWarning
-from .linear_operator_representation_tree import LinearOperatorRepresentationTree
+from linear_operator.utils.lanczos import _postprocess_lanczos_root_inv_decomp
+from linear_operator.utils.memoize import (
+    _is_in_cache_ignore_all_args,
+    _is_in_cache_ignore_args,
+    add_to_cache,
+    cached,
+    pop_from_cache,
+)
+from linear_operator.utils.pinverse import stable_pinverse
+from linear_operator.utils.warnings import NumericalWarning, PerformanceWarning
 
 _HANDLED_FUNCTIONS = {}
 _HANDLED_SECOND_ARG_FUNCTIONS = {}
@@ -298,7 +304,7 @@ class LinearOperator(object):
         col_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(col_interp_indices)
 
         # Construct interpolated LinearOperator
-        from . import InterpolatedLinearOperator
+        from linear_operator.operators import InterpolatedLinearOperator
 
         res = InterpolatedLinearOperator(
             self,
@@ -441,7 +447,7 @@ class LinearOperator(object):
         col_interp_values = torch.tensor(1.0, dtype=self.dtype, device=self.device).expand_as(col_interp_indices)
 
         # Construct interpolated LinearOperator
-        from . import InterpolatedLinearOperator
+        from linear_operator.operators import InterpolatedLinearOperator
 
         res = (
             InterpolatedLinearOperator(
@@ -504,8 +510,8 @@ class LinearOperator(object):
         :param upper: Upper triangular or lower triangular factor (default: False).
         :return: Cholesky factor (lower or upper triangular)
         """
-        from .keops_linear_operator import KeOpsLinearOperator
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators.keops_linear_operator import KeOpsLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         evaluated_kern_mat = self.evaluate_kernel()
 
@@ -581,7 +587,7 @@ class LinearOperator(object):
 
         :param other: The constant (or batch of constants)
         """
-        from .constant_mul_linear_operator import ConstantMulLinearOperator
+        from linear_operator.operators.constant_mul_linear_operator import ConstantMulLinearOperator
 
         return ConstantMulLinearOperator(self, other)
 
@@ -598,8 +604,8 @@ class LinearOperator(object):
 
         :param other: The other linear operator to multiply against.
         """
-        from .dense_linear_operator import DenseLinearOperator
-        from .mul_linear_operator import MulLinearOperator
+        from linear_operator.operators.dense_linear_operator import DenseLinearOperator
+        from linear_operator.operators.mul_linear_operator import MulLinearOperator
 
         self = self.evaluate_kernel()
         other = other.evaluate_kernel()
@@ -635,8 +641,8 @@ class LinearOperator(object):
 
         :param dim: The (positive valued) dimension to multiply
         """
-        from .mul_linear_operator import MulLinearOperator
-        from .root_linear_operator import RootLinearOperator
+        from linear_operator.operators.mul_linear_operator import MulLinearOperator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
 
         if self.size(dim) == 1:
             return self.squeeze(dim)
@@ -731,7 +737,7 @@ class LinearOperator(object):
         :param test_vectors: Vectors used to test the accuracy of the decomposition.
         :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
-        from .root_linear_operator import RootLinearOperator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
 
         roots, inv_roots = RootDecomposition.apply(
             self.representation_tree(),
@@ -850,7 +856,7 @@ class LinearOperator(object):
 
         :param dim: The (positive valued) dimension to sum
         """
-        from .sum_batch_linear_operator import SumBatchLinearOperator
+        from linear_operator.operators.sum_batch_linear_operator import SumBatchLinearOperator
 
         return SumBatchLinearOperator(self, block_dim=dim)
 
@@ -954,8 +960,8 @@ class LinearOperator(object):
         :return: :math:`\mathbf A + \text{diag}(\mathbf d)`, where :math:`\mathbf A` is the linear operator
             and :math:`\mathbf d` is the diagonal component
         """
-        from .added_diag_linear_operator import AddedDiagLinearOperator
-        from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+        from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 
         if not self.is_square:
             raise RuntimeError("add_diagonal only defined for square matrices")
@@ -1049,10 +1055,10 @@ class LinearOperator(object):
         .. _Kernel Interpolation for Scalable Online Gaussian Processes:
             https://arxiv.org/abs/2103.01454.
         """
-        from . import to_linear_operator
-        from .root_linear_operator import RootLinearOperator
-        from .sum_linear_operator import SumLinearOperator
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators import to_linear_operator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
+        from linear_operator.operators.sum_linear_operator import SumLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         if not isinstance(self, SumLinearOperator):
             new_linear_op = self + to_linear_operator(low_rank_mat.matmul(low_rank_mat.mT))
@@ -1219,10 +1225,10 @@ class LinearOperator(object):
         .. _Efficient Nonmyopic Bayesian Optimization via One-Shot Multistep Trees:
             https://arxiv.org/abs/2006.15779
         """
-        from . import to_linear_operator
-        from .cat_linear_operator import CatLinearOperator
-        from .root_linear_operator import RootLinearOperator
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators import to_linear_operator
+        from linear_operator.operators.cat_linear_operator import CatLinearOperator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         if not generate_roots and generate_inv_roots:
             warnings.warn(
@@ -1436,7 +1442,7 @@ class LinearOperator(object):
                 method = "lanczos"
 
         if method == "lanczos":
-            from ..operators import to_linear_operator
+            from linear_operator.operators import to_linear_operator
 
             evals, evecs = Diagonalization.apply(
                 self.representation_tree(),
@@ -1471,7 +1477,7 @@ class LinearOperator(object):
         :param other: Object to divide against
         :return: Result of division.
         """
-        from .zero_linear_operator import ZeroLinearOperator
+        from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
             raise RuntimeError("Attempted to divide by a ZeroLinearOperator (divison by zero)")
@@ -1686,8 +1692,8 @@ class LinearOperator(object):
         """
         # Special case: use Cholesky to compute these terms
         if settings.fast_computations.log_prob.off() or (self.size(-1) <= settings.max_cholesky_size.value()):
-            from .chol_linear_operator import CholLinearOperator
-            from .triangular_linear_operator import TriangularLinearOperator
+            from linear_operator.operators.chol_linear_operator import CholLinearOperator
+            from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
             # if the root decomposition has already been computed and is triangular we can use it instead
             # of computing the cholesky.
@@ -1747,7 +1753,7 @@ class LinearOperator(object):
 
         preconditioner, precond_lt, logdet_p = self._preconditioner()
         if precond_lt is None:
-            from ..operators.identity_linear_operator import IdentityLinearOperator
+            from linear_operator.operators.identity_linear_operator import IdentityLinearOperator
 
             precond_lt = IdentityLinearOperator(
                 diag_shape=self.size(-1),
@@ -1824,7 +1830,7 @@ class LinearOperator(object):
         _matmul_broadcast_shape(self.shape, other.shape)
 
         if isinstance(other, LinearOperator):
-            from .matmul_linear_operator import MatmulLinearOperator
+            from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
 
             return MatmulLinearOperator(self, other)
 
@@ -1855,8 +1861,8 @@ class LinearOperator(object):
             :obj:`~linear_operator.operators.ConstantMulLinearOperator`. If :obj:`other` was
             a matrix or LinearOperator, this will likely be a :obj:`MulLinearOperator`.
         """
-        from .dense_linear_operator import to_linear_operator
-        from .zero_linear_operator import ZeroLinearOperator
+        from linear_operator.operators.dense_linear_operator import to_linear_operator
+        from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
             return other
@@ -2021,7 +2027,7 @@ class LinearOperator(object):
         :param sizes: The number of times to repeat this tensor along each dimension.
         :return: A LinearOperator with repeated dimensions.
         """
-        from .batch_repeat_linear_operator import BatchRepeatLinearOperator
+        from linear_operator.operators.batch_repeat_linear_operator import BatchRepeatLinearOperator
 
         # Short path if no repetition is necessary
         if all(x == 1 for x in sizes) and len(sizes) == self.dim():
@@ -2130,9 +2136,9 @@ class LinearOperator(object):
             "cholesky", "lanczos", "symeig", "pivoted_cholesky", or "svd".
         :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A`.
         """
-        from . import to_linear_operator
-        from .chol_linear_operator import CholLinearOperator
-        from .root_linear_operator import RootLinearOperator
+        from linear_operator.operators import to_linear_operator
+        from linear_operator.operators.chol_linear_operator import CholLinearOperator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
 
         if not self.is_square:
             raise RuntimeError(
@@ -2201,8 +2207,8 @@ class LinearOperator(object):
         :param method: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
         :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
-        from .dense_linear_operator import to_linear_operator
-        from .root_linear_operator import RootLinearOperator
+        from linear_operator.operators.dense_linear_operator import to_linear_operator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
 
         if not self.is_square:
             raise RuntimeError(
@@ -2705,7 +2711,7 @@ class LinearOperator(object):
         :param num_samples: Number of samples to draw.
         :return: Samples from MVN :math:`\mathcal N( \mathbf 0, \mathbf A)`.
         """
-        from ..utils.contour_integral_quad import contour_integral_quad
+        from linear_operator.utils.contour_integral_quad import contour_integral_quad
 
         if settings.ciq_samples.on():
             base_samples = torch.randn(
@@ -2753,12 +2759,12 @@ class LinearOperator(object):
         self: Float[LinearOperator, "... #M #N"],
         other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
-        from .added_diag_linear_operator import AddedDiagLinearOperator
-        from .dense_linear_operator import to_linear_operator
-        from .diag_linear_operator import DiagLinearOperator
-        from .root_linear_operator import RootLinearOperator
-        from .sum_linear_operator import SumLinearOperator
-        from .zero_linear_operator import ZeroLinearOperator
+        from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
+        from linear_operator.operators.dense_linear_operator import to_linear_operator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.root_linear_operator import RootLinearOperator
+        from linear_operator.operators.sum_linear_operator import SumLinearOperator
+        from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
 
         if isinstance(other, ZeroLinearOperator):
             return self

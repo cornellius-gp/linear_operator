@@ -3,7 +3,7 @@
 import torch
 from torch.fft import fft, ifft
 
-from ..utils import broadcasting
+from linear_operator.utils import broadcasting
 
 
 def toeplitz(toeplitz_column, toeplitz_row):

@@ -6,11 +6,12 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.errors import NotPSDError
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .batch_repeat_linear_operator import BatchRepeatLinearOperator
-from .dense_linear_operator import DenseLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.batch_repeat_linear_operator import BatchRepeatLinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator
+
+from linear_operator.utils.errors import NotPSDError
+from linear_operator.utils.memoize import cached
 
 Allsor = Union[Tensor, LinearOperator]
 
@@ -53,10 +54,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         self: Float[LinearOperator, "... #M #N"],
         other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
-        from .diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
-            from .added_diag_linear_operator import AddedDiagLinearOperator
+            from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
 
             return self.__class__(AddedDiagLinearOperator(self._tensor, other), upper=self.upper)
         if isinstance(other, TriangularLinearOperator) and not self.upper ^ other.upper:

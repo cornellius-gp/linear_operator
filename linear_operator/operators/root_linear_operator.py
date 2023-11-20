@@ -5,12 +5,13 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.broadcasting import _pad_with_singletons
-from ..utils.getitem import _equal_indices, _noop_index
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .dense_linear_operator import DenseLinearOperator, to_linear_operator
-from .matmul_linear_operator import MatmulLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
+
+from linear_operator.utils.broadcasting import _pad_with_singletons
+from linear_operator.utils.getitem import _equal_indices, _noop_index
+from linear_operator.utils.memoize import cached
 
 
 class RootLinearOperator(LinearOperator):

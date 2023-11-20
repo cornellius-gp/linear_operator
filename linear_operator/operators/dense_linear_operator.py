@@ -8,7 +8,7 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ._linear_operator import IndexType, LinearOperator, to_dense
+from linear_operator.operators._linear_operator import IndexType, LinearOperator, to_dense
 
 
 class DenseLinearOperator(LinearOperator):

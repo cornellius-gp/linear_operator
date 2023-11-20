@@ -3,7 +3,7 @@
 import functools
 import pickle
 
-from .errors import CachingError
+from linear_operator.utils.errors import CachingError
 
 
 def cached(method=None, name=None, ignore_args=False):

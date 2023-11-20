@@ -6,8 +6,8 @@ from typing import Any, Iterable, Tuple, Union
 
 import torch
 
-from .. import settings
-from .broadcasting import _pad_with_singletons
+from linear_operator import settings
+from linear_operator.utils.broadcasting import _pad_with_singletons
 
 # EllipsisType is only available in Python 3.10+
 IndexType = Union[type(Ellipsis), slice, Iterable[int], torch.LongTensor, int]

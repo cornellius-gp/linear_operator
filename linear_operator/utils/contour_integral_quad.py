@@ -3,10 +3,10 @@ import warnings
 
 import torch
 
-from .. import settings
-from .linear_cg import linear_cg
-from .minres import minres
-from .warnings import NumericalWarning
+from linear_operator import settings
+from linear_operator.utils.linear_cg import linear_cg
+from linear_operator.utils.minres import minres
+from linear_operator.utils.warnings import NumericalWarning
 
 
 def contour_integral_quad(

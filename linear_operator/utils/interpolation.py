@@ -3,7 +3,7 @@
 
 import torch
 
-from .broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 
 
 def left_interp(interp_indices, interp_values, rhs):
@@ -32,7 +32,7 @@ def left_interp(interp_indices, interp_values, rhs):
 
 def left_t_interp(interp_indices, interp_values, rhs, output_dim):
     """ """
-    from .. import dsmm
+    from linear_operator import dsmm
 
     is_vector = rhs.ndimension() == 1
     if is_vector:

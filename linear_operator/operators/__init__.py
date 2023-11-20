@@ -1,40 +1,45 @@
 #!/usr/bin/env python3
 
-from ._linear_operator import LinearOperator, to_dense
-from .added_diag_linear_operator import AddedDiagLinearOperator
-from .batch_repeat_linear_operator import BatchRepeatLinearOperator
-from .block_diag_linear_operator import BlockDiagLinearOperator
-from .block_interleaved_linear_operator import BlockInterleavedLinearOperator
-from .block_linear_operator import BlockLinearOperator
-from .cat_linear_operator import cat, CatLinearOperator
-from .chol_linear_operator import CholLinearOperator
-from .constant_mul_linear_operator import ConstantMulLinearOperator
-from .dense_linear_operator import DenseLinearOperator, to_linear_operator
-from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from .identity_linear_operator import IdentityLinearOperator
-from .interpolated_linear_operator import InterpolatedLinearOperator
-from .keops_linear_operator import KeOpsLinearOperator
-from .kernel_linear_operator import KernelLinearOperator
-from .kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
-from .kronecker_product_linear_operator import (
+from linear_operator.operators._linear_operator import LinearOperator, to_dense
+from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
+from linear_operator.operators.batch_repeat_linear_operator import BatchRepeatLinearOperator
+from linear_operator.operators.block_diag_linear_operator import BlockDiagLinearOperator
+from linear_operator.operators.block_interleaved_linear_operator import BlockInterleavedLinearOperator
+from linear_operator.operators.block_linear_operator import BlockLinearOperator
+from linear_operator.operators.cat_linear_operator import cat, CatLinearOperator
+from linear_operator.operators.chol_linear_operator import CholLinearOperator
+from linear_operator.operators.constant_mul_linear_operator import ConstantMulLinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from linear_operator.operators.identity_linear_operator import IdentityLinearOperator
+from linear_operator.operators.interpolated_linear_operator import InterpolatedLinearOperator
+from linear_operator.operators.keops_linear_operator import KeOpsLinearOperator
+from linear_operator.operators.kernel_linear_operator import KernelLinearOperator
+from linear_operator.operators.kronecker_product_added_diag_linear_operator import (
+    KroneckerProductAddedDiagLinearOperator,
+)
+from linear_operator.operators.kronecker_product_linear_operator import (
     KroneckerProductDiagLinearOperator,
     KroneckerProductLinearOperator,
     KroneckerProductTriangularLinearOperator,
 )
-from .low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
-from .low_rank_root_linear_operator import LowRankRootLinearOperator
-from .masked_linear_operator import MaskedLinearOperator
-from .matmul_linear_operator import MatmulLinearOperator
-from .mul_linear_operator import MulLinearOperator
-from .permutation_linear_operator import PermutationLinearOperator, TransposePermutationLinearOperator
-from .psd_sum_linear_operator import PsdSumLinearOperator
-from .root_linear_operator import RootLinearOperator
-from .sum_batch_linear_operator import SumBatchLinearOperator
-from .sum_kronecker_linear_operator import SumKroneckerLinearOperator
-from .sum_linear_operator import SumLinearOperator
-from .toeplitz_linear_operator import ToeplitzLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator
-from .zero_linear_operator import ZeroLinearOperator
+from linear_operator.operators.low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
+from linear_operator.operators.low_rank_root_linear_operator import LowRankRootLinearOperator
+from linear_operator.operators.masked_linear_operator import MaskedLinearOperator
+from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
+from linear_operator.operators.mul_linear_operator import MulLinearOperator
+from linear_operator.operators.permutation_linear_operator import (
+    PermutationLinearOperator,
+    TransposePermutationLinearOperator,
+)
+from linear_operator.operators.psd_sum_linear_operator import PsdSumLinearOperator
+from linear_operator.operators.root_linear_operator import RootLinearOperator
+from linear_operator.operators.sum_batch_linear_operator import SumBatchLinearOperator
+from linear_operator.operators.sum_kronecker_linear_operator import SumKroneckerLinearOperator
+from linear_operator.operators.sum_linear_operator import SumLinearOperator
+from linear_operator.operators.toeplitz_linear_operator import ToeplitzLinearOperator
+from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
+from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
 
 __all__ = [
     "to_dense",

@@ -2,7 +2,7 @@
 
 import torch
 
-from .. import settings
+from linear_operator import settings
 
 
 def lanczos_tridiag(

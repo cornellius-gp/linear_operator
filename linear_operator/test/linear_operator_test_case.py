@@ -12,11 +12,10 @@ import torch
 import linear_operator
 from linear_operator.operators import DenseLinearOperator, DiagLinearOperator, to_dense
 from linear_operator.settings import linalg_dtypes
+from linear_operator.test.base_test_case import BaseTestCase
 from linear_operator.utils.errors import CachingError
 from linear_operator.utils.memoize import get_from_cache
-
-from ..utils.warnings import PerformanceWarning
-from .base_test_case import BaseTestCase
+from linear_operator.utils.warnings import PerformanceWarning
 
 
 class RectangularLinearOperatorTestCase(BaseTestCase):

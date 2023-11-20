@@ -7,9 +7,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .block_linear_operator import BlockLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.block_linear_operator import BlockLinearOperator
+
+from linear_operator.utils.memoize import cached
 
 
 # metaclass of BlockDiagLinearOperator, overwrites behavior of constructor call
@@ -17,7 +18,7 @@ from .block_linear_operator import BlockLinearOperator
 # if base_linear_op is a DiagLinearOperator itself
 class _MetaBlockDiagLinearOperator(ABCMeta):
     def __call__(cls, base_linear_op: Union[LinearOperator, Tensor], block_dim: int = -3):
-        from .diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if cls is BlockDiagLinearOperator and isinstance(base_linear_op, DiagLinearOperator):
             if block_dim != -3:
@@ -74,7 +75,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
     def _cholesky(
         self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
     ) -> Float[LinearOperator, "*batch N N"]:
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_linear_op.cholesky(upper=upper))
         return TriangularLinearOperator(chol, upper=upper)
@@ -183,7 +184,7 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
         self: Float[LinearOperator, "*batch M N"],
         other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
     ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
-        from .diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         # this is trivial if we multiply two BlockDiagLinearOperator with matching block sizes
         if isinstance(other, BlockDiagLinearOperator) and self.base_linear_op.shape == other.base_linear_op.shape:

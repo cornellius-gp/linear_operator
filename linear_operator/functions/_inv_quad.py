@@ -3,7 +3,7 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings
+from linear_operator import settings
 
 
 def _solve(linear_op, rhs):

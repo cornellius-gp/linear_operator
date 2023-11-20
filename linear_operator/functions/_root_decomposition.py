@@ -3,8 +3,8 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings
-from ..utils import lanczos
+from linear_operator import settings
+from linear_operator.utils import lanczos
 
 
 class RootDecomposition(Function):
@@ -29,7 +29,7 @@ class RootDecomposition(Function):
         :return: :attr:`R`, such that :math:`R R^T \approx A`, and :attr:`R_inv`, such that
             :math:`R_{inv} R_{inv}^T \approx A^{-1}` (will only be populated if self.inverse = True)
         """
-        from ..operators import to_linear_operator
+        from linear_operator.operators import to_linear_operator
 
         ctx.representation_tree = representation_tree
         ctx.device = device

@@ -2,7 +2,7 @@
 
 from torch.autograd import Function
 
-from ..utils.sparse import bdsmm
+from linear_operator.utils.sparse import bdsmm
 
 
 class DSMM(Function):

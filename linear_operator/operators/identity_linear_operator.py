@@ -8,13 +8,13 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.generic import _to_helper
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator
+from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
 
-from ..utils.getitem import _compute_getitem_size, _is_noop_index
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .diag_linear_operator import ConstantDiagLinearOperator
-from .zero_linear_operator import ZeroLinearOperator
+from linear_operator.utils.generic import _to_helper
+from linear_operator.utils.getitem import _compute_getitem_size, _is_noop_index
+from linear_operator.utils.memoize import cached
 
 
 class IdentityLinearOperator(ConstantDiagLinearOperator):

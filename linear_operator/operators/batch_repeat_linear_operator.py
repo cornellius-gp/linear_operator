@@ -8,10 +8,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from .. import settings
-from ..utils.broadcasting import _matmul_broadcast_shape
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
+from linear_operator import settings
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.memoize import cached
 
 
 class BatchRepeatLinearOperator(LinearOperator):
@@ -42,7 +42,7 @@ class BatchRepeatLinearOperator(LinearOperator):
     def _cholesky(
         self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
     ) -> Float[LinearOperator, "*batch N N"]:
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         res = self.base_linear_op.cholesky(upper=upper)._tensor
         res = res.repeat(*self.batch_repeat, 1, 1)

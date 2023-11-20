@@ -8,9 +8,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .root_linear_operator import RootLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.root_linear_operator import RootLinearOperator
+
+from linear_operator.utils.memoize import cached
 
 
 class ConstantMulLinearOperator(LinearOperator):

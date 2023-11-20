@@ -2,8 +2,8 @@
 
 import torch
 
-from .. import settings
-from .broadcasting import _pad_with_singletons
+from linear_operator import settings
+from linear_operator.utils.broadcasting import _pad_with_singletons
 
 
 def minres(

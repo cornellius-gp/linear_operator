@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from . import beta_features, operators, settings, utils
-from .functions import (
+from linear_operator import beta_features, operators, settings, utils
+from linear_operator.functions import (
     add_diagonal,
     add_jitter,
     diagonalization,
@@ -13,7 +13,7 @@ from .functions import (
     solve,
     sqrt_inv_matmul,
 )
-from .operators import LinearOperator, to_dense, to_linear_operator
+from linear_operator.operators import LinearOperator, to_dense, to_linear_operator
 
 # Read version number as written by setuptools_scm
 try:

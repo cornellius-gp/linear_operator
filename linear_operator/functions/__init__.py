@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple, Union
 
 import torch
 
-from ._dsmm import DSMM
+from linear_operator.functions._dsmm import DSMM
 
 LinearOperatorType = Any  # Want this to be "LinearOperator" but runtime type checker can't handle
 
@@ -23,7 +23,7 @@ def add_diagonal(input: Anysor, diag: torch.Tensor) -> LinearOperatorType:
     :return: :math:`\mathbf A + \text{diag}(\mathbf d)`, where :math:`\mathbf A` is the linear operator
         and :math:`\mathbf d` is the diagonal component
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).add_diagonal(diag)
 
@@ -61,7 +61,7 @@ def diagonalization(
         based on size if not specified.
     :return: eigenvalues and eigenvectors representing the diagonalization.
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).diagonalization(method=method)
 
@@ -105,7 +105,7 @@ def inv_quad(input: Anysor, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = 
     :returns: The inverse quadratic term.
         If `reduce_inv_quad=True`, the inverse quadratic term is of shape (...). Otherwise, it is (... x M).
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).inv_quad(inv_quad_rhs, reduce_inv_quad=reduce_inv_quad)
 
@@ -127,7 +127,7 @@ def inv_quad_logdet(
     :returns: The inverse quadratic term (or None), and the logdet term (or None).
         If `reduce_inv_quad=True`, the inverse quadratic term is of shape (...). Otherwise, it is (... x M).
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad=reduce_inv_quad)
 
@@ -156,7 +156,7 @@ def pivoted_cholesky(
     .. _Harbrecht et al., 2012:
         https://www.sciencedirect.com/science/article/pii/S0168927411001814
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
 
@@ -173,7 +173,7 @@ def root_decomposition(input: Anysor, method: Optional[str] = None) -> LinearOpe
         "cholesky", "lanczos", "symeig", "pivoted_cholesky", or "svd".
     :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A`.
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).root_decomposition(method=method)
 
@@ -199,7 +199,7 @@ def root_inv_decomposition(
     :param method: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
     :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).root_inv_decomposition(
         initial_vectors=initial_vectors, test_vectors=test_vectors, method=method
@@ -235,7 +235,7 @@ def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) 
     :param lhs: :math:`\mathbf L` - the left hand side
     :return: :math:`\mathbf A^{-1} \mathbf R` or :math:`\mathbf L \mathbf A^{-1} \mathbf R`.
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).solve(right_tensor=rhs, left_tensor=lhs)
 
@@ -268,7 +268,7 @@ def sqrt_inv_matmul(
     :param lhs: :math:`\mathbf L` - the left hand side
     :return: :math:`\mathbf A^{-1/2} \mathbf R` or :math:`\mathbf L \mathbf A^{-1/2} \mathbf R`.
     """
-    from ..operators import to_linear_operator
+    from linear_operator.operators import to_linear_operator
 
     return to_linear_operator(input).sqrt_inv_matmul(rhs=rhs, lhs=lhs)
 

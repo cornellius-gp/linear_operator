@@ -6,12 +6,13 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.broadcasting import _matmul_broadcast_shape, _pad_with_singletons
-from ..utils.getitem import _noop_index
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .dense_linear_operator import DenseLinearOperator, to_linear_operator
-from .diag_linear_operator import DiagLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.operators.diag_linear_operator import DiagLinearOperator
+
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape, _pad_with_singletons
+from linear_operator.utils.getitem import _noop_index
+from linear_operator.utils.memoize import cached
 
 
 def _inner_repeat(tensor, amt):

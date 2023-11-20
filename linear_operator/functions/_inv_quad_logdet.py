@@ -5,9 +5,9 @@ import warnings
 import torch
 from torch.autograd import Function
 
-from .. import settings
-from ..utils.lanczos import lanczos_tridiag_to_diag
-from ..utils.stochastic_lq import StochasticLQ
+from linear_operator import settings
+from linear_operator.utils.lanczos import lanczos_tridiag_to_diag
+from linear_operator.utils.stochastic_lq import StochasticLQ
 
 
 class InvQuadLogdet(Function):

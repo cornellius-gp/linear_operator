@@ -2,7 +2,7 @@
 
 import torch
 
-from .broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 
 
 def make_sparse_from_indices_and_values(interp_indices, interp_values, num_rows):

@@ -8,15 +8,16 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils import sparse
-from ..utils.broadcasting import _pad_with_singletons
-from ..utils.generic import _to_helper
-from ..utils.getitem import _noop_index
-from ..utils.interpolation import left_interp, left_t_interp
-from ._linear_operator import IndexType, LinearOperator
-from .dense_linear_operator import DenseLinearOperator, to_linear_operator
-from .diag_linear_operator import DiagLinearOperator
-from .root_linear_operator import RootLinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.operators.diag_linear_operator import DiagLinearOperator
+from linear_operator.operators.root_linear_operator import RootLinearOperator
+
+from linear_operator.utils import sparse
+from linear_operator.utils.broadcasting import _pad_with_singletons
+from linear_operator.utils.generic import _to_helper
+from linear_operator.utils.getitem import _noop_index
+from linear_operator.utils.interpolation import left_interp, left_t_interp
 
 
 class InterpolatedLinearOperator(LinearOperator):
@@ -397,7 +398,7 @@ class InterpolatedLinearOperator(LinearOperator):
         right_interp_values = right_interp_values.permute(permute_order).reshape(right_shape)
 
         # Make the base_lazy tensor block diagonal
-        from .block_diag_linear_operator import BlockDiagLinearOperator
+        from linear_operator.operators.block_diag_linear_operator import BlockDiagLinearOperator
 
         block_diag = BlockDiagLinearOperator(self.base_linear_op, block_dim=dim)
 

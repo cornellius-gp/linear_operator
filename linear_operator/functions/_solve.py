@@ -3,11 +3,11 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings
+from linear_operator import settings
 
 
 def _solve(linear_op, rhs):
-    from ..operators import CholLinearOperator, TriangularLinearOperator
+    from linear_operator.operators import CholLinearOperator, TriangularLinearOperator
 
     if isinstance(linear_op, (CholLinearOperator, TriangularLinearOperator)):
         # May want to do this for some KroneckerProductLinearOperators and possibly

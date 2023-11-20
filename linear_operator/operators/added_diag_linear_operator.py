@@ -9,14 +9,14 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from .. import settings
-from ..utils.memoize import cached
-from ..utils.warnings import NumericalWarning
-from ._linear_operator import LinearOperator
-from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from .psd_sum_linear_operator import PsdSumLinearOperator
-from .root_linear_operator import RootLinearOperator
-from .sum_linear_operator import SumLinearOperator
+from linear_operator import settings
+from linear_operator.operators._linear_operator import LinearOperator
+from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from linear_operator.operators.psd_sum_linear_operator import PsdSumLinearOperator
+from linear_operator.operators.root_linear_operator import RootLinearOperator
+from linear_operator.operators.sum_linear_operator import SumLinearOperator
+from linear_operator.utils.memoize import cached
+from linear_operator.utils.warnings import NumericalWarning
 
 
 class AddedDiagLinearOperator(SumLinearOperator):
@@ -86,7 +86,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self: Float[LinearOperator, "... #M #N"],
         other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
-        from .diag_linear_operator import DiagLinearOperator
+        from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
             return self.__class__(self._linear_op, self._diag_tensor + other)

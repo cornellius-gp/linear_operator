@@ -7,9 +7,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.getitem import _is_noop_index, _noop_index
-from ._linear_operator import IndexType, LinearOperator
-from .dense_linear_operator import to_linear_operator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.dense_linear_operator import to_linear_operator
+
+from linear_operator.utils.getitem import _is_noop_index, _noop_index
 
 
 class BlockLinearOperator(LinearOperator):
@@ -154,7 +155,7 @@ class BlockLinearOperator(LinearOperator):
     ) -> Float[LinearOperator, "*batch M N"]:
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the block structure
-        from .constant_mul_linear_operator import ConstantMulLinearOperator
+        from linear_operator.operators.constant_mul_linear_operator import ConstantMulLinearOperator
 
         return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
