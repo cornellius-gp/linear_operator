@@ -5,11 +5,11 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.broadcasting import _matmul_broadcast_shape
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .linear_operator_representation_tree import LinearOperatorRepresentationTree
-from .root_linear_operator import RootLinearOperator
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.memoize import cached
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
+from linear_operator.operators.root_linear_operator import RootLinearOperator
 
 
 class MulLinearOperator(LinearOperator):

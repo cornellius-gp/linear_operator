@@ -8,9 +8,9 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.getitem import _noop_index
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
+from linear_operator.utils.getitem import _noop_index
+from linear_operator.utils.memoize import cached
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
 
 
 class KeOpsLinearOperator(LinearOperator):

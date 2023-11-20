@@ -2,7 +2,7 @@
 
 import warnings
 
-from .settings import _feature_flag
+from linear_operator.settings import _feature_flag
 
 
 class _moved_beta_feature(object):

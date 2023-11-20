@@ -2,7 +2,7 @@
 
 from torch.autograd import Function
 
-from .. import settings
+from linear_operator import settings
 
 
 class Matmul(Function):

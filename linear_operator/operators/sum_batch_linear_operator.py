@@ -4,10 +4,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.broadcasting import _pad_with_singletons
-from ..utils.getitem import _noop_index
-from ._linear_operator import IndexType, LinearOperator
-from .block_linear_operator import BlockLinearOperator
+from linear_operator.utils.broadcasting import _pad_with_singletons
+from linear_operator.utils.getitem import _noop_index
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.block_linear_operator import BlockLinearOperator
 
 
 class SumBatchLinearOperator(BlockLinearOperator):

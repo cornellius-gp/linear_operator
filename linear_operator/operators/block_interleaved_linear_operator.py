@@ -5,9 +5,9 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .block_linear_operator import BlockLinearOperator
+from linear_operator.utils.memoize import cached
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.block_linear_operator import BlockLinearOperator
 
 
 class BlockInterleavedLinearOperator(BlockLinearOperator):
@@ -42,7 +42,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
     def _cholesky(
         self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
     ) -> Float[LinearOperator, "*batch N N"]:
-        from .triangular_linear_operator import TriangularLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         chol = self.__class__(self.base_linear_op.cholesky(upper=upper))
         return TriangularLinearOperator(chol, upper=upper)

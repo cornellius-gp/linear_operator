@@ -3,7 +3,7 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings, utils
+from linear_operator import settings, utils
 
 
 class SqrtInvMatmul(Function):

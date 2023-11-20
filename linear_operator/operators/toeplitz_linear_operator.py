@@ -5,8 +5,8 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from ..utils.toeplitz import sym_toeplitz_derivative_quadratic_form, sym_toeplitz_matmul
-from ._linear_operator import IndexType, LinearOperator
+from linear_operator.utils.toeplitz import sym_toeplitz_derivative_quadratic_form, sym_toeplitz_matmul
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
 
 
 class ToeplitzLinearOperator(LinearOperator):

@@ -2,7 +2,7 @@
 
 import torch
 
-from .lanczos import lanczos_tridiag
+from linear_operator.utils.lanczos import lanczos_tridiag
 
 
 class StochasticLQ(object):

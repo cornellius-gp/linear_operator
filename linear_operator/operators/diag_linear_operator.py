@@ -8,12 +8,12 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from .. import settings
-from ..utils.memoize import cached
-from ._linear_operator import IndexType, LinearOperator
-from .block_diag_linear_operator import BlockDiagLinearOperator
-from .dense_linear_operator import DenseLinearOperator
-from .triangular_linear_operator import TriangularLinearOperator
+from linear_operator import settings
+from linear_operator.utils.memoize import cached
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.block_diag_linear_operator import BlockDiagLinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator
+from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
 
 class DiagLinearOperator(TriangularLinearOperator):
@@ -33,7 +33,7 @@ class DiagLinearOperator(TriangularLinearOperator):
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, DiagLinearOperator):
             return self.add_diagonal(other._diag)
-        from .added_diag_linear_operator import AddedDiagLinearOperator
+        from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
 
         return AddedDiagLinearOperator(other, self)
 

@@ -6,12 +6,12 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from .. import settings
-from ._linear_operator import LinearOperator
-from .added_diag_linear_operator import AddedDiagLinearOperator
-from .diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from .kronecker_product_linear_operator import KroneckerProductDiagLinearOperator, KroneckerProductLinearOperator
-from .matmul_linear_operator import MatmulLinearOperator
+from linear_operator import settings
+from linear_operator.operators._linear_operator import LinearOperator
+from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
+from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
+from linear_operator.operators.kronecker_product_linear_operator import KroneckerProductDiagLinearOperator, KroneckerProductLinearOperator
+from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
 
 
 def _constant_kpadlt_constructor(lt, dlt):

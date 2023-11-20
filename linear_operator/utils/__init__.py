@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from . import broadcasting, cholesky, errors, getitem, interpolation, lanczos, permutation, sparse, warnings
-from .contour_integral_quad import contour_integral_quad
-from .linear_cg import linear_cg
-from .memoize import cached
-from .minres import minres
-from .pinverse import stable_pinverse
-from .qr import stable_qr
-from .stochastic_lq import StochasticLQ
+from linear_operator.utils import broadcasting, cholesky, errors, getitem, interpolation, lanczos, permutation, sparse, warnings
+from linear_operator.utils.contour_integral_quad import contour_integral_quad
+from linear_operator.utils.linear_cg import linear_cg
+from linear_operator.utils.memoize import cached
+from linear_operator.utils.minres import minres
+from linear_operator.utils.pinverse import stable_pinverse
+from linear_operator.utils.qr import stable_qr
+from linear_operator.utils.stochastic_lq import StochasticLQ
 
 __all__ = [
     "broadcasting",

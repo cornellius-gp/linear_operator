@@ -53,7 +53,7 @@ def apply_permutation(
         >>> ])  # Partial permutation: 2 x 3 x 3
         >>> apply_permutation(matrix, left_permutation, right_permutation)  # 2 x 3 x 5 x 3
     """
-    from ..operators import to_dense
+    from linear_operator.operators import to_dense
 
     if left_permutation is None and right_permutation is None:
         return to_dense(matrix)

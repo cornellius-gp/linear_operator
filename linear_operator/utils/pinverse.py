@@ -3,7 +3,7 @@
 import torch
 from torch import Tensor
 
-from .qr import stable_qr
+from linear_operator.utils.qr import stable_qr
 
 
 def stable_pinverse(A: Tensor) -> Tensor:

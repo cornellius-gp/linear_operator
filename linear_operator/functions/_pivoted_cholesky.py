@@ -3,9 +3,9 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings
-from ..utils.cholesky import psd_safe_cholesky
-from ..utils.permutation import apply_permutation, inverse_permutation
+from linear_operator import settings
+from linear_operator.utils.cholesky import psd_safe_cholesky
+from linear_operator.utils.permutation import apply_permutation, inverse_permutation
 
 
 class PivotedCholesky(Function):

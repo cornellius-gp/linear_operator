@@ -4,9 +4,9 @@ import warnings
 
 import torch
 
-from .. import settings
-from .deprecation import bool_compat
-from .warnings import NumericalWarning
+from linear_operator import settings
+from linear_operator.utils.deprecation import bool_compat
+from linear_operator.utils.warnings import NumericalWarning
 
 
 def _default_preconditioner(x):

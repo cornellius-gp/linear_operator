@@ -2,8 +2,8 @@
 from jaxtyping import Float
 from torch import Tensor
 
-from ._linear_operator import LinearOperator
-from .sum_linear_operator import SumLinearOperator
+from linear_operator.operators._linear_operator import LinearOperator
+from linear_operator.operators.sum_linear_operator import SumLinearOperator
 
 
 class PsdSumLinearOperator(SumLinearOperator):

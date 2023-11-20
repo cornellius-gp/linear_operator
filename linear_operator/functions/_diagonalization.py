@@ -3,8 +3,8 @@
 import torch
 from torch.autograd import Function
 
-from .. import settings
-from ..utils import lanczos
+from linear_operator import settings
+from linear_operator.utils import lanczos
 
 
 class Diagonalization(Function):
