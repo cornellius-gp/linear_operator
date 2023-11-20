@@ -5,14 +5,15 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from linear_operator.utils.cholesky import psd_safe_cholesky
-from linear_operator.utils.memoize import cached
 from linear_operator.operators import to_dense
 from linear_operator.operators._linear_operator import LinearOperator
 from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
 from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
 from linear_operator.operators.low_rank_root_linear_operator import LowRankRootLinearOperator
 from linear_operator.operators.sum_batch_linear_operator import SumBatchLinearOperator
+
+from linear_operator.utils.cholesky import psd_safe_cholesky
+from linear_operator.utils.memoize import cached
 
 
 class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):

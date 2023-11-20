@@ -9,10 +9,11 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import LinearOperator
 from linear_operator.operators.root_linear_operator import RootLinearOperator
 from linear_operator.operators.triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
+
+from linear_operator.utils.memoize import cached
 
 
 class CholLinearOperator(RootLinearOperator):

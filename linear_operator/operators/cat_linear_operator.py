@@ -8,12 +8,13 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from linear_operator.operators._linear_operator import IndexType, LinearOperator, to_dense
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.deprecation import bool_compat
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _noop_index
-from linear_operator.operators._linear_operator import IndexType, LinearOperator, to_dense
-from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
 
 
 def cat(inputs, dim=0, output_device=None):

@@ -5,9 +5,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_linear_operator import BlockLinearOperator
+
+from linear_operator.utils.memoize import cached
 
 
 class BlockInterleavedLinearOperator(BlockLinearOperator):

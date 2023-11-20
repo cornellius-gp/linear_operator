@@ -9,11 +9,11 @@ from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator import settings
-from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_diag_linear_operator import BlockDiagLinearOperator
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator
 from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
+from linear_operator.utils.memoize import cached
 
 
 class DiagLinearOperator(TriangularLinearOperator):

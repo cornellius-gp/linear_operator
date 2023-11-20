@@ -33,6 +33,7 @@ from linear_operator.functions._pivoted_cholesky import PivotedCholesky
 from linear_operator.functions._root_decomposition import RootDecomposition
 from linear_operator.functions._solve import Solve
 from linear_operator.functions._sqrt_inv_matmul import SqrtInvMatmul
+from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.cholesky import psd_safe_cholesky
 from linear_operator.utils.deprecation import _deprecate_renamed_methods
@@ -56,7 +57,6 @@ from linear_operator.utils.memoize import (
 )
 from linear_operator.utils.pinverse import stable_pinverse
 from linear_operator.utils.warnings import NumericalWarning, PerformanceWarning
-from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
 
 _HANDLED_FUNCTIONS = {}
 _HANDLED_SECOND_ARG_FUNCTIONS = {}

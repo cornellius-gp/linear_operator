@@ -4,10 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import (
-    DiagLinearOperator,
-    KroneckerProductDiagLinearOperator
-)
+from linear_operator.operators import DiagLinearOperator, KroneckerProductDiagLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 

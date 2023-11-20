@@ -6,10 +6,11 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from linear_operator.operators._linear_operator import LinearOperator, to_dense
+
 from linear_operator.utils.broadcasting import _pad_with_singletons
 from linear_operator.utils.getitem import _noop_index, IndexType
 from linear_operator.utils.memoize import cached
-from linear_operator.operators._linear_operator import LinearOperator, to_dense
 
 
 def _x_getitem(x, batch_indices, data_index):

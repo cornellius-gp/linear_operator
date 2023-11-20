@@ -8,9 +8,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+
 from linear_operator.utils.getitem import _compute_getitem_size
 from linear_operator.utils.memoize import cached
-from linear_operator.operators._linear_operator import IndexType, LinearOperator
 
 
 class ZeroLinearOperator(LinearOperator):

@@ -8,15 +8,16 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.operators.diag_linear_operator import DiagLinearOperator
+from linear_operator.operators.root_linear_operator import RootLinearOperator
+
 from linear_operator.utils import sparse
 from linear_operator.utils.broadcasting import _pad_with_singletons
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _noop_index
 from linear_operator.utils.interpolation import left_interp, left_t_interp
-from linear_operator.operators._linear_operator import IndexType, LinearOperator
-from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
-from linear_operator.operators.diag_linear_operator import DiagLinearOperator
-from linear_operator.operators.root_linear_operator import RootLinearOperator
 
 
 class InterpolatedLinearOperator(LinearOperator):

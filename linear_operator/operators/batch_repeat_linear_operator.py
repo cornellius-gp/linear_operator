@@ -9,9 +9,9 @@ from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator import settings
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.memoize import cached
-from linear_operator.operators._linear_operator import IndexType, LinearOperator
 
 
 class BatchRepeatLinearOperator(LinearOperator):

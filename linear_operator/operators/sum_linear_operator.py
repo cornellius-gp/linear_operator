@@ -5,10 +5,11 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import to_linear_operator
 from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
+
+from linear_operator.utils.memoize import cached
 
 # from linear_operator.operators.broadcasted_linear_operator import BroadcastedLinearOperator
 

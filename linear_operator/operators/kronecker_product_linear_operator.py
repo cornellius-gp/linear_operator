@@ -9,15 +9,12 @@ from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator import settings
-from linear_operator.utils.broadcasting import _matmul_broadcast_shape
-from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import to_linear_operator
 from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from linear_operator.operators.triangular_linear_operator import (
-    _TriangularLinearOperatorBase,
-    TriangularLinearOperator,
-)
+from linear_operator.operators.triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
+from linear_operator.utils.broadcasting import _matmul_broadcast_shape
+from linear_operator.utils.memoize import cached
 
 
 def _kron_diag(*lts) -> Tensor:
