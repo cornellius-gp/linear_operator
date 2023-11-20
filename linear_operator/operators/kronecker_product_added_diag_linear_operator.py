@@ -10,7 +10,10 @@ from linear_operator import settings
 from linear_operator.operators._linear_operator import LinearOperator
 from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
 from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from linear_operator.operators.kronecker_product_linear_operator import KroneckerProductDiagLinearOperator, KroneckerProductLinearOperator
+from linear_operator.operators.kronecker_product_linear_operator import (
+    KroneckerProductDiagLinearOperator,
+    KroneckerProductLinearOperator,
+)
 from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
 
 

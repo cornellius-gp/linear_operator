@@ -14,7 +14,10 @@ from linear_operator.utils.memoize import cached
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import to_linear_operator
 from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-from linear_operator.operators.triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
+from linear_operator.operators.triangular_linear_operator import (
+    _TriangularLinearOperatorBase,
+    TriangularLinearOperator,
+)
 
 
 def _kron_diag(*lts) -> Tensor:
@@ -100,7 +103,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         if isinstance(other, (KroneckerProductDiagLinearOperator, ConstantDiagLinearOperator)):
-            from linear_operator.operators.kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
+            from linear_operator.operators.kronecker_product_added_diag_linear_operator import (
+                KroneckerProductAddedDiagLinearOperator,
+            )
 
             return KroneckerProductAddedDiagLinearOperator(self, other)
         if isinstance(other, KroneckerProductLinearOperator):
@@ -115,7 +120,9 @@ class KroneckerProductLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch N N"],
         diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
-        from linear_operator.operators.kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
+        from linear_operator.operators.kronecker_product_added_diag_linear_operator import (
+            KroneckerProductAddedDiagLinearOperator,
+        )
 
         if not self.is_square:
             raise RuntimeError("add_diag only defined for square matrices")

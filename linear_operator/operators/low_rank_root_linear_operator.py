@@ -23,7 +23,9 @@ class LowRankRootLinearOperator(RootLinearOperator):
         diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
     ) -> Float[LinearOperator, "*batch N N"]:
         from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
-        from linear_operator.operators.low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
+        from linear_operator.operators.low_rank_root_added_diag_linear_operator import (
+            LowRankRootAddedDiagLinearOperator,
+        )
 
         if not self.is_square:
             raise RuntimeError("add_diag only defined for square matrices")
@@ -53,7 +55,9 @@ class LowRankRootLinearOperator(RootLinearOperator):
         other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
     ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
-        from linear_operator.operators.low_rank_root_added_diag_linear_operator import LowRankRootAddedDiagLinearOperator
+        from linear_operator.operators.low_rank_root_added_diag_linear_operator import (
+            LowRankRootAddedDiagLinearOperator,
+        )
 
         if isinstance(other, DiagLinearOperator):
             return LowRankRootAddedDiagLinearOperator(self, other)

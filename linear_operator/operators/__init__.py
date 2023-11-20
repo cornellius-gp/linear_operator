@@ -15,7 +15,9 @@ from linear_operator.operators.identity_linear_operator import IdentityLinearOpe
 from linear_operator.operators.interpolated_linear_operator import InterpolatedLinearOperator
 from linear_operator.operators.keops_linear_operator import KeOpsLinearOperator
 from linear_operator.operators.kernel_linear_operator import KernelLinearOperator
-from linear_operator.operators.kronecker_product_added_diag_linear_operator import KroneckerProductAddedDiagLinearOperator
+from linear_operator.operators.kronecker_product_added_diag_linear_operator import (
+    KroneckerProductAddedDiagLinearOperator,
+)
 from linear_operator.operators.kronecker_product_linear_operator import (
     KroneckerProductDiagLinearOperator,
     KroneckerProductLinearOperator,
@@ -26,7 +28,10 @@ from linear_operator.operators.low_rank_root_linear_operator import LowRankRootL
 from linear_operator.operators.masked_linear_operator import MaskedLinearOperator
 from linear_operator.operators.matmul_linear_operator import MatmulLinearOperator
 from linear_operator.operators.mul_linear_operator import MulLinearOperator
-from linear_operator.operators.permutation_linear_operator import PermutationLinearOperator, TransposePermutationLinearOperator
+from linear_operator.operators.permutation_linear_operator import (
+    PermutationLinearOperator,
+    TransposePermutationLinearOperator,
+)
 from linear_operator.operators.psd_sum_linear_operator import PsdSumLinearOperator
 from linear_operator.operators.root_linear_operator import RootLinearOperator
 from linear_operator.operators.sum_batch_linear_operator import SumBatchLinearOperator

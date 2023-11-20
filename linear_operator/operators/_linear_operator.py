@@ -47,7 +47,13 @@ from linear_operator.utils.getitem import (
     IndexType,
 )
 from linear_operator.utils.lanczos import _postprocess_lanczos_root_inv_decomp
-from linear_operator.utils.memoize import _is_in_cache_ignore_all_args, _is_in_cache_ignore_args, add_to_cache, cached, pop_from_cache
+from linear_operator.utils.memoize import (
+    _is_in_cache_ignore_all_args,
+    _is_in_cache_ignore_args,
+    add_to_cache,
+    cached,
+    pop_from_cache,
+)
 from linear_operator.utils.pinverse import stable_pinverse
 from linear_operator.utils.warnings import NumericalWarning, PerformanceWarning
 from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
