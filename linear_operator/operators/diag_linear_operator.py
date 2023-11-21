@@ -307,6 +307,10 @@ if os.getenv("USE_COLA"):
             # method of the test case
             return self._orig_lo._diag
 
+        def abs(self):
+            output = cola.ops.Diagonal(torch.abs(self._cola_lo.diag))
+            return output
+
 else:
     DiagLinearOperator = _DiagLinearOperator
 

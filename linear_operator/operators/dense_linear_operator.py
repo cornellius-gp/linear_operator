@@ -9,6 +9,7 @@ from jaxtyping import Float
 from torch import Tensor
 
 from ._linear_operator import IndexType, LinearOperator, to_dense
+from .cola_linear_operator import ColaLinearOperator
 
 
 class DenseLinearOperator(LinearOperator):
@@ -111,6 +112,8 @@ def to_linear_operator(obj: Union[torch.Tensor, LinearOperator]) -> LinearOperat
     if torch.is_tensor(obj):
         return DenseLinearOperator(obj)
     elif isinstance(obj, LinearOperator):
+        return obj
+    elif isinstance(obj, ColaLinearOperator):
         return obj
     else:
         raise TypeError("object of class {} cannot be made into a LinearOperator".format(obj.__class__.__name__))

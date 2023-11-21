@@ -101,10 +101,24 @@ class ColaLinearOperator(ABC):
         else:
             return self + alpha * other
 
+    def dim(self):
+        return len(self._cola_lo.shape)
+
     @property
     def batch_shape(self):
         # COLAIFY
         return self._orig_lo.batch_shape
+
+    def add_diagonal(self, diag):
+        shape, dtype = self._cola_lo.shape, self._cola_lo.dtype
+        SOp = cola.ops.ScalarMul(diag.clone().detach(), shape=shape, dtype=dtype)
+        output = self._cola_lo + SOp
+        return output
+
+    @_implements(torch.abs)
+    def abs(self):
+        output = self._cola_lo.abs()
+        return output
 
     @_implements(torch.clone)
     def clone(self):
