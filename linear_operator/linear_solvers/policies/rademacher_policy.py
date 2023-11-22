@@ -24,7 +24,7 @@ class RademacherPolicy(LinearSolverPolicy):
         )
 
         if self.num_nonzero is None:
-            num_nonzero = solver_state.problem.A.shape
+            num_nonzero = solver_state.problem.A.shape[0]
         else:
             num_nonzero = self.num_nonzero
 
@@ -43,7 +43,7 @@ class RademacherPolicy(LinearSolverPolicy):
             )
 
             perm = torch.randperm(solver_state.problem.A.shape[0])
-            idcs = perm[:num_nonzero]
+            idcs = perm[0:num_nonzero]
 
             action[idcs] = rademacher_vec
 

@@ -9,7 +9,6 @@ from .. import settings
 from ..operators import (
     LinearOperator,
     LowRankRootLinearOperator,
-    MulLinearOperator,
     ZeroLinearOperator,
     to_linear_operator,
 )
@@ -74,9 +73,7 @@ class PLS(LinearSolver):
 
         if x is None:
             x = torch.zeros_like(rhs, requires_grad=True)
-            inverse_op = ZeroLinearOperator(
-                *linear_op.shape, dtype=linear_op.dtype, device=linear_op.device
-            )
+            inverse_op = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype, device=linear_op.device)
             residual = rhs
             logdet = torch.zeros((), requires_grad=True)
         else:
@@ -94,9 +91,7 @@ class PLS(LinearSolver):
             residual = rhs - linear_op_x
 
             # Consistent inverse approximation for new initial guess
-            inverse_op = LowRankRootLinearOperator(
-                (action / torch.sqrt(action_linear_op_action)).reshape(-1, 1)
-            )
+            inverse_op = LowRankRootLinearOperator((action / torch.sqrt(action_linear_op_action)).reshape(-1, 1))
 
             # Log determinant
             logdet = torch.log(action_linear_op_action)
@@ -126,8 +121,7 @@ class PLS(LinearSolver):
         while True:
             # Check convergence
             if (
-                solver_state.residual_norm
-                < max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
+                solver_state.residual_norm < max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
                 or solver_state.iteration >= max_iter
             ):
                 break
@@ -179,9 +173,7 @@ class PLS(LinearSolver):
 
             # Update residual
             solver_state.residual = rhs - linear_op @ solver_state.solution
-            solver_state.residual_norm = torch.linalg.vector_norm(
-                solver_state.residual, ord=2
-            )
+            solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
 
             # Update log-determinant
             solver_state.logdet = solver_state.logdet + torch.log(search_dir_sqnorm)
@@ -277,15 +269,11 @@ class PLSsparse(LinearSolver):
 
         if x is None:
             x = torch.zeros_like(rhs, requires_grad=True)
-            inverse_op = ZeroLinearOperator(
-                *linear_op.shape, dtype=linear_op.dtype, device=linear_op.device
-            )
+            inverse_op = ZeroLinearOperator(*linear_op.shape, dtype=linear_op.dtype, device=linear_op.device)
             residual = rhs
             logdet = torch.zeros((), requires_grad=True)
         else:
-            raise NotImplementedError(
-                "Currently we do not support initializing with a given solution x."
-            )
+            raise NotImplementedError("Currently we do not support initializing with a given solution x.")
 
         # Initialize solver state
         solver_state = LinearSolverState(
@@ -315,8 +303,7 @@ class PLSsparse(LinearSolver):
         while True:
             # Check convergence
             if (
-                solver_state.residual_norm
-                < max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
+                solver_state.residual_norm < max(self.abstol, self.reltol * solver_state.cache["rhs_norm"])
                 or solver_state.iteration >= max_iter
             ):
                 break
@@ -326,19 +313,17 @@ class PLSsparse(LinearSolver):
             linear_op_action = linear_op @ action
 
             if solver_state.cache["actions"] is not None:
-                prev_actions_linear_op_action = (
-                    solver_state.cache["actions"].mT @ linear_op_action
-                )
+                prev_actions_linear_op_action = solver_state.cache["actions"].mT @ linear_op_action
             else:
                 prev_actions_linear_op_action = None
 
             # Observation
             observ = torch.inner(action, solver_state.residual)
 
-            # Normalization constant
+            # Schur complement / Squared linop-norm of search direction
             action_linear_op_action = torch.inner(linear_op_action, action)
 
-            search_dir_sqnorm = action_linear_op_action  # TODO: obsolete computation
+            schur_complement = action_linear_op_action
 
             if solver_state.cache["actions"] is not None:
                 gram_inv_tilde_z = torch.cholesky_solve(
@@ -347,36 +332,33 @@ class PLSsparse(LinearSolver):
                     upper=False,
                 ).reshape(-1)
 
-                search_dir_sqnorm = search_dir_sqnorm - torch.inner(
-                    prev_actions_linear_op_action, gram_inv_tilde_z
-                )  # TODO: obsolete computation
+                schur_complement = schur_complement - torch.inner(prev_actions_linear_op_action, gram_inv_tilde_z)
+                # schur_complement = torch.inner(
+                #     linear_op_action, action - solver_state.cache["actions"] @ gram_inv_tilde_z
+                # )  # TODO: second formulation, more costly: O(ni), but maybe more stable? -> Doesnt seem like it.
 
-            solver_state.cache["search_dir_sq_Anorms"].append(search_dir_sqnorm)
+            solver_state.cache["search_dir_sq_Anorms"].append(schur_complement)
 
-            if search_dir_sqnorm <= 0:
+            if schur_complement <= 0:
                 if settings.verbose_linalg.on():
                     settings.verbose_linalg.logger.debug(
                         f"PLS terminated after {solver_state.iteration} iteration(s)"
-                        + " due to a negative normalization constant."
+                        + " due to a negative Schur complement."
                     )
                 break
 
             # Step size
-            step_size = observ / search_dir_sqnorm  # TODO: obsolete
+            step_size = observ / schur_complement  # TODO: obsolete
 
             if solver_state.cache["actions"] is None:
                 # Matrix of previous actions
                 solver_state.cache["actions"] = torch.reshape(action, (-1, 1))
 
                 # Matrix of previous actions applied to the kernel matrix
-                solver_state.cache["linear_op_actions"] = torch.reshape(
-                    linear_op_action, (-1, 1)
-                )
+                solver_state.cache["linear_op_actions"] = torch.reshape(linear_op_action, (-1, 1))
 
                 # Initialize Cholesky factor
-                solver_state.cache["cholfac_gram"] = action_linear_op_action.reshape(
-                    1, 1
-                )
+                solver_state.cache["cholfac_gram"] = torch.sqrt(action_linear_op_action).reshape(1, 1)
 
             else:
                 # Update to Cholesky factor of Gram matrix S_i'\hat{K}S_i
@@ -385,22 +367,7 @@ class PLSsparse(LinearSolver):
                     prev_actions_linear_op_action.reshape(-1, 1),
                     upper=False,
                 ).reshape(-1)
-                new_cholfac_bottom_row_rightmost_entry = torch.sqrt(
-                    action_linear_op_action
-                    - torch.inner(
-                        new_cholfac_bottom_row_minus_last_entry,
-                        new_cholfac_bottom_row_minus_last_entry,
-                    )
-                )
-
-                if new_cholfac_bottom_row_rightmost_entry.item() <= 0:
-                    if settings.verbose_linalg.on():
-                        settings.verbose_linalg.logger.debug(
-                            f"PLS terminated after {solver_state.iteration} iteration(s)"
-                            + " since the Cholesky factorization could not be updated."
-                        )
-
-                    break
+                new_cholfac_bottom_row_rightmost_entry = torch.sqrt(schur_complement)
 
                 solver_state.cache["cholfac_gram"] = torch.vstack(
                     (
@@ -423,18 +390,8 @@ class PLSsparse(LinearSolver):
                     )
                 )
 
-                # TODO: Should we explicitly recompute the Cholesky factor here for stability? -> problem: O(i^2 max(i,k)) per iteration
-                # Did not actually improve stability for subset Lanczos actions
-                # solver_state.cache["cholfac_gram"] = torch.linalg.cholesky(
-                #     solver_state.cache["linear_op_actions"].mT
-                #     @ solver_state.cache["actions"],
-                #     upper=False,
-                # )
-
                 # Matrix of actions
-                solver_state.cache["actions"] = torch.hstack(
-                    (solver_state.cache["actions"], action.reshape(-1, 1))
-                )
+                solver_state.cache["actions"] = torch.hstack((solver_state.cache["actions"], action.reshape(-1, 1)))
 
                 # Matrix of actions applied to the kernel matrix
                 solver_state.cache["linear_op_actions"] = torch.hstack(
@@ -444,6 +401,12 @@ class PLSsparse(LinearSolver):
                     )
                 )
 
+                # TODO: Should we explicitly recompute the Cholesky factor per loop or at convergence for stability?
+                # solver_state.cache["cholfac_gram"] = torch.linalg.cholesky(
+                #     solver_state.cache["linear_op_actions"].mT @ solver_state.cache["actions"],
+                #     upper=False,
+                # )
+
             # Update compressed solution estimate
             solver_state.cache["compressed_solution"] = torch.cholesky_solve(
                 (solver_state.cache["actions"].mT @ rhs).reshape(-1, 1),
@@ -452,38 +415,27 @@ class PLSsparse(LinearSolver):
             ).reshape(-1)
 
             # Update solution estimate
-            solver_state.solution = (
-                solver_state.cache["actions"]
-                @ solver_state.cache["compressed_solution"]
-            )
+            solver_state.solution = solver_state.cache["actions"] @ solver_state.cache["compressed_solution"]
 
             # Update residual
             solver_state.cache["linear_op_actions_compressed_solution"] = (
-                solver_state.cache["linear_op_actions"]
-                @ solver_state.cache["compressed_solution"]
+                solver_state.cache["linear_op_actions"] @ solver_state.cache["compressed_solution"]
             )
-            solver_state.residual = (
-                solver_state.problem.b
-                - solver_state.cache["linear_op_actions_compressed_solution"]
-            )
+            solver_state.residual = solver_state.problem.b - solver_state.cache["linear_op_actions_compressed_solution"]
             # TODO: Explicitly recomputing the residual improves stability a bit (for CG)
             #
             # solver_state.residual = (
             #     solver_state.problem.b - solver_state.problem.A @ solver_state.solution
             # )
 
-            solver_state.residual_norm = torch.linalg.vector_norm(
-                solver_state.residual, ord=2
-            )
+            solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
             # TODO: should we check for an increase in residual here to stop early?
 
             # Update inverse approximation
-            solver_state.inverse_op = (
-                None  # TODO: lazy representation for simpler code?
-            )
+            solver_state.inverse_op = None  # TODO: lazy representation for simpler code?
 
             # Update log-determinant
-            solver_state.logdet = solver_state.logdet + torch.log(search_dir_sqnorm)
+            solver_state.logdet = solver_state.logdet + torch.log(schur_complement)
 
             # Update iteration
             solver_state.iteration += 1
