@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import cola
+from cola.linalg.decompositions.lanczos import lanczos
 
 
 _HANDLED_FUNCTIONS = {}
@@ -95,7 +96,8 @@ class ColaLinearOperator(ABC):
 
     def add_diagonal(self, diag):
         shape, dtype = self._cola_lo.shape, self._cola_lo.dtype
-        SOp = cola.ops.ScalarMul(diag.clone().detach(), shape=shape, dtype=dtype)
+        SOp = cola.ops.ScalarMul(
+            diag.clone().detach(), shape=shape, dtype=dtype)
         output = self._cola_lo + SOp
         params, unflatten = output.flatten()
         return ColaWrapperLinearOperator(unflatten, *params)
@@ -158,7 +160,26 @@ class ColaLinearOperator(ABC):
         self._orig_lo.requires_grad_(value)
         return self
 
-    def root_decomposition():
+    def root_decomposition(self, method=None):
+        # TODO: AP update lanczos for gradients
+        Q, T, *_ = lanczos(self._cola_lo)
+        L = torch.linalg.cholesky(T.to_dense())
+        output = cola.ops.Dense(Q.to_dense() @ L)
+        output = output @ output.T
+
+        params, unflatten = output.flatten()
+        return ColaWrapperLinearOperator(unflatten, *params)
+
+    def root_inv_decomposition(self, initial_vectors=None, test_vectors=None, method=None):
+        # TODO: AP update lanczos for gradients
+        Q, T, *_ = lanczos(self._cola_lo)
+        L = torch.linalg.cholesky(T.to_dense())
+        output = torch.linalg.solve_triangular(L, Q.to_dense().T, upper=False)
+        output = cola.ops.Dense(output)
+        output = output.T @ output
+
+        params, unflatten = output.flatten()
+        return ColaWrapperLinearOperator(unflatten, *params)
 
     def size(self, dim):
         shape = self._cola_lo.shape
@@ -204,8 +225,10 @@ class ColaLinearOperator(ABC):
             ):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
-                kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
+                kwarg_classes = ", ".join(
+                    f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
+                raise NotImplementedError(
+                    f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_SECOND_ARG_FUNCTIONS[func])
@@ -214,8 +237,10 @@ class ColaLinearOperator(ABC):
             if func not in _HANDLED_FUNCTIONS or not all(issubclass(t, (torch.Tensor, ColaLinearOperator)) for t in types):
                 name = func.__name__.replace("linalg_", "linalg.")
                 arg_classes = ", ".join(arg.__class__.__name__ for arg in args)
-                kwarg_classes = ", ".join(f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
-                raise NotImplementedError(f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
+                kwarg_classes = ", ".join(
+                    f"{key}={val.__class__.__name__}" for key, val in kwargs.items())
+                raise NotImplementedError(
+                    f"torch.{name}({arg_classes}, {kwarg_classes}) is not implemented.")
             # Hack: get the appropriate class function based on its name
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_FUNCTIONS[func])
