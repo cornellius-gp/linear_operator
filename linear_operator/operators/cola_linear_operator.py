@@ -140,6 +140,16 @@ class ColaLinearOperator(ABC):
         detached_lo = self._orig_lo.detach()
         return self.__class__(*detached_lo._args, **detached_lo._kwargs)
 
+    def add_jitter(self, val):
+        Id = cola.ops.I_like(self._cola_lo)
+        out = self._cola_lo + val * Id
+        return out
+
+    def add_low_rank(self, V):
+        VOp = cola.ops.Dense(V)
+        out = self._cola_lo + VOp @ VOp.T
+        return out
+
     @_implements(torch.matmul)
     def matmul(self, rhs):
         print("Using CoLA for matmul")
