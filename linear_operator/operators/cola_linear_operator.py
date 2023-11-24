@@ -73,15 +73,6 @@ class ColaLinearOperator(ABC):
         self.dtype = self._cola_lo.dtype
         self.matrix_shape = self.shape[-2:]
 
-    def __mul__(self, x):
-        return self._cola_lo * x
-
-    def __rmul__(self, x):
-        return x * self._cola_lo
-
-    def __truediv__(self, x):
-        return self._cola_lo / x
-
     @abstractmethod
     def _generate_cola_lo(self, *args, **kwargs):
         raise NotImplementedError
@@ -90,18 +81,10 @@ class ColaLinearOperator(ABC):
     def _generate_orig_lo(self, *args, **kwargs):
         raise NotImplementedError
 
-    def __add__(self, other):
-        # COLAIFY
-        if len(other.shape) >= 3:
-            return self._orig_lo + other
-        else:
-            if isinstance(other, ColaLinearOperator):
-                other = other._cola_lo
-            return self._cola_lo + cola.fns.lazify(other)
-
-    @_implements_second_arg(torch.Tensor.add)
-    def __radd__(self, other):
-        return self + cola.fns.lazify(other)
+    @_implements(torch.abs)
+    def abs(self):
+        output = self._cola_lo.abs()
+        return output
 
     @_implements_symmetric(torch.add)
     def add(self, other, alpha=None):
@@ -110,24 +93,29 @@ class ColaLinearOperator(ABC):
         else:
             return self + alpha * other
 
-    def dim(self):
-        return len(self._cola_lo.shape)
+    def add_diagonal(self, diag):
+        shape, dtype = self._cola_lo.shape, self._cola_lo.dtype
+        SOp = cola.ops.ScalarMul(diag.clone().detach(), shape=shape, dtype=dtype)
+        output = self._cola_lo + SOp
+        params, unflatten = output.flatten()
+        return ColaWrapperLinearOperator(unflatten, *params)
+
+    def add_jitter(self, val):
+        Id = cola.ops.I_like(self._cola_lo)
+        output = self._cola_lo + val * Id
+        params, unflatten = output.flatten()
+        return ColaWrapperLinearOperator(unflatten, *params)
+
+    def add_low_rank(self, V):
+        VOp = cola.ops.Dense(V)
+        output = self._cola_lo + VOp @ VOp.T
+        params, unflatten = output.flatten()
+        return ColaWrapperLinearOperator(unflatten, *params)
 
     @property
     def batch_shape(self):
         # COLAIFY
         return self._orig_lo.batch_shape
-
-    def add_diagonal(self, diag):
-        shape, dtype = self._cola_lo.shape, self._cola_lo.dtype
-        SOp = cola.ops.ScalarMul(diag.clone().detach(), shape=shape, dtype=dtype)
-        output = self._cola_lo + SOp
-        return output
-
-    @_implements(torch.abs)
-    def abs(self):
-        output = self._cola_lo.abs()
-        return output
 
     @_implements(torch.clone)
     def clone(self):
@@ -140,15 +128,13 @@ class ColaLinearOperator(ABC):
         detached_lo = self._orig_lo.detach()
         return self.__class__(*detached_lo._args, **detached_lo._kwargs)
 
-    def add_jitter(self, val):
-        Id = cola.ops.I_like(self._cola_lo)
-        out = self._cola_lo + val * Id
-        return out
+    def dim(self):
+        return len(self._cola_lo.shape)
 
-    def add_low_rank(self, V):
-        VOp = cola.ops.Dense(V)
-        out = self._cola_lo + VOp @ VOp.T
-        return out
+    @_implements(torch.div)
+    def div(self, rhs):
+        print("Using CoLA for div")
+        return self._cola_lo / rhs
 
     @_implements(torch.matmul)
     def matmul(self, rhs):
@@ -159,11 +145,6 @@ class ColaLinearOperator(ABC):
     def mul(self, rhs):
         print("Using CoLA for mul")
         return self._cola_lo * rhs
-
-    @_implements(torch.div)
-    def div(self, rhs):
-        print("Using CoLA for div")
-        return self._cola_lo / rhs
 
     def ndimension(self):
         return len(self._cola_lo.shape)
@@ -177,14 +158,38 @@ class ColaLinearOperator(ABC):
         self._orig_lo.requires_grad_(value)
         return self
 
+    def root_decomposition():
+
     def size(self, dim):
         shape = self._cola_lo.shape
         if dim is not None:
             return shape[dim]
         return shape
 
+    def to_dense(self):
+        return self._cola_lo.to_dense()
+
+    def __add__(self, other):
+        # COLAIFY
+        if len(other.shape) >= 3:
+            return self._orig_lo + other
+        else:
+            if isinstance(other, ColaLinearOperator):
+                other = other._cola_lo
+            return self._cola_lo + cola.fns.lazify(other)
+
     def __matmul__(self, rhs):
         return self.matmul(rhs)
+
+    def __mul__(self, x):
+        return self._cola_lo * x
+
+    @_implements_second_arg(torch.Tensor.add)
+    def __radd__(self, other):
+        return self + cola.fns.lazify(other)
+
+    def __rmul__(self, x):
+        return x * self._cola_lo
 
     @classmethod
     def __torch_function__(
@@ -215,3 +220,18 @@ class ColaLinearOperator(ABC):
             # As a result, we will call the subclass method (when applicable) rather than the superclass method
             func = getattr(cls, _HANDLED_FUNCTIONS[func])
             return func(*args, **kwargs)
+
+    def __truediv__(self, x):
+        return self._cola_lo / x
+
+
+class ColaWrapperLinearOperator(ColaLinearOperator):
+    def __init__(self, unflatten, *args, **kwargs):
+        self._unflatten = unflatten
+        super().__init__(*args, **kwargs)
+
+    def _generate_cola_lo(self, *args):
+        return self._unflatten(args)
+
+    def _generate_orig_lo(self, *args):
+        return None
