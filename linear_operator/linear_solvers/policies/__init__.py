@@ -1,4 +1,5 @@
 from .adverserial_policy import AdverserialPolicy
+from .custom_gradient_policy import CustomGradientPolicy
 from .gradient_policy import GradientPolicy
 from .lanczos_policy import FullLanczosPolicy, LanczosPolicy, SubsetLanczosPolicy
 from .linear_solver_policy import LinearSolverPolicy
@@ -26,4 +27,5 @@ __all__ = [
     "UnitVectorPolicy",
     "PseudoInputPolicy",
     "SinusoidalPolicy",
+    "CustomGradientPolicy",
 ]
