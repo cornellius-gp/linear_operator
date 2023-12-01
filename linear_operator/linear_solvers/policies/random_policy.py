@@ -30,23 +30,3 @@ class RandomPolicy(LinearSolverPolicy):
         action[idcs] = 1.0
 
         return action
-
-        # action = torch.randn(
-        #     solver_state.problem.A.shape[1],
-        #     dtype=solver_state.problem.A.dtype,
-        #     device=solver_state.problem.A.device,
-        # )
-        # action = action.div(torch.linalg.vector_norm(action))
-
-        # if self.num_nonzero is not None:
-        #     topk_vals, topk_idcs = torch.topk(
-        #         torch.abs(action), k=self.num_nonzero, largest=True
-        #     )
-        #     action[topk_idcs] = topk_vals
-
-        #     assert sum(action > 0.0) == self.num_nonzero
-
-        # return action
-
-
-# TODO: try adverserial policy for better gradients?

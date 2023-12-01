@@ -47,14 +47,10 @@ class LanczosPolicy(LinearSolverPolicy):
                     action = solver_state.cache["init_vec"]
                 else:
                     action = (
-                        solver_state.cache["init_vec"]
-                        - solver_state.cache["linear_op_actions_compressed_solution"]
+                        solver_state.cache["init_vec"] - solver_state.cache["linear_op_actions_compressed_solution"]
                     )
             else:
-                action = (
-                    solver_state.cache["init_vec"]
-                    - solver_state.problem.A @ solver_state.solution
-                )
+                action = solver_state.cache["init_vec"] - solver_state.problem.A @ solver_state.solution
 
             if isinstance(self.precond, (torch.Tensor, LinearOperator)):
                 action = self.precond @ action
@@ -65,15 +61,14 @@ class LanczosPolicy(LinearSolverPolicy):
                 action[torch.abs(action) < self.sparsification_threshold] = 0.0
 
             if self.num_nonzero is not None:
-                topk_vals, topk_idcs = torch.topk(
-                    torch.abs(action), k=self.num_nonzero, largest=True, sorted=False
-                )
-                action = torch.zeros(
+                _, topk_idcs = torch.topk(torch.abs(action), k=self.num_nonzero, largest=True)
+                sparse_action = torch.zeros(
                     solver_state.problem.A.shape[0],
                     dtype=solver_state.problem.A.dtype,
                     device=solver_state.problem.A.device,
                 )
-                action[topk_idcs] = topk_vals
+                sparse_action[topk_idcs] = action[topk_idcs]
+                action = sparse_action
 
             return action
 
@@ -138,9 +133,7 @@ class FullLanczosPolicy(LinearSolverPolicy):
             Q, T = lanczos_tridiag(
                 solver_state.problem.A.matmul,
                 init_vecs=init_vecs,
-                max_iter=solver_state.problem.A.shape[1]
-                if self.max_iter is None
-                else self.max_iter,
+                max_iter=solver_state.problem.A.shape[1] if self.max_iter is None else self.max_iter,
                 dtype=solver_state.problem.A.dtype,
                 device=solver_state.problem.A.device,
                 matrix_shape=solver_state.problem.A.shape,
@@ -150,15 +143,11 @@ class FullLanczosPolicy(LinearSolverPolicy):
             evecs_lanczos = Q @ evecs_T
 
             # Cache approximate eigenvectors
-            solver_state.cache["evals_lanczos"], idcs = torch.sort(
-                evals_lanczos, descending=self.descending
-            )
+            solver_state.cache["evals_lanczos"], idcs = torch.sort(evals_lanczos, descending=self.descending)
             solver_state.cache["evecs_lanczos"] = evecs_lanczos[:, idcs]
 
             # Cache initial vector
-            solver_state.cache["init_vec"] = init_vecs.squeeze(-1).div(
-                torch.linalg.vector_norm(init_vecs)
-            )
+            solver_state.cache["init_vec"] = init_vecs.squeeze(-1).div(torch.linalg.vector_norm(init_vecs))
 
         # Return approximate eigenvectors according to strategy
         if solver_state.iteration < solver_state.cache["evecs_lanczos"].shape[1]:

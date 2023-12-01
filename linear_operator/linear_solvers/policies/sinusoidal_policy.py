@@ -47,23 +47,16 @@ class SinusoidalPolicy(LinearSolverPolicy):
                     )
                 ).flatten()
 
-            action = torch.sin(
-                2
-                * pi
-                * frequencies[solver_state.iteration]
-                * self.train_data.sum(dim=1)
-                + self.phase
-            )
+            action = torch.sin(2 * pi * frequencies[solver_state.iteration] * self.train_data.sum(dim=1) + self.phase)
 
             if self.num_nonzero is not None:
-                topk_vals, topk_idcs = torch.topk(
-                    torch.abs(action), k=self.num_nonzero, largest=True, sorted=False
-                )
-                action = torch.zeros(
+                _, topk_idcs = torch.topk(torch.abs(action), k=self.num_nonzero, largest=True)
+                sparse_action = torch.zeros(
                     solver_state.problem.A.shape[0],
                     dtype=solver_state.problem.A.dtype,
                     device=solver_state.problem.A.device,
                 )
-                action[topk_idcs] = topk_vals
+                sparse_action[topk_idcs] = action[topk_idcs]
+                action = sparse_action
 
             return action
