@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
 import torch
+from torch import nn
 
 from ..linear_solver import LinearSolverState
 
 
-class LinearSolverPolicy(ABC):
+class LinearSolverPolicy(ABC, nn.Module):
     """Policy of a linear solver.
 
     A linear solver policy chooses actions to observe the linear system :math:`Ax_* = b`.

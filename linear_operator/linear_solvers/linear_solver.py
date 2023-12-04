@@ -39,7 +39,7 @@ class LinearSolverState:
     inverse_op: LinearOperator
     residual: Tensor
     residual_norm: Tensor
-    logdet: Tensor
+    logdet: Tensor  # TODO: move into cache
     iteration: int
     cache: dict = field(default_factory=dict)
 

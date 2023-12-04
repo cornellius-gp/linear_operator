@@ -24,13 +24,13 @@ class PseudoInputPolicy(LinearSolverPolicy):
         sparsification_threshold: float = 0.0,
         num_non_zero: Optional[int] = None,
     ) -> None:
+        super().__init__()
         self.kernel = kernel
         self.kernel.to(device=train_data.device, dtype=train_data.dtype)
         self.train_data = train_data
         self.pseudo_inputs = pseudo_inputs
         self.sparsification_threshold = sparsification_threshold
         self.num_nonzero = num_non_zero
-        super().__init__()
 
     def __call__(self, solver_state: "LinearSolverState") -> torch.Tensor:
         with torch.no_grad():
