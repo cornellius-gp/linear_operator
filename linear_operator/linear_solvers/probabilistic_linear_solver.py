@@ -239,6 +239,7 @@ class PLSsparse(LinearSolver):
         self.abstol = abstol
         self.reltol = reltol
         self.max_iter = max_iter
+        self.enable_action_gradients = True if len(list(self.policy.parameters())) > 0 else False
 
     def solve_iterator(
         self,
@@ -308,144 +309,155 @@ class PLSsparse(LinearSolver):
             ):
                 break
 
-            # Select action
-            action = self.policy(solver_state)
-            linear_op_action = linear_op @ action
+            with torch.set_grad_enabled(
+                self.enable_action_gradients
+            ):  # For efficiency, only track gradients if necessary to optimize action hyperparameters.
+                # Select action
+                action = self.policy(solver_state)
 
-            if solver_state.cache["actions"] is not None:
-                prev_actions_linear_op_action = solver_state.cache["actions"].mT @ linear_op_action
-            else:
-                prev_actions_linear_op_action = None
+            with torch.no_grad():  # Saves 2x compute since we don't need gradients through the solve.
+                linear_op_action = linear_op @ action
 
-            # Observation
-            observ = torch.inner(action, solver_state.residual)
+                if solver_state.cache["actions"] is not None:
+                    prev_actions_linear_op_action = solver_state.cache["actions"].mT @ linear_op_action
+                else:
+                    prev_actions_linear_op_action = None
 
-            # Schur complement / Squared linop-norm of search direction
-            action_linear_op_action = torch.inner(linear_op_action, action)
+                # Observation
+                observ = torch.inner(action, solver_state.residual)
 
-            schur_complement = action_linear_op_action
+                # Schur complement / Squared linop-norm of search direction
+                action_linear_op_action = torch.inner(linear_op_action, action)
 
-            if solver_state.cache["actions"] is not None:
-                gram_inv_tilde_z = torch.cholesky_solve(
-                    prev_actions_linear_op_action.reshape(-1, 1),
-                    solver_state.cache["cholfac_gram"],
-                    upper=False,
-                ).reshape(-1)
+                schur_complement = action_linear_op_action
 
-                schur_complement = schur_complement - torch.inner(prev_actions_linear_op_action, gram_inv_tilde_z)
-                # schur_complement = torch.inner(
-                #     linear_op_action, action - solver_state.cache["actions"] @ gram_inv_tilde_z
-                # )  # TODO: second formulation, more costly: O(ni), but maybe more stable? -> Doesnt seem like it.
+                if solver_state.cache["actions"] is not None:
+                    gram_inv_tilde_z = torch.cholesky_solve(
+                        prev_actions_linear_op_action.reshape(-1, 1),
+                        solver_state.cache["cholfac_gram"],
+                        upper=False,
+                    ).reshape(-1)
 
-            solver_state.cache["search_dir_sq_Anorms"].append(schur_complement)
+                    schur_complement = schur_complement - torch.inner(prev_actions_linear_op_action, gram_inv_tilde_z)
+                    # schur_complement = torch.inner(
+                    #     linear_op_action, action - solver_state.cache["actions"] @ gram_inv_tilde_z
+                    # )  # TODO: second formulation, more costly: O(ni), but maybe more stable? -> Doesnt seem like it.
 
-            if schur_complement <= 0:
-                if settings.verbose_linalg.on():
-                    settings.verbose_linalg.logger.debug(
-                        f"PLS terminated after {solver_state.iteration} iteration(s)"
-                        + " due to a negative Schur complement."
-                    )
-                break
+                solver_state.cache["search_dir_sq_Anorms"].append(schur_complement)
 
-            # Step size
-            step_size = observ / schur_complement  # TODO: obsolete
+                if schur_complement <= 0:
+                    if settings.verbose_linalg.on():
+                        settings.verbose_linalg.logger.debug(
+                            f"PLS terminated after {solver_state.iteration} iteration(s)"
+                            + " due to a negative Schur complement."
+                        )
+                    break
+
+                # Step size
+                step_size = observ / schur_complement  # TODO: obsolete
 
             if solver_state.cache["actions"] is None:
                 # Matrix of previous actions
                 solver_state.cache["actions"] = torch.reshape(action, (-1, 1))
 
-                # Matrix of previous actions applied to the kernel matrix
-                solver_state.cache["linear_op_actions"] = torch.reshape(linear_op_action, (-1, 1))
+                with torch.no_grad():
+                    # Matrix of previous actions applied to the kernel matrix
+                    solver_state.cache["linear_op_actions"] = torch.reshape(linear_op_action, (-1, 1))
 
-                # Initialize Cholesky factor
-                solver_state.cache["cholfac_gram"] = torch.sqrt(action_linear_op_action).reshape(1, 1)
+                    # Initialize Cholesky factor
+                    solver_state.cache["cholfac_gram"] = torch.sqrt(action_linear_op_action).reshape(1, 1)
 
             else:
-                # Update to Cholesky factor of Gram matrix S_i'\hat{K}S_i
-                new_cholfac_bottom_row_minus_last_entry = torch.linalg.solve_triangular(
-                    solver_state.cache["cholfac_gram"],
-                    prev_actions_linear_op_action.reshape(-1, 1),
-                    upper=False,
-                ).reshape(-1)
-                new_cholfac_bottom_row_rightmost_entry = torch.sqrt(schur_complement)
+                with torch.no_grad():
+                    # Update to Cholesky factor of Gram matrix S_i'\hat{K}S_i
+                    new_cholfac_bottom_row_minus_last_entry = torch.linalg.solve_triangular(
+                        solver_state.cache["cholfac_gram"],
+                        prev_actions_linear_op_action.reshape(-1, 1),
+                        upper=False,
+                    ).reshape(-1)
+                    new_cholfac_bottom_row_rightmost_entry = torch.sqrt(schur_complement)
 
-                solver_state.cache["cholfac_gram"] = torch.vstack(
-                    (
-                        torch.hstack(
-                            (
-                                solver_state.cache["cholfac_gram"],
-                                torch.zeros(
-                                    (solver_state.iteration, 1),
-                                    device=linear_op.device,
-                                    dtype=linear_op.dtype,
-                                ),
-                            )
-                        ),
-                        torch.hstack(
-                            (
-                                new_cholfac_bottom_row_minus_last_entry,
-                                new_cholfac_bottom_row_rightmost_entry,
-                            )
-                        ),
+                    solver_state.cache["cholfac_gram"] = torch.vstack(
+                        (
+                            torch.hstack(
+                                (
+                                    solver_state.cache["cholfac_gram"],
+                                    torch.zeros(
+                                        (solver_state.iteration, 1),
+                                        device=linear_op.device,
+                                        dtype=linear_op.dtype,
+                                    ),
+                                )
+                            ),
+                            torch.hstack(
+                                (
+                                    new_cholfac_bottom_row_minus_last_entry,
+                                    new_cholfac_bottom_row_rightmost_entry,
+                                )
+                            ),
+                        )
                     )
-                )
 
                 # Matrix of actions
                 solver_state.cache["actions"] = torch.hstack((solver_state.cache["actions"], action.reshape(-1, 1)))
 
-                # Matrix of actions applied to the kernel matrix
-                solver_state.cache["linear_op_actions"] = torch.hstack(
-                    (
-                        solver_state.cache["linear_op_actions"],
-                        linear_op_action.reshape(-1, 1),
+                with torch.no_grad():
+                    # Matrix of actions applied to the kernel matrix
+                    solver_state.cache["linear_op_actions"] = torch.hstack(
+                        (
+                            solver_state.cache["linear_op_actions"],
+                            linear_op_action.reshape(-1, 1),
+                        )
                     )
-                )
 
-                # TODO: Should we explicitly recompute the Cholesky factor per loop or at convergence for stability?
-                # solver_state.cache["cholfac_gram"] = torch.linalg.cholesky(
-                #     solver_state.cache["linear_op_actions"].mT @ solver_state.cache["actions"],
-                #     upper=False,
+                    # TODO: Should we explicitly recompute the Cholesky factor per loop or at convergence for stability?
+                    # solver_state.cache["cholfac_gram"] = torch.linalg.cholesky(
+                    #     solver_state.cache["linear_op_actions"].mT @ solver_state.cache["actions"],
+                    #     upper=False,
+                    # )
+
+            with torch.no_grad():
+                # Update compressed solution estimate
+                solver_state.cache["compressed_solution"] = torch.cholesky_solve(
+                    (solver_state.cache["actions"].mT @ rhs).reshape(-1, 1),
+                    solver_state.cache["cholfac_gram"],
+                    upper=False,
+                ).reshape(-1)
+
+                # Update solution estimate
+                solver_state.solution = solver_state.cache["actions"] @ solver_state.cache["compressed_solution"]
+
+                # Update residual
+                solver_state.cache["linear_op_actions_compressed_solution"] = (
+                    solver_state.cache["linear_op_actions"] @ solver_state.cache["compressed_solution"]
+                )
+                solver_state.residual = (
+                    solver_state.problem.b - solver_state.cache["linear_op_actions_compressed_solution"]
+                )
+                # TODO: Explicitly recomputing the residual improves stability a bit (for CG)
+                #
+                # solver_state.residual = (
+                #     solver_state.problem.b - solver_state.problem.A @ solver_state.solution
                 # )
 
-            # Update compressed solution estimate
-            solver_state.cache["compressed_solution"] = torch.cholesky_solve(
-                (solver_state.cache["actions"].mT @ rhs).reshape(-1, 1),
-                solver_state.cache["cholfac_gram"],
-                upper=False,
-            ).reshape(-1)
+                solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
+                # TODO: should we check for an increase in residual here to stop early?
 
-            # Update solution estimate
-            solver_state.solution = solver_state.cache["actions"] @ solver_state.cache["compressed_solution"]
+                # Update inverse approximation
+                solver_state.inverse_op = None  # TODO: lazy representation for simpler code?
 
-            # Update residual
-            solver_state.cache["linear_op_actions_compressed_solution"] = (
-                solver_state.cache["linear_op_actions"] @ solver_state.cache["compressed_solution"]
-            )
-            solver_state.residual = solver_state.problem.b - solver_state.cache["linear_op_actions_compressed_solution"]
-            # TODO: Explicitly recomputing the residual improves stability a bit (for CG)
-            #
-            # solver_state.residual = (
-            #     solver_state.problem.b - solver_state.problem.A @ solver_state.solution
-            # )
+                # Update log-determinant
+                solver_state.logdet = solver_state.logdet + torch.log(schur_complement)
 
-            solver_state.residual_norm = torch.linalg.vector_norm(solver_state.residual, ord=2)
-            # TODO: should we check for an increase in residual here to stop early?
+                # Update iteration
+                solver_state.iteration += 1
 
-            # Update inverse approximation
-            solver_state.inverse_op = None  # TODO: lazy representation for simpler code?
+                # Update solver state cache
+                solver_state.cache["action"] = action
+                solver_state.cache["observation"] = observ
+                solver_state.cache["step_size"] = step_size
 
-            # Update log-determinant
-            solver_state.logdet = solver_state.logdet + torch.log(schur_complement)
-
-            # Update iteration
-            solver_state.iteration += 1
-
-            # Update solver state cache
-            solver_state.cache["action"] = action
-            solver_state.cache["observation"] = observ
-            solver_state.cache["step_size"] = step_size
-
-            yield solver_state
+                yield solver_state
 
     def solve(
         self,
