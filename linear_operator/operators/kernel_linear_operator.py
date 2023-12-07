@@ -374,8 +374,8 @@ class KernelLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch M N"],
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
-        # TODO: add test to check correctness
-        # TODO: Check if rhs is a SparseLinearOperator and subset based on that? Or handle in SparseLinearOperator
+        # TODO: Add tests
+        # TODO: Check if rhs is a SparseLinearOperator and subset based on that? Or handle in SparseLinearOperator?
         if settings.use_naive_kernel_matrix_sparsification.on():
             # If rhs contains lots of zeros, naively sparsify the kernel matrix
             nonzero_mask = rhs != 0.0
@@ -385,12 +385,19 @@ class KernelLinearOperator(LinearOperator):
 
             if use_sparse_matmul:
                 if rhs.ndim == 1:
-                    return self.covar_func(self.x1, self.x2[nonzero_mask], **self.params) @ rhs.contiguous()
+                    self.covar_func(
+                        self.x1, self.x2[nonzero_mask], **self.tensor_params, **self.nontensor_params
+                    ) @ rhs[nonzero_mask].contiguous()
                 else:
                     result_cols = []
                     for col_idx in range(rhs.shape[1]):
                         result_cols.append(
-                            self.covar_func(self.x1, self.x2[nonzero_mask[:, col_idx]], **self.params)
+                            self.covar_func(
+                                self.x1,
+                                self.x2[nonzero_mask[:, col_idx]],
+                                **self.tensor_params,
+                                **self.nontensor_params,
+                            )
                             @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
                         )
                     # TODO: If we are willing to dig into the KeOps implementation, one might be able to do
@@ -400,7 +407,7 @@ class KernelLinearOperator(LinearOperator):
 
                     return torch.stack(result_cols, dim=1)
 
-        # When not using sparsification, use regular matrix-free product
+        # When not using sparsification, use regular matmul
         return self.covar_mat @ rhs.contiguous()
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
