@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -5,6 +6,8 @@ import torch
 
 from jaxtyping import Float
 from torch import Tensor
+
+from linear_operator import settings
 
 from linear_operator.operators._linear_operator import LinearOperator, to_dense
 
@@ -371,6 +374,33 @@ class KernelLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch M N"],
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        # TODO: add test to check correctness
+        # TODO: Check if rhs is a SparseLinearOperator and subset based on that? Or handle in SparseLinearOperator
+        if settings.use_naive_kernel_matrix_sparsification.on():
+            # If rhs contains lots of zeros, naively sparsify the kernel matrix
+            nonzero_mask = rhs != 0.0
+            use_sparse_matmul = torch.sum(
+                nonzero_mask
+            ).item() <= settings.kernel_matrix_sparsification_fraction_non_zero.value() * math.prod(rhs.shape)
+
+            if use_sparse_matmul:
+                if rhs.ndim == 1:
+                    return self.covar_func(self.x1, self.x2[nonzero_mask], **self.params) @ rhs.contiguous()
+                else:
+                    result_cols = []
+                    for col_idx in range(rhs.shape[1]):
+                        result_cols.append(
+                            self.covar_func(self.x1, self.x2[nonzero_mask[:, col_idx]], **self.params)
+                            @ rhs[nonzero_mask[:, col_idx], col_idx].contiguous()
+                        )
+                    # TODO: If we are willing to dig into the KeOps implementation, one might be able to do
+                    # better here than a Python loop,
+                    # by letting KeOPS handle the block sparsity on the GPU (instead of doing everything sequentially).
+                    # See also: https://www.kernel-operations.io/keops/python/sparsity.html
+
+                    return torch.stack(result_cols, dim=1)
+
+        # When not using sparsification, use regular matrix-free product
         return self.covar_mat @ rhs.contiguous()
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
