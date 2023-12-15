@@ -374,7 +374,7 @@ class KernelLinearOperator(LinearOperator):
         self: Float[LinearOperator, "*batch M N"],
         rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
-        # TODO: Add tests
+        # TODO: REMOVE ME
         # TODO: Check if rhs is a SparseLinearOperator and subset based on that? Or handle in SparseLinearOperator?
         if settings.use_naive_kernel_matrix_sparsification.on():
             # If rhs contains lots of zeros, naively sparsify the kernel matrix
