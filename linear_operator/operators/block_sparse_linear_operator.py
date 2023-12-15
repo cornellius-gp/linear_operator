@@ -7,8 +7,10 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from linear_operator.operators import AddedDiagLinearOperator, DiagLinearOperator
-from linear_operator.operators._linear_operator import LinearOperator
+from ._linear_operator import LinearOperator
+from .added_diag_linear_operator import AddedDiagLinearOperator
+
+from .diag_linear_operator import DiagLinearOperator
 
 
 class BlockSparseLinearOperator(LinearOperator):
