@@ -2207,8 +2207,8 @@ class LinearOperator(object):
         :param method: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
         :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
-        from linear_operator.operators.dense_linear_operator import to_linear_operator
         from linear_operator.operators.root_linear_operator import RootLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         if not self.is_square:
             raise RuntimeError(
@@ -2229,7 +2229,7 @@ class LinearOperator(object):
             # we don't need the batch shape here, thanks to broadcasting
             Eye = torch.eye(L.shape[-2], device=L.device, dtype=L.dtype)
             Linv = torch.linalg.solve_triangular(L, Eye, upper=False)
-            res = to_linear_operator(Linv.mT)
+            res = TriangularLinearOperator(Linv.mT, upper=True)
             inv_root = res
         elif method == "lanczos":
             if initial_vectors is not None:
