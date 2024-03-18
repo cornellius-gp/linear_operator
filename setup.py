@@ -37,7 +37,12 @@ except ImportError:
     pass
 
 # Other requirements
-install_requires += ["scipy", "jaxtyping>=0.2.9", "typeguard~=2.13.3"]
+install_requires += [
+    "scipy",
+    "jaxtyping>=0.2.9",
+    "typeguard~=2.13.3",
+    "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
+]
 
 
 # Get version
