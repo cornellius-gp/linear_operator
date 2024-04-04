@@ -83,6 +83,8 @@ class BlockSparseLinearOperator(LinearOperator):
     #     return Matmul.apply(self.representation_tree(), other, *self.representation())
 
     def to_dense(self: LinearOperator) -> Tensor:
+        if self.size() == self.blocks.shape:
+            return self.blocks
         return torch.zeros(
             (self.blocks.shape[0], self.size_sparse_dim), dtype=self.blocks.dtype, device=self.blocks.device
         ).scatter_(src=self.blocks, index=self.non_zero_idcs, dim=1)
