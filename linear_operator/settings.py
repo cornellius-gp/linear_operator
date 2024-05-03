@@ -331,6 +331,7 @@ class fast_computations:
     .. _GPyTorch Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration:
         https://arxiv.org/pdf/1809.11165.pdf
     """
+
     covar_root_decomposition = _fast_covar_root_decomposition
     log_prob = _fast_log_prob
     solves = _fast_solves
@@ -587,7 +588,7 @@ class use_naive_kernel_matrix_sparsification(_feature_flag):
     Whether to sparsify kernel matrix matrix products naively by searching for non-zero entries and subsetting.
     """
 
-    _default = True
+    _default = False
 
 
 class kernel_matrix_sparsification_fraction_non_zero(_value_context):
