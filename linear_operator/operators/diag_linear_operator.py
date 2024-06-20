@@ -70,9 +70,12 @@ class DiagLinearOperator(TriangularLinearOperator):
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         res = self._diag[(*batch_indices, row_index)]
+        # Unify device and dtype prior to comparison
+        row_index = row_index.to(device=res.device, dtype=res.dtype)
+        col_index = col_index.to(device=res.device, dtype=res.dtype)
         # If row and col index don't agree, then we have off diagonal elements
         # Those should be zero'd out
-        res = res * torch.eq(row_index, col_index).to(device=res.device, dtype=res.dtype)
+        res = res * torch.eq(row_index, col_index)
         return res
 
     def _mul_constant(
