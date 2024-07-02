@@ -1154,7 +1154,7 @@ class LinearOperator(object):
         generate_roots: bool = True,
         generate_inv_roots: bool = True,
         **root_decomp_kwargs,
-    ) -> Float[LinearOperator, "*batch M+O N+O"]:
+    ) -> Float[LinearOperator, "... M+O N+O"]:
         r"""
         Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
 
@@ -1177,6 +1177,7 @@ class LinearOperator(object):
         To update :math:`\mathbf R`, we first update :math:`\mathbf L`:
 
         .. math::
+
             \begin{bmatrix}
                 \mathbf A & \mathbf B^\top \\
                 \mathbf B & \mathbf D
@@ -1194,6 +1195,7 @@ class LinearOperator(object):
         Solving this matrix equation, we get:
 
         .. math::
+
             \mathbf A &= \mathbf{EE}^\top = \mathbf{LL}^\top  \quad (\Rightarrow  \mathbf E = L) \\
             \mathbf B &= \mathbf{EF}^\top         \quad (\Rightarrow \mathbf F = \mathbf{BR}) \\
             \mathbf D &= \mathbf{FF}^\top + \mathbf{GG}^\top
