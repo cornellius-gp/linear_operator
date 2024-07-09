@@ -39,7 +39,7 @@ except ImportError:
 # Other requirements
 install_requires += [
     "scipy",
-    "jaxtyping>=0.2.9",
+    "jaxtyping==0.2.19",
     "typeguard~=2.13.3",
     "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
 ]
