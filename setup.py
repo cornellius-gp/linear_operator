@@ -39,7 +39,7 @@ except ImportError:
 # Other requirements
 install_requires += [
     "scipy",
-    "jaxtyping>=0.2.9",
+    "jaxtyping==0.2.19",
     "typeguard~=4.3.0",
     "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
 ]
@@ -89,7 +89,7 @@ setup(
             "six",
             "sphinx_rtd_theme",
             "sphinx-autodoc-typehints",
-            "uncompyle6",
+            "uncompyle6<=3.9.0",
         ],
         "test": ["flake8==5.0.4", "flake8-print==5.0.0", "pytest"],
     },
