@@ -20,7 +20,6 @@ requirements:
     - pytorch>=1.11
     - scipy
     - jaxtyping>=0.2.9
-    - typeguard~=2.13.3
 
 test:
   imports:

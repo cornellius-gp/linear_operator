@@ -40,7 +40,6 @@ except ImportError:
 install_requires += [
     "scipy",
     "jaxtyping==0.2.19",
-    "typeguard~=2.13.3",
     "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
 ]
 
@@ -91,7 +90,7 @@ setup(
             "sphinx-autodoc-typehints",
             "uncompyle6<=3.9.0",
         ],
-        "test": ["flake8==5.0.4", "flake8-print==5.0.0", "pytest"],
+        "test": ["flake8==5.0.4", "flake8-print==5.0.0", "pytest", "typeguard>=4.3"],
     },
     test_suite="test",
 )
