@@ -515,6 +515,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         **RectangularLinearOperatorTestCase.tolerances,
         "cholesky": {"rtol": 1e-3, "atol": 1e-5},
         "diag": {"rtol": 1e-2, "atol": 1e-5},
+        "diagonalization": {"rtol": 0.05},
         "inv_quad": {"rtol": 0.01, "atol": 0.01},
         "logdet": {"rtol": 0.2, "atol": 0.03},
         "prod": {"rtol": 1e-2, "atol": 1e-2},
@@ -999,7 +1000,7 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
                 approx = evecs.matmul(torch.diag_embed(evals)).matmul(evecs.mT)
                 res = approx.matmul(test_mat)
                 actual = linear_op.matmul(test_mat)
-                self.assertAllClose(res, actual, rtol=0.05)
+                self.assertAllClose(res, actual, **self.tolerances["diagonalization"])
 
             # Make sure that we're calling the correct function
             if not symeig and self.__class__.should_call_lanczos_diagonalization:

@@ -1154,7 +1154,7 @@ class LinearOperator(object):
         generate_roots: bool = True,
         generate_inv_roots: bool = True,
         **root_decomp_kwargs,
-    ) -> Float[LinearOperator, "*batch M+O N+O"]:
+    ) -> Float[LinearOperator, "... M+O N+O"]:
         r"""
         Concatenates new rows and columns to the matrix that this LinearOperator represents, e.g.
 
@@ -1177,6 +1177,7 @@ class LinearOperator(object):
         To update :math:`\mathbf R`, we first update :math:`\mathbf L`:
 
         .. math::
+
             \begin{bmatrix}
                 \mathbf A & \mathbf B^\top \\
                 \mathbf B & \mathbf D
@@ -1194,6 +1195,7 @@ class LinearOperator(object):
         Solving this matrix equation, we get:
 
         .. math::
+
             \mathbf A &= \mathbf{EE}^\top = \mathbf{LL}^\top  \quad (\Rightarrow  \mathbf E = L) \\
             \mathbf B &= \mathbf{EF}^\top         \quad (\Rightarrow \mathbf F = \mathbf{BR}) \\
             \mathbf D &= \mathbf{FF}^\top + \mathbf{GG}^\top
@@ -1267,17 +1269,17 @@ class LinearOperator(object):
         R = self.root_inv_decomposition().root.to_dense()  # RR^T = A^{-1} (this is fast if L is triangular)
         lower_left = B_ @ R  # F = BR
         schur = D - lower_left.matmul(lower_left.mT)  # GG^T = new_mat - FF^T
-        schur_root = to_linear_operator(schur).root_decomposition().root.to_dense()  # G = (new_mat - FF^T)^{1/2}
+        schur_root = to_linear_operator(schur).root_decomposition().root  # G = (new_mat - FF^T)^{1/2}
 
         # Form new root matrix
         num_fant = schur_root.size(-2)
         new_root = torch.zeros(*batch_shape, m + num_fant, n + num_fant, device=E.device, dtype=E.dtype)
         new_root[..., :m, :n] = E.to_dense()
         new_root[..., m:, : lower_left.shape[-1]] = lower_left
-        new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root
+        new_root[..., m:, n : (n + schur_root.shape[-1])] = schur_root.to_dense()
         if generate_inv_roots:
             if isinstance(E, TriangularLinearOperator) and isinstance(schur_root, TriangularLinearOperator):
-                # make sure these are actually upper triangular
+                # make sure these are actually lower triangular
                 if getattr(E, "upper", False) or getattr(schur_root, "upper", False):
                     raise NotImplementedError
                 # in this case we know new_root is triangular as well
@@ -2207,8 +2209,8 @@ class LinearOperator(object):
         :param method: Root decomposition method to use (symeig, diagonalization, lanczos, or cholesky).
         :return: A tensor :math:`\mathbf R` such that :math:`\mathbf R \mathbf R^\top \approx \mathbf A^{-1}`.
         """
-        from linear_operator.operators.dense_linear_operator import to_linear_operator
         from linear_operator.operators.root_linear_operator import RootLinearOperator
+        from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
         if not self.is_square:
             raise RuntimeError(
@@ -2229,7 +2231,7 @@ class LinearOperator(object):
             # we don't need the batch shape here, thanks to broadcasting
             Eye = torch.eye(L.shape[-2], device=L.device, dtype=L.dtype)
             Linv = torch.linalg.solve_triangular(L, Eye, upper=False)
-            res = to_linear_operator(Linv.mT)
+            res = TriangularLinearOperator(Linv.mT, upper=True)
             inv_root = res
         elif method == "lanczos":
             if initial_vectors is not None:

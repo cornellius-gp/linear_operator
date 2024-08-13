@@ -6,4 +6,3 @@ LinearOperator
 
 .. autoclass:: linear_operator.LinearOperator
    :members:
-   :noindex: linear_operator.operators
