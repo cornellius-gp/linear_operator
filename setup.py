@@ -40,7 +40,6 @@ except ImportError:
 install_requires += [
     "scipy",
     "jaxtyping==0.2.19",
-    "typeguard~=2.13.3",
     "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
 ]
 
@@ -91,7 +90,13 @@ setup(
             "sphinx-autodoc-typehints",
             "uncompyle6<=3.9.0",
         ],
-        "test": ["flake8==5.0.4", "flake8-print==5.0.0", "pytest"],
+        "test": [
+            "flake8==5.0.4",
+            "flake8-print==5.0.0",
+            "pytest",
+            "typeguard~=2.13.3"  # jaxtyping seems to only be compatible with older typeguard versions
+            # https://github.com/patrick-kidger/jaxtyping/commit/77c263c3def8ea3bcb7d7642c5a8402c16cf76fb
+        ],
     },
     test_suite="test",
 )
