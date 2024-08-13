@@ -2,6 +2,8 @@
 
 import torch
 
+from linear_operator.settings import stable_qr_cpu_threshold
+
 
 def stable_qr(mat):
     """
@@ -11,7 +13,7 @@ def stable_qr(mat):
     1. slow batched QR in pytorch (pytorch/pytorch#22573)
     2. possible singularity in R
     """
-    if mat.shape[-1] <= 2048:
+    if mat.shape[-1] <= stable_qr_cpu_threshold.value():
         # Dispatch to CPU so long as pytorch/pytorch#22573 is not fixed
         device = mat.device
         Q, R = torch.linalg.qr(mat.cpu())

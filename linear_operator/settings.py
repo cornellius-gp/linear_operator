@@ -601,3 +601,13 @@ class verbose_linalg(_feature_flag):
     formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
+
+class stable_qr_cpu_threshold(_value_context):
+    """
+    Matrix size threshold below which to perform `torch.qr` on the cpu.
+
+    (Default: 128)
+    """
+
+    _global_value = 128
