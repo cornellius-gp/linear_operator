@@ -1,8 +1,12 @@
-{% set data = load_setup_py_data(setup_file="../setup.py", from_recipe_dir=True) %}
+{% set _version_match = load_file_regex(
+  load_file="linear_operator/version.py",
+  regex_pattern="__version__ = version = '(.+)'"
+) %}
+{% set version = _version_match[1] %}
 
 package:
-  name: {{ data.get("name")|lower }}
-  version: {{ data.get("version") }}
+  name: linear_operator
+  version: {{ version }}
 
 source:
   path: ../
