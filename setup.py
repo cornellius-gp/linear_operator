@@ -41,6 +41,7 @@ install_requires += [
     "scipy",
     "jaxtyping==0.2.19",
     "mpmath>=0.19,<=1.3",  # avoid incompatibiltiy with torch+sympy with mpmath 1.4
+    "pyfastkron"
 ]
 
 
