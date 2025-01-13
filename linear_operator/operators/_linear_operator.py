@@ -2279,7 +2279,7 @@ class LinearOperator(object):
 
     def size(self, dim: Optional[int] = None) -> Union[torch.Size, int]:
         """
-        Returns he size of the LinearOperator (or the specified dimension).
+        Returns the size of the LinearOperator (or the specified dimension).
 
         :param dim: A specific dimension.
         """

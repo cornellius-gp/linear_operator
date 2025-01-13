@@ -11,24 +11,32 @@ from .diag_linear_operator import DiagLinearOperator
 
 
 class BlockDiagonalSparseLinearOperator(LinearOperator):
-    """A sparse linear operator with dense blocks on its diagonal.
+    """A sparse linear operator (which when reordered) has dense blocks on its diagonal.
 
-    :param non_zero_idcs: Tensor of non-zero indices (num_blocks x num_nnz).
-    :param blocks: Tensor of non-zero entries (num_blocks x num_nnz).
-    :param size_sparse_dim: Size of the sparse dimension.
+    Linear operator with a matrix representation that has sparse rows, with an equal number of
+    non-zero entries per row. The non-zero entries are stored in a tensor of size M x NNZ, where M is
+    the number of rows and NNZ is the number of non-zero entries per row. When appropriately re-ordering
+    the columns of the matrix, it is a block-diagonal matrix.
+
+    Note:
+        This currently only supports equally sized blocks of size 1 x NNZ.
+
+    :param non_zero_idcs: Tensor of non-zero indices.
+    :param blocks: Tensor of non-zero entries.
+    :param size_input_dim: Size of the (sparse) input dimension, equivalently the number of columns.
     """
 
     def __init__(
         self,
         non_zero_idcs: Float[torch.Tensor, "M NNZ"],
         blocks: Float[torch.Tensor, "M NNZ"],
-        size_sparse_dim: int,
+        size_input_dim: int,
     ):
-        super().__init__(non_zero_idcs, blocks, size_sparse_dim=size_sparse_dim)
+        super().__init__(non_zero_idcs, blocks, size_input_dim=size_input_dim)
         self.non_zero_idcs = torch.atleast_2d(non_zero_idcs)
-        self.non_zero_idcs.requires_grad = False
+        self.non_zero_idcs.requires_grad = False  # Ensure indices are not optimized
         self.blocks = torch.atleast_2d(blocks)
-        self.size_sparse_dim = size_sparse_dim
+        self.size_input_dim = size_input_dim
 
     def _matmul(
         self: Float[LinearOperator, "*batch M N"],
@@ -43,7 +51,7 @@ class BlockDiagonalSparseLinearOperator(LinearOperator):
             return BlockDiagonalSparseLinearOperator(
                 non_zero_idcs=self.non_zero_idcs,
                 blocks=rhs.diag()[self.non_zero_idcs] * self.blocks,
-                size_sparse_dim=self.size_sparse_dim,
+                size_input_dim=self.size_input_dim,
             ).to_dense()  # TODO: Do we really want to dense here?
 
         # Subset rhs via index tensor
@@ -58,10 +66,10 @@ class BlockDiagonalSparseLinearOperator(LinearOperator):
         return (self.blocks.unsqueeze(-2) @ rhs_non_zero).squeeze(-2)
 
     def _size(self) -> torch.Size:
-        return torch.Size((self.non_zero_idcs.shape[0], self.size_sparse_dim))
+        return torch.Size((self.non_zero_idcs.shape[0], self.size_input_dim))
 
-    def _transpose_nonbatch(self: LinearOperator) -> LinearOperator:
-        return super()._transpose_nonbatch()
+    # def _transpose_nonbatch(self: LinearOperator) -> LinearOperator:
+    #     return super()._transpose_nonbatch()
 
     # @_implements(torch.matmul)
     # def matmul(
@@ -86,5 +94,5 @@ class BlockDiagonalSparseLinearOperator(LinearOperator):
         if self.size() == self.blocks.shape:
             return self.blocks
         return torch.zeros(
-            (self.blocks.shape[0], self.size_sparse_dim), dtype=self.blocks.dtype, device=self.blocks.device
+            (self.blocks.shape[0], self.size_input_dim), dtype=self.blocks.dtype, device=self.blocks.device
         ).scatter_(src=self.blocks, index=self.non_zero_idcs, dim=1)
