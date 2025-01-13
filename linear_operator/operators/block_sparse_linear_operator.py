@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 from typing import Union
 
 import torch
@@ -13,16 +10,19 @@ from .added_diag_linear_operator import AddedDiagLinearOperator
 from .diag_linear_operator import DiagLinearOperator
 
 
-class BlockSparseLinearOperator(LinearOperator):
-    """A sparse linear operator consisting of dense blocks.
+class BlockDiagonalSparseLinearOperator(LinearOperator):
+    """A sparse linear operator with dense blocks on its diagonal.
 
     :param non_zero_idcs: Tensor of non-zero indices (num_blocks x num_nnz).
     :param blocks: Tensor of non-zero entries (num_blocks x num_nnz).
-    :param sp_size: Size of the sparse dimension.
+    :param size_sparse_dim: Size of the sparse dimension.
     """
 
     def __init__(
-        self, non_zero_idcs: Float[torch.Tensor, "M NNZ"], blocks: Float[torch.Tensor, "M NNZ"], size_sparse_dim: int
+        self,
+        non_zero_idcs: Float[torch.Tensor, "M NNZ"],
+        blocks: Float[torch.Tensor, "M NNZ"],
+        size_sparse_dim: int,
     ):
         super().__init__(non_zero_idcs, blocks, size_sparse_dim=size_sparse_dim)
         self.non_zero_idcs = torch.atleast_2d(non_zero_idcs)
@@ -40,7 +40,7 @@ class BlockSparseLinearOperator(LinearOperator):
             return self._matmul(rhs._linear_op) + self._matmul(rhs._diag_tensor)
             # TODO: Potentially allocates unnecessary memory
         if isinstance(rhs, DiagLinearOperator):
-            return BlockSparseLinearOperator(
+            return BlockDiagonalSparseLinearOperator(
                 non_zero_idcs=self.non_zero_idcs,
                 blocks=rhs.diag()[self.non_zero_idcs] * self.blocks,
                 size_sparse_dim=self.size_sparse_dim,
