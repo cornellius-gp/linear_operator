@@ -103,8 +103,12 @@ autodoc_inherit_docstrings = False
 # For any internal class, the format will be e.g. "~linear_operator.operators.TriangularLinearOperator"
 def _convert_internal_and_external_class_to_strings(annotation):
     module = annotation.__module__ + "."
-    if module.split(".")[0] == "linear_operator":
+    if module == "linear_operator.operators._linear_operator.":
+        module = "~linear_operator."
+    elif module.split(".")[0] == "linear_operator":
         module = "~" + module
+    elif module == "torch.":
+        module = "~torch."
     elif module == "builtins.":
         module = ""
     res = f"{module}{annotation.__name__}"

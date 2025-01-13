@@ -1,8 +1,12 @@
-{% set data = load_setup_py_data(setup_file="../setup.py", from_recipe_dir=True) %}
+{% set _version_match = load_file_regex(
+  load_file="linear_operator/version.py",
+  regex_pattern="__version__ = version = '(.+)'"
+) %}
+{% set version = _version_match[1] %}
 
 package:
-  name: {{ data.get("name")|lower }}
-  version: {{ data.get("version") }}
+  name: linear_operator
+  version: {{ version }}
 
 source:
   path: ../
@@ -19,8 +23,7 @@ requirements:
     - python>=3.8
     - pytorch>=1.11
     - scipy
-    - jaxtyping>=0.2.9
-    - typeguard~=2.13.3
+    - jaxtyping==0.2.19
 
 test:
   imports:
