@@ -21,7 +21,6 @@ from typing import ForwardRef
 
 import jaxtyping
 import sphinx_rtd_theme  # noqa
-from uncompyle6.semantics.fragments import code_deparse
 
 
 sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))
@@ -62,6 +61,10 @@ myst_enable_extensions = [
     "dollarmath",  # Ensure markdown math from README gets compiled into rst math
     "tasklist",  # Check boxes
 ]
+
+# We use subsections of README in docs, which start with a lower header level
+# than H1, which makes myst_parser complain. This suppresses these warnings.
+suppress_warnings = ["myst.header"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
