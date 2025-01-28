@@ -11,6 +11,7 @@ build:
     python: "3.10"
   jobs:
     pre_install:  # Lock version of torch at 2.0
+      - pip install "numpy<2"  # Numpy 2.0 is not fully supported until PyTorch 2.2
       - pip install torch==2.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     pre_build:
       - python -m setuptools_scm  # Get correct version number

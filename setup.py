@@ -88,7 +88,6 @@ setup(
             "six",
             "sphinx_rtd_theme",
             "sphinx-autodoc-typehints",
-            "uncompyle6<=3.9.0",
         ],
         "test": [
             "flake8==5.0.4",
