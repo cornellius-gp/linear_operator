@@ -125,7 +125,7 @@ def _dim_to_str(dim):
             res = "#" + res
         return res
     elif isinstance(dim, jaxtyping._array_types._SymbolicDim):
-        expr = code_deparse(dim.expr).text.strip().split("return ")[1]
+        expr = dim.elem
         return f"({expr})"
     elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
         return "..."
