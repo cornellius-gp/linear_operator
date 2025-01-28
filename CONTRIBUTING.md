@@ -36,7 +36,7 @@ We use [standard sphinx docstrings](https://sphinx-rtd-tutorial.readthedocs.io/e
 
 ### Type Hints
 
-LinearOperator aims to be fully typed using Python 3.8+
+LinearOperator aims to be fully typed using Python 3.10+
 [type hints](https://www.python.org/dev/peps/pep-0484/).
 We expect any contributions to also use proper type annotations.
 We are using [jaxtyping](https://github.com/google/jaxtyping) to help us be declarative about the dimension sizes used

@@ -8,7 +8,7 @@ import sys
 from setuptools import find_packages, setup
 
 REQUIRED_MAJOR = 3
-REQUIRED_MINOR = 8
+REQUIRED_MINOR = 10
 
 # Check for python version
 if sys.version_info < (REQUIRED_MAJOR, REQUIRED_MINOR):
@@ -24,7 +24,7 @@ if sys.version_info < (REQUIRED_MAJOR, REQUIRED_MINOR):
 
 readme = open("README.md").read()
 
-torch_min = "1.11"
+torch_min = "2.0"
 install_requires = [">=".join(["torch", torch_min])]
 
 # if recent dev version of PyTorch is installed, no need to install stable
@@ -77,7 +77,7 @@ setup(
         "Programming Language :: Python :: 3",
     ],
     packages=find_packages(exclude=["test", "test.*"]),
-    python_requires=">=3.8",
+    python_requires=f">={REQUIRED_MAJOR}.{REQUIRED_MINOR}",
     install_requires=install_requires,
     extras_require={
         "dev": ["pre-commit", "setuptools_scm", "ufmt", "twine"],
