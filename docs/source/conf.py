@@ -117,14 +117,14 @@ def _convert_internal_and_external_class_to_strings(annotation):
 
 # Convert jaxtyping dimensions into strings
 def _dim_to_str(dim):
-    if isinstance(dim, jaxtyping.array_types._NamedVariadicDim):
+    if isinstance(dim, jaxtyping._array_types._NamedVariadicDim):
         return "..."
-    elif isinstance(dim, jaxtyping.array_types._FixedDim):
+    elif isinstance(dim, jaxtyping._array_types._FixedDim):
         res = str(dim.size)
         if dim.broadcastable:
             res = "#" + res
         return res
-    elif isinstance(dim, jaxtyping.array_types._SymbolicDim):
+    elif isinstance(dim, jaxtyping._array_types._SymbolicDim):
         expr = code_deparse(dim.expr).text.strip().split("return ")[1]
         return f"({expr})"
     elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
