@@ -4,7 +4,7 @@
 [![Documentation](https://readthedocs.org/projects/linear-operator/badge/?version=latest)](https://linear-operator.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Conda](https://img.shields.io/conda/v/gpytorch/linear_operator.svg)](https://anaconda.org/gpytorch/linear_operator)
 [![PyPI](https://img.shields.io/pypi/v/linear_operator.svg)](https://pypi.org/project/linear_operator)
 
@@ -359,7 +359,7 @@ See the documentation for a [full list of supported composition and decoration o
 
 ## Installation
 
-LinearOperator requires Python >= 3.8.
+LinearOperator requires Python >= 3.10.
 
 ### Standard Installation (Most Recent Stable Version)
 We recommend installing via `pip` or Anaconda:
@@ -371,7 +371,7 @@ conda install linear_operator -c gpytorch
 ```
 
 The installation requires the following packages:
-- PyTorch >= 1.11
+- PyTorch >= 2.0
 - Scipy
 
 You can customize your PyTorch installation (i.e. CUDA version, CPU only option)

@@ -21,7 +21,6 @@ from typing import ForwardRef
 
 import jaxtyping
 import sphinx_rtd_theme  # noqa
-from uncompyle6.semantics.fragments import code_deparse
 
 
 sys.path.append(os.path.abspath(os.path.join(__file__, "..", "..", "..")))
@@ -63,6 +62,15 @@ myst_enable_extensions = [
     "tasklist",  # Check boxes
 ]
 
+suppress_warnings = [
+    # We use subsections of README in docs, which start with a lower header level
+    # than H1, which makes myst_parser complain. This suppresses these warnings.
+    "myst.header",
+    # The config includes the _process function below, which is "unpickable".
+    # This suppresses warnings about caching such values.
+    "config.cache",
+]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -87,7 +95,7 @@ html_static_path = []
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "torch": ("https://pytorch.org/docs/master/", None),
+    "torch": ("https://pytorch.org/docs/main/", None),
 }
 
 # Disable documentation inheritance so as to avoid inheriting
@@ -117,15 +125,15 @@ def _convert_internal_and_external_class_to_strings(annotation):
 
 # Convert jaxtyping dimensions into strings
 def _dim_to_str(dim):
-    if isinstance(dim, jaxtyping.array_types._NamedVariadicDim):
+    if isinstance(dim, jaxtyping._array_types._NamedVariadicDim):
         return "..."
-    elif isinstance(dim, jaxtyping.array_types._FixedDim):
+    elif isinstance(dim, jaxtyping._array_types._FixedDim):
         res = str(dim.size)
         if dim.broadcastable:
             res = "#" + res
         return res
-    elif isinstance(dim, jaxtyping.array_types._SymbolicDim):
-        expr = code_deparse(dim.expr).text.strip().split("return ")[1]
+    elif isinstance(dim, jaxtyping._array_types._SymbolicDim):
+        expr = dim.elem
         return f"({expr})"
     elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
         return "..."
@@ -220,4 +228,4 @@ typehints_formatter = _process
 # @jpchen's hack to get rtd builder to install latest pytorch
 # See similar line in the install section of .travis.yml
 if "READTHEDOCS" in os.environ:
-    os.system("pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/torch_stable.html")
+    os.system("pip install torch==2.0+cpu -f https://download.pytorch.org/whl/torch_stable.html")
