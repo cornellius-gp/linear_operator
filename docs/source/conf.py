@@ -62,9 +62,14 @@ myst_enable_extensions = [
     "tasklist",  # Check boxes
 ]
 
-# We use subsections of README in docs, which start with a lower header level
-# than H1, which makes myst_parser complain. This suppresses these warnings.
-suppress_warnings = ["myst.header"]
+suppress_warnings = [
+    # We use subsections of README in docs, which start with a lower header level
+    # than H1, which makes myst_parser complain. This suppresses these warnings.
+    "myst.header",
+    # The config includes the _process function below, which is "unpickable".
+    # This suppresses warnings about caching such values.
+    "config.cache",
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
