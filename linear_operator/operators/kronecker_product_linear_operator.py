@@ -271,9 +271,10 @@ class KroneckerProductLinearOperator(LinearOperator):
     ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
         res = fktorch.gekmm([op.to_dense() for op in self.linear_ops], rhs.contiguous())
         return res
-    
-    def rmatmul(self: Float[LinearOperator, "... M N"],
-                rhs: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
+
+    def rmatmul(
+        self: Float[LinearOperator, "... M N"],
+        rhs: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
     ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "N"], Float[LinearOperator, "... P N"]]:
         res = fktorch.gemkm(rhs.contiguous(), [op.to_dense() for op in self.linear_ops])
         return res
