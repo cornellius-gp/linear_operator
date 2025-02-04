@@ -6,9 +6,9 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 from jaxtyping import Float
-from torch import Tensor
 
 from pyfastkron import fastkrontorch as fktorch
+from torch import Tensor
 
 from linear_operator import settings
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -274,9 +274,9 @@ class KroneckerProductLinearOperator(LinearOperator):
 
     def rmatmul(
         self: Float[LinearOperator, "... M N"],
-        rhs: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
+        other: Union[Float[Tensor, "... P M"], Float[Tensor, "... M"], Float[LinearOperator, "... P M"]],
     ) -> Union[Float[Tensor, "... P N"], Float[Tensor, "N"], Float[LinearOperator, "... P N"]]:
-        res = fktorch.gemkm(rhs.contiguous(), [op.to_dense() for op in self.linear_ops])
+        res = fktorch.gemkm(other.contiguous(), [op.to_dense() for op in self.linear_ops])
         return res
 
     @cached(name="root_decomposition")
