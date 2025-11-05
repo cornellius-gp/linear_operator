@@ -97,7 +97,7 @@ class BlockLinearOperator(LinearOperator):
         col_index = slice(col_start // num_blocks, col_end // num_blocks, None)
 
         # Now we can try the super call!
-        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices)
+        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
 
         # Now construct a kernel with those indices
         return self.__class__(new_base_linear_op, block_dim=-3)
