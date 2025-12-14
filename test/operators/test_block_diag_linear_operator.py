@@ -12,11 +12,19 @@ class TestBlockDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
+    # Whether to initialize `BlockDiagLinearOperator` from a tensor or a linear operator.
+    _initialize_from_tensor = False
+
     def create_linear_op(self):
         blocks = torch.randn(8, 4, 4)
         blocks = blocks.matmul(blocks.mT)
         blocks.add_(torch.eye(4, 4).unsqueeze_(0))
-        return BlockDiagLinearOperator(DenseLinearOperator(blocks))
+
+        return (
+            BlockDiagLinearOperator(blocks)
+            if self._initialize_from_tensor
+            else BlockDiagLinearOperator(DenseLinearOperator(blocks))
+        )
 
     def evaluate_linear_op(self, linear_op):
         blocks = linear_op.base_linear_op.tensor
@@ -24,6 +32,10 @@ class TestBlockDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         for i in range(8):
             actual[i * 4 : (i + 1) * 4, i * 4 : (i + 1) * 4] = blocks[i]
         return actual
+
+
+class TestBlockDiagLinearOperatorFromTensor(TestBlockDiagLinearOperator):
+    _initialize_from_tensor = True
 
 
 class TestBlockDiagLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
@@ -75,7 +87,7 @@ class TestBlockDiagLinearOperatorMetaClass(unittest.TestCase):
         base_operators = [torch.randn(k, n), torch.randn(b1, b2, k, n)]
         subtest_names = ["non-batched input", "batched input"]
         # repeats tests for both batched and non-batched tensors
-        for (base_op, test_name) in zip(base_operators, subtest_names):
+        for base_op, test_name in zip(base_operators, subtest_names):
             with self.subTest(test_name):
                 base_diag = DiagLinearOperator(base_op)
                 linear_op = BlockDiagLinearOperator(base_diag)
