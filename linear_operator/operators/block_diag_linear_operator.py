@@ -9,6 +9,7 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_linear_operator import BlockLinearOperator
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator
 
 from linear_operator.utils.memoize import cached
 
@@ -49,6 +50,9 @@ class BlockDiagLinearOperator(BlockLinearOperator, metaclass=_MetaBlockDiagLinea
     """
 
     def __init__(self, base_linear_op, block_dim=-3):
+        if isinstance(base_linear_op, Tensor):
+            base_linear_op = DenseLinearOperator(base_linear_op)
+
         super().__init__(base_linear_op, block_dim)
         # block diagonal is restricted to have square diagonal blocks
         if self.base_linear_op.shape[-1] != self.base_linear_op.shape[-2]:
