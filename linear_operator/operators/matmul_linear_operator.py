@@ -135,4 +135,10 @@ class MatmulLinearOperator(LinearOperator):
     def to_dense(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch, M, N)
+        # Use element-wise multiplication for DiagLinearOperators
+        if isinstance(self.left_linear_op, DiagLinearOperator):
+            return self.left_linear_op._diag.unsqueeze(-1) * self.right_linear_op.to_dense()
+        if isinstance(self.right_linear_op, DiagLinearOperator):
+            return self.left_linear_op.to_dense() * self.right_linear_op._diag.unsqueeze(-2)
+
         return torch.matmul(self.left_linear_op.to_dense(), self.right_linear_op.to_dense())
