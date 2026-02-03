@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -71,17 +70,21 @@ class ConstantMulLinearOperator(LinearOperator):
         self.base_linear_op = base_linear_op
         self._constant = constant
 
-    def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
+    def _approx_diagonal(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> torch.Tensor:  # shape: (*batch, N)
         res = self.base_linear_op._approx_diagonal()
         return res * self._constant.unsqueeze(-1)
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         res = self.base_linear_op._diagonal()
         return res * self._constant.unsqueeze(-1)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self._constant.expand(*batch_shape) if len(batch_shape) else self._constant,
@@ -108,9 +111,9 @@ class ConstantMulLinearOperator(LinearOperator):
         return type(self)(base_linear_op=base_linear_op, constant=constant)
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         res = self.base_linear_op._matmul(rhs)
         res = res * self.expanded_constant
         return res
@@ -140,14 +143,16 @@ class ConstantMulLinearOperator(LinearOperator):
         return self.base_linear_op.size()
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         res = self.base_linear_op._t_matmul(rhs)
         res = res * self.expanded_constant
         return res
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return ConstantMulLinearOperator(self.base_linear_op._transpose_nonbatch(), self._constant)
 
     def _unsqueeze_batch(self, dim: int) -> LinearOperator:
@@ -171,14 +176,16 @@ class ConstantMulLinearOperator(LinearOperator):
         return constant
 
     @cached
-    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
+    def to_dense(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> Tensor:  # shape: (*batch, M, N)
         res = self.base_linear_op.to_dense()
         return res * self.expanded_constant
 
     @cached(name="root_decomposition")
     def root_decomposition(
-        self: Float[LinearOperator, "*batch N N"], method: Optional[str] = None
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator, method: Optional[str] = None  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         if torch.all(self._constant >= 0):
             base_root = self.base_linear_op.root_decomposition(method=method).root
             return RootLinearOperator(ConstantMulLinearOperator(base_root, self._constant**0.5))

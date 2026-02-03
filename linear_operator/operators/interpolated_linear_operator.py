@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -94,14 +93,18 @@ class InterpolatedLinearOperator(LinearOperator):
         self.right_interp_indices = right_interp_indices
         self.right_interp_values = right_interp_values
 
-    def _approx_diagonal(self: Float[LinearOperator, "*batch N N"]) -> Float[torch.Tensor, "*batch N"]:
+    def _approx_diagonal(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> torch.Tensor:  # shape: (*batch, N)
         base_diag_root = self.base_linear_op._diagonal().sqrt()
         left_res = left_interp(self.left_interp_indices, self.left_interp_values, base_diag_root.unsqueeze(-1))
         right_res = left_interp(self.right_interp_indices, self.right_interp_values, base_diag_root.unsqueeze(-1))
         res = left_res * right_res
         return res.squeeze(-1)
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         if isinstance(self.base_linear_op, RootLinearOperator) and isinstance(
             self.base_linear_op.root, DenseLinearOperator
         ):
@@ -116,8 +119,8 @@ class InterpolatedLinearOperator(LinearOperator):
             return super(InterpolatedLinearOperator, self)._diagonal()
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
             self.left_interp_indices.expand(*batch_shape, *self.left_interp_indices.shape[-2:]),
@@ -189,9 +192,9 @@ class InterpolatedLinearOperator(LinearOperator):
         return res
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -218,8 +221,8 @@ class InterpolatedLinearOperator(LinearOperator):
         return res
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the interpolated structure
         return self.__class__(
@@ -231,9 +234,9 @@ class InterpolatedLinearOperator(LinearOperator):
         )
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         # Get sparse tensor representations of left/right interp matrices
         left_interp_t = self._sparse_left_interp_t(self.left_interp_indices, self.left_interp_values)
         right_interp_t = self._sparse_right_interp_t(self.right_interp_indices, self.right_interp_values)
@@ -331,7 +334,9 @@ class InterpolatedLinearOperator(LinearOperator):
             self.base_linear_op.batch_shape + (self.left_interp_indices.size(-2), self.right_interp_indices.size(-2))
         )
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         res = self.__class__(
             self.base_linear_op.mT,
             self.right_interp_indices,
@@ -408,9 +413,9 @@ class InterpolatedLinearOperator(LinearOperator):
         )
 
     def matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
-    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        other: Union[Tensor, LinearOperator],  # shape: (*batch2, N, P) or (*batch2, N)
+    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, P) or (..., M)
         # We're using a custom matmul here, because it is significantly faster than
         # what we get from the function factory.
         # The _matmul_closure is optimized for repeated calls, such as for _solve
@@ -448,8 +453,8 @@ class InterpolatedLinearOperator(LinearOperator):
         return res
 
     def zero_mean_mvn_samples(
-        self: Float[LinearOperator, "*batch N N"], num_samples: int
-    ) -> Float[Tensor, "num_samples *batch N"]:
+        self: LinearOperator, num_samples: int  # shape: (*batch, N, N)
+    ) -> Tensor:  # shape: (num_samples, *batch, N)
         base_samples = self.base_linear_op.zero_mean_mvn_samples(num_samples)
         batch_iter = tuple(range(1, base_samples.dim()))
         base_samples = base_samples.permute(*batch_iter, 0)
@@ -457,7 +462,11 @@ class InterpolatedLinearOperator(LinearOperator):
         batch_iter = tuple(range(res.dim() - 1))
         return res.permute(-1, *batch_iter).contiguous()
 
-    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+    def to(
+        self: LinearOperator,  # shape: (*batch, M, N)
+        *args,
+        **kwargs,
+    ) -> LinearOperator:  # shape: (*batch, M, N)
 
         # Overwrite the to() method in _linear_operator to avoid converting index matrices to float.
         # Will only convert both dtype and device when arg and dtype are both int/float.

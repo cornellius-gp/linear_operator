@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -34,7 +33,9 @@ class SumBatchLinearOperator(BlockLinearOperator):
         other = other.reshape(*shape).expand(*expand_shape)
         return other
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         diag = self.base_linear_op._diagonal().sum(-2)
         return diag
 
@@ -61,5 +62,7 @@ class SumBatchLinearOperator(BlockLinearOperator):
         del shape[-3]
         return torch.Size(shape)
 
-    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
+    def to_dense(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> Tensor:  # shape: (*batch, M, N)
         return self.base_linear_op.to_dense().sum(dim=-3)  # BlockLinearOperators always use dim3 for the block_dim

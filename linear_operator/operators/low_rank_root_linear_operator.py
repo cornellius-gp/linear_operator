@@ -2,7 +2,6 @@
 from typing import Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import LinearOperator
@@ -19,9 +18,9 @@ class LowRankRootLinearOperator(RootLinearOperator):
     """
 
     def add_diagonal(
-        self: Float[LinearOperator, "*batch N N"],
-        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+        diag: torch.Tensor,  # shape: (..., N) or (..., 1) or ()
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator, DiagLinearOperator
         from linear_operator.operators.low_rank_root_added_diag_linear_operator import (
             LowRankRootAddedDiagLinearOperator,
@@ -51,9 +50,9 @@ class LowRankRootLinearOperator(RootLinearOperator):
         return LowRankRootAddedDiagLinearOperator(self, diag_tensor)
 
     def __add__(
-        self: Float[LinearOperator, "... #M #N"],
-        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
-    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
+        self: LinearOperator,  # shape: (..., #M, #N)
+        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
         from linear_operator.operators.low_rank_root_added_diag_linear_operator import (
             LowRankRootAddedDiagLinearOperator,

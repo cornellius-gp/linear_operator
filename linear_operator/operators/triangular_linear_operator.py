@@ -3,7 +3,6 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -51,9 +50,9 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         self._tensor = tensor
 
     def __add__(
-        self: Float[LinearOperator, "... #M #N"],
-        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
-    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
+        self: LinearOperator,  # shape: (..., #M, #N)
+        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -65,15 +64,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor + other
 
     def _cholesky(
-        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator, upper: Optional[bool] = False  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         raise NotPSDError("TriangularLinearOperator does not allow a Cholesky decomposition")
 
     def _cholesky_solve(
-        self: Float[LinearOperator, "*batch N N"],
-        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
+        self: LinearOperator,  # shape: (*batch, N, N)
+        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
         # use custom method if implemented
         try:
             res = self._tensor._cholesky_solve(rhs=rhs, upper=upper)
@@ -88,12 +87,14 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
                 res = self._transpose_nonbatch().solve(w)
         return res
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         return self._tensor._diagonal()
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         if len(batch_shape) == 0:
             return self
         return self.__class__(tensor=self._tensor._expand_batch(batch_shape), upper=self.upper)
@@ -102,41 +103,41 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor._get_indices(row_index, col_index, *batch_indices)
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return self._tensor.matmul(rhs)
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         return self.__class__(self._tensor * other.unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(
-        self: Float[LinearOperator, "... N N"]
-    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
         raise NotPSDError("TriangularLinearOperator does not allow a root decomposition")
 
     def _root_inv_decomposition(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
         raise NotPSDError("TriangularLinearOperator does not allow an inverse root decomposition")
 
     def _size(self) -> torch.Size:
         return self._tensor.shape
 
     def _solve(
-        self: Float[LinearOperator, "... N N"],
-        rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
+        self: LinearOperator,  # shape: (..., N, N)
+        rhs: torch.Tensor,  # shape: (..., N, C)
+        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
         num_tridiag: Optional[int] = 0,
     ) -> Union[
-        Float[torch.Tensor, "... N C"],
+        torch.Tensor,  # shape: (..., N, C)
         Tuple[
-            Float[torch.Tensor, "... N C"],
-            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+            torch.Tensor,  # shape: (..., N, C)
+            torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
         ],
     ]:
         # already triangular, can just call solve for the solve
@@ -145,7 +146,9 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self._tensor._sum_batch(dim), upper=self.upper)
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return self.__class__(self._tensor._transpose_nonbatch(), upper=not self.upper)
 
     def abs(self) -> LinearOperator:
@@ -155,30 +158,34 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.__class__(self._tensor.abs(), upper=self.upper)
 
     def add_diagonal(
-        self: Float[LinearOperator, "*batch N N"],
-        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+        diag: torch.Tensor,  # shape: (..., N) or (..., 1) or ()
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         added_diag_lt = self._tensor.add_diagonal(diag)
         return self.__class__(added_diag_lt, upper=self.upper)
 
-    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
+    def to_dense(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> Tensor:  # shape: (*batch, M, N)
         return self._tensor.to_dense()
 
-    def exp(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def exp(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         """
         Returns a TriangleLinearOperator with all diagonal entries exponentiated.
         """
         return self.__class__(self._tensor.exp(), upper=self.upper)
 
     def inv_quad_logdet(
-        self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
+        self: LinearOperator,  # shape: (*batch, N, N)
+        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, "..."]],
-    ]:
+    ) -> Tuple[  # fmt: off
+        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
+        Optional[Tensor],  # shape: (...)
+    ]:  # fmt: on
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
@@ -196,7 +203,9 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return inv_quad_term, logdet_term
 
     @cached
-    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
+    def inverse(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         """
         Returns the inverse of the DiagLinearOperator.
         """
@@ -205,10 +214,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self.__class__(inv, upper=self.upper)
 
     def solve(
-        self: Float[LinearOperator, "... N N"],
-        right_tensor: Union[Float[Tensor, "... N P"], Float[Tensor, " N"]],
-        left_tensor: Optional[Float[Tensor, "... O N"]] = None,
-    ) -> Union[Float[Tensor, "... N P"], Float[Tensor, "... N"], Float[Tensor, "... O P"], Float[Tensor, "... O"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+        right_tensor: Tensor,  # shape: (..., N, P) or (N)
+        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+    ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         squeeze = False
         if right_tensor.dim() == 1:
             right_tensor = right_tensor.unsqueeze(-1)
@@ -236,15 +245,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     ) -> torch.Tensor:
         if upper != self.upper:
             raise RuntimeError(
-                f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with `upper={upper}`, "
-                f"but `LinearOperator` has `upper={self.upper}`."
+                f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with 'upper={upper}', "
+                f"but 'LinearOperator' has 'upper={self.upper}'."
             )
         if not left:
             raise NotImplementedError(
-                f"Argument `left=False` not yet supported for {self.__class__.__name__}.solve_triangular."
+                f"Argument 'left=False' not yet supported for {self.__class__.__name__}.solve_triangular."
             )
         if unitriangular:
             raise NotImplementedError(
-                f"Argument `unitriangular=True` not yet supported for {self.__class__.__name__}.solve_triangular."
+                f"Argument 'unitriangular=True' not yet supported for {self.__class__.__name__}.solve_triangular."
             )
         return self.solve(right_tensor=rhs)
