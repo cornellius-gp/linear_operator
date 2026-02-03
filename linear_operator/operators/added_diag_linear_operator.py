@@ -6,7 +6,6 @@ import warnings
 from typing import Callable, List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator import settings
@@ -71,21 +70,21 @@ class AddedDiagLinearOperator(SumLinearOperator):
         self._r_cache = None
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return torch.addcmul(self._linear_op._matmul(rhs), self._diag_tensor._diag.unsqueeze(-1), rhs)
 
     def add_diagonal(
-        self: Float[LinearOperator, "*batch N N"],
-        diag: Union[Float[torch.Tensor, "... N"], Float[torch.Tensor, "... 1"], Float[torch.Tensor, ""]],
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+        diag: torch.Tensor,  # shape: (..., N) or (..., 1) or ()
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         return self.__class__(self._linear_op, self._diag_tensor.add_diagonal(diag))
 
     def __add__(
-        self: Float[LinearOperator, "... #M #N"],
-        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
-    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
+        self: LinearOperator,  # shape: (..., #M, #N)
+        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -186,8 +185,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     @cached(name="svd")
     def _svd(
-        self: Float[LinearOperator, "*batch N N"]
-    ) -> Tuple[Float[LinearOperator, "*batch N N"], Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> Tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             U, S_, V = self._linear_op.svd()
             S = S_ + self._diag_tensor._diagonal()
@@ -195,10 +194,10 @@ class AddedDiagLinearOperator(SumLinearOperator):
         return super()._svd()
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
         return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor._diagonal()

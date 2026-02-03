@@ -4,7 +4,6 @@ from abc import abstractmethod
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -60,8 +59,8 @@ class BlockLinearOperator(LinearOperator):
         raise NotImplementedError
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         batch_shape = torch.Size((*batch_shape, self.base_linear_op.size(-3)))
         res = self.__class__(self.base_linear_op._expand_batch(batch_shape))
         return res
@@ -103,9 +102,9 @@ class BlockLinearOperator(LinearOperator):
         return self.__class__(new_base_linear_op, block_dim=-3)
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         isvector = rhs.ndimension() == 1
         if isvector:
             rhs = rhs.unsqueeze(1)
@@ -151,15 +150,17 @@ class BlockLinearOperator(LinearOperator):
         raise NotImplementedError
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the block structure
         from linear_operator.operators.constant_mul_linear_operator import ConstantMulLinearOperator
 
         return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         base_op = self.base_linear_op
         if isinstance(base_op, LinearOperator):
             new_base_op = base_op._transpose_nonbatch()
@@ -168,8 +169,8 @@ class BlockLinearOperator(LinearOperator):
         return self.__class__(new_base_op)
 
     def zero_mean_mvn_samples(
-        self: Float[LinearOperator, "*batch N N"], num_samples: int
-    ) -> Float[Tensor, "num_samples *batch N"]:
+        self: LinearOperator, num_samples: int  # shape: (*batch, N, N)
+    ) -> Tensor:  # shape: (num_samples, *batch, N)
         res = self.base_linear_op.zero_mean_mvn_samples(num_samples)
         res = self._remove_batch_dim(res.unsqueeze(-1)).squeeze(-1)
         return res

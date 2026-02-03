@@ -3,7 +3,6 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import torch
 
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import LinearOperator, to_dense
@@ -132,9 +131,9 @@ class KernelLinearOperator(LinearOperator):
 
     def __init__(
         self,
-        x1: Float[Tensor, "... M D"],
-        x2: Float[Tensor, "... N D"],
-        covar_func: Callable[..., Float[Union[Tensor, LinearOperator], "... M N"]],
+        x1: Tensor,  # shape: (..., M, D)
+        x2: Tensor,  # shape: (..., N, D)
+        covar_func: Callable[..., Union[Tensor, LinearOperator]],  # shape: (..., M, N)
         num_outputs_per_input: Tuple[int, int] = (1, 1),
         num_nonbatch_dimensions: Optional[Dict[str, int]] = None,
         **params: Union[Tensor, Any],
@@ -223,7 +222,9 @@ class KernelLinearOperator(LinearOperator):
         self.num_nonbatch_dimensions = num_nonbatch_dimensions
 
     @cached(name="kernel_diag")
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         # Explicitly compute kernel diag via covar_func when it is needed rather than relying on lazy tensor ops.
         # We will do this by shoving all of the data into a batch dimension (i.e. compute a N x ... x  1 x 1 kernel
         # or a N x ... x num_outs-per_in x num_outs_per_in kernel)
@@ -248,7 +249,9 @@ class KernelLinearOperator(LinearOperator):
 
     @property
     @cached(name="covar_mat")
-    def covar_mat(self: Float[LinearOperator, "... M N"]) -> Float[Union[Tensor, LinearOperator], "... M N"]:
+    def covar_mat(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, N)
         return self.covar_func(self.x1, self.x2, **self.tensor_params, **self.nontensor_params)
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
@@ -368,9 +371,9 @@ class KernelLinearOperator(LinearOperator):
         )
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return self.covar_mat @ rhs.contiguous()
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
@@ -400,7 +403,9 @@ class KernelLinearOperator(LinearOperator):
             ]
         )
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return self.__class__(
             self.x2,
             self.x1,

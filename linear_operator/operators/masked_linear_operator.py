@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Bool, Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import _is_noop_index, IndexType, LinearOperator
@@ -17,9 +16,9 @@ class MaskedLinearOperator(LinearOperator):
 
     def __init__(
         self,
-        base: Float[LinearOperator, "*batch M0 N0"],
-        row_mask: Bool[Tensor, "M0"],
-        col_mask: Bool[Tensor, "N0"],
+        base: LinearOperator,  # shape: (*batch, M0, N0)
+        row_mask: Tensor,  # shape: (M0)
+        col_mask: Tensor,  # shape: (N0)
     ):
         r"""
         Create a new :obj:`~linear_operator.operators.MaskedLinearOperator` that applies a mask to the rows and columns
@@ -36,7 +35,10 @@ class MaskedLinearOperator(LinearOperator):
         self.row_eq_col_mask = torch.equal(row_mask, col_mask)
 
     @staticmethod
-    def _expand(tensor: Float[Tensor, "*batch N C"], mask: Bool[Tensor, "N0"]) -> Float[Tensor, "*batch N0 C"]:
+    def _expand(
+        tensor: Tensor,  # shape: (*batch, N, C)
+        mask: Tensor,  # shape: (N0)
+    ) -> Tensor:  # shape: (*batch, N0, C)
         res = torch.zeros(
             *tensor.shape[:-2],
             mask.size(-1),
@@ -48,9 +50,9 @@ class MaskedLinearOperator(LinearOperator):
         return res
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         rhs_expanded = self._expand(rhs, self.col_mask)
         res_expanded = self.base._matmul(rhs_expanded)
         res = res_expanded[..., self.row_mask, :]
@@ -58,9 +60,9 @@ class MaskedLinearOperator(LinearOperator):
         return res
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         rhs_expanded = self._expand(rhs, self.row_mask)
         res_expanded = self.base._t_matmul(rhs_expanded)
         res = res_expanded[..., self.col_mask, :]
@@ -71,16 +73,22 @@ class MaskedLinearOperator(LinearOperator):
             (*self.base.size()[:-2], torch.count_nonzero(self.row_mask), torch.count_nonzero(self.col_mask))
         )
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return self.__class__(self.base.mT, self.col_mask, self.row_mask)
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         if not self.row_eq_col_mask:
             raise NotImplementedError()
         diag = self.base.diagonal()
         return diag[..., self.row_mask]
 
-    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
+    def to_dense(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> Tensor:  # shape: (*batch, M, N)
         full_dense = self.base.to_dense()
         return full_dense[..., self.row_mask, :][..., :, self.col_mask]
 
@@ -90,8 +98,8 @@ class MaskedLinearOperator(LinearOperator):
         return self.base._bilinear_derivative(left_vecs, right_vecs) + (None, None)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(self.base._expand_batch(batch_shape), self.row_mask, self.col_mask)
 
     def _unsqueeze_batch(self, dim: int) -> LinearOperator:
@@ -114,7 +122,11 @@ class MaskedLinearOperator(LinearOperator):
     def _permute_batch(self, *dims: int) -> LinearOperator:
         return self.__class__(self.base._permute_batch(*dims), self.row_mask, self.col_mask)
 
-    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+    def to(
+        self: LinearOperator,  # shape: (*batch, M, N)
+        *args,
+        **kwargs,
+    ) -> LinearOperator:  # shape: (*batch, M, N)
 
         # Overwrite the to() method in _linear_operator to avoid converting mask matrices to float.
         # Will only convert both dtype and device when arg's dtype is not torch.bool.

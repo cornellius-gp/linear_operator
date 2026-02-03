@@ -331,6 +331,7 @@ class fast_computations:
     .. _GPyTorch Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration:
         https://arxiv.org/pdf/1809.11165.pdf
     """
+
     covar_root_decomposition = _fast_covar_root_decomposition
     log_prob = _fast_log_prob
     solves = _fast_solves

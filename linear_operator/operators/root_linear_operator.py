@@ -2,7 +2,6 @@
 from typing import List, Optional, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -20,15 +19,17 @@ class RootLinearOperator(LinearOperator):
         super().__init__(root)
         self.root = root
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         if isinstance(self.root, DenseLinearOperator):
             return (self.root.tensor**2).sum(-1)
         else:
             return super()._diagonal()
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         if len(batch_shape) == 0:
             return self
         return self.__class__(self.root._expand_batch(batch_shape))
@@ -65,14 +66,14 @@ class RootLinearOperator(LinearOperator):
         return res
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return self.root._matmul(self.root._t_matmul(rhs))
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         if (other > 0).all():
             res = self.__class__(self.root._mul_constant(other.sqrt()))
         else:
@@ -80,30 +81,30 @@ class RootLinearOperator(LinearOperator):
         return res
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         # Matrix is symmetric
         return self._matmul(rhs)
 
     def add_low_rank(
-        self: Float[LinearOperator, "*batch N N"],
-        low_rank_mat: Union[Float[Tensor, "... N _"], Float[LinearOperator, "... N _"]],
+        self: LinearOperator,  # shape: (*batch, N, N)
+        low_rank_mat: Union[Tensor, LinearOperator],  # shape: (..., N, _)
         root_decomp_method: Optional[str] = None,
         root_inv_decomp_method: Optional[str] = None,
         generate_roots: Optional[bool] = True,
         **root_decomp_kwargs,
-    ) -> Float[LinearOperator, "*batch N N"]:
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         return super().add_low_rank(low_rank_mat, root_inv_decomp_method=root_inv_decomp_method)
 
     def root_decomposition(
-        self: Float[LinearOperator, "*batch N N"], method: Optional[str] = None
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator, method: Optional[str] = None  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         return self
 
     def _root_decomposition(
-        self: Float[LinearOperator, "... N N"]
-    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
         return self.root
 
     def _root_decomposition_size(self) -> int:
@@ -112,10 +113,14 @@ class RootLinearOperator(LinearOperator):
     def _size(self) -> torch.Size:
         return torch.Size((*self.root.batch_shape, self.root.size(-2), self.root.size(-2)))
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return self
 
     @cached
-    def to_dense(self: Float[LinearOperator, "*batch M N"]) -> Float[Tensor, "*batch M N"]:
+    def to_dense(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> Tensor:  # shape: (*batch, M, N)
         eval_root = self.root.to_dense()
         return torch.matmul(eval_root, eval_root.mT)

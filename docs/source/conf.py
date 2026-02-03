@@ -19,7 +19,6 @@ import sys
 import warnings
 from typing import ForwardRef
 
-import jaxtyping
 import sphinx_rtd_theme  # noqa
 
 
@@ -123,27 +122,6 @@ def _convert_internal_and_external_class_to_strings(annotation):
     return res
 
 
-# Convert jaxtyping dimensions into strings
-def _dim_to_str(dim):
-    if isinstance(dim, jaxtyping._array_types._NamedVariadicDim):
-        return "..."
-    elif isinstance(dim, jaxtyping._array_types._FixedDim):
-        res = str(dim.size)
-        if dim.broadcastable:
-            res = "#" + res
-        return res
-    elif isinstance(dim, jaxtyping._array_types._SymbolicDim):
-        expr = dim.elem
-        return f"({expr})"
-    elif "jaxtyping" not in str(dim.__class__):  # Probably the case that we have an ellipsis
-        return "..."
-    else:
-        res = str(dim.name)
-        if dim.broadcastable:
-            res = "#" + res
-        return res
-
-
 # Function to format type hints
 def _process(annotation, config):
     """
@@ -155,12 +133,6 @@ def _process(annotation, config):
     # Simple/base case: any string annotation is ready to go
     if type(annotation) == str:
         return annotation
-
-    # Jaxtyping: shaped tensors or linear operator
-    elif hasattr(annotation, "__module__") and "jaxtyping" == annotation.__module__:
-        cls_annotation = _convert_internal_and_external_class_to_strings(annotation.array_type)
-        shape = " x ".join([_dim_to_str(dim) for dim in annotation.dims])
-        return f"{cls_annotation} ({shape})"
 
     # Convert Ellipsis into "..."
     elif annotation == Ellipsis:

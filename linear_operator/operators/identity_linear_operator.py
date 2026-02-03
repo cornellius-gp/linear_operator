@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -63,20 +62,20 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     @cached(name="cholesky", ignore_args=True)
     def _cholesky(
-        self: Float[LinearOperator, "*batch N N"], upper: Optional[bool] = False
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator, upper: Optional[bool] = False  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         return self
 
     def _cholesky_solve(
-        self: Float[LinearOperator, "*batch N N"],
-        rhs: Union[Float[LinearOperator, "*batch2 N M"], Float[Tensor, "*batch2 N M"]],
+        self: LinearOperator,  # shape: (*batch, N, N)
+        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
         upper: Optional[bool] = False,
-    ) -> Union[Float[LinearOperator, "... N M"], Float[Tensor, "... N M"]]:
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
         return self._maybe_reshape_rhs(rhs)
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
         )
@@ -96,20 +95,20 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return super()._getitem(row_index, col_index, *batch_indices)
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return self._maybe_reshape_rhs(rhs)
 
     def _mul_constant(
-        self: Float[LinearOperator, "*batch M N"], other: Union[float, torch.Tensor]
-    ) -> Float[LinearOperator, "*batch M N"]:
+        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         return ConstantDiagLinearOperator(self.diag_values * other, diag_shape=self.diag_shape)
 
     def _mul_matrix(
-        self: Float[LinearOperator, "... #M #N"],
-        other: Union[Float[torch.Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"]],
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator,  # shape: (..., #M, #N)
+        other: Union[torch.Tensor, LinearOperator],  # shape: (..., #M, #N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return other
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
@@ -126,15 +125,15 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         )
 
     def _root_decomposition(
-        self: Float[LinearOperator, "... N N"]
-    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
         return self.sqrt()
 
     def _root_inv_decomposition(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
@@ -142,24 +141,26 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     @cached(name="svd")
     def _svd(
-        self: Float[LinearOperator, "*batch N N"]
-    ) -> Tuple[Float[LinearOperator, "*batch N N"], Float[Tensor, "... N"], Float[LinearOperator, "*batch N N"]]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> Tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
         return self, self._diag, self
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
         return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
         return self._diag, self
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         return self._maybe_reshape_rhs(rhs)
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return self
 
     def _unsqueeze_batch(self, dim: int) -> LinearOperator:
@@ -173,20 +174,24 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def abs(self) -> LinearOperator:
         return self
 
-    def exp(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def exp(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         return self
 
-    def inverse(self: Float[LinearOperator, "*batch N N"]) -> Float[LinearOperator, "*batch N N"]:
+    def inverse(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         return self
 
     def inv_quad_logdet(
-        self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
+        self: LinearOperator,  # shape: (*batch, N, N)
+        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, "..."]],
+        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
+        Optional[Tensor],  # shape: (...)
     ]:
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rather than append)
         if inv_quad_rhs is None:
@@ -204,15 +209,17 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
         return inv_quad_term, logdet_term
 
-    def log(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def log(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         return ZeroLinearOperator(
             *self._batch_shape, self.diag_shape, self.diag_shape, dtype=self._dtype, device=self._device
         )
 
     def matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        other: Union[Float[Tensor, "*batch2 N P"], Float[Tensor, "*batch2 N"], Float[LinearOperator, "*batch2 N P"]],
-    ) -> Union[Float[Tensor, "... M P"], Float[Tensor, "... M"], Float[LinearOperator, "... M P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        other: Union[Tensor, LinearOperator],  # shape: (*batch2, N, P) or (*batch2, N)
+    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, P) or (..., M)
         is_vec = False
         if other.dim() == 1:
             is_vec = True
@@ -223,23 +230,25 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return res
 
     def solve(
-        self: Float[LinearOperator, "... N N"],
-        right_tensor: Union[Float[Tensor, "... N P"], Float[Tensor, " N"]],
-        left_tensor: Optional[Float[Tensor, "... O N"]] = None,
-    ) -> Union[Float[Tensor, "... N P"], Float[Tensor, "... N"], Float[Tensor, "... O P"], Float[Tensor, "... O"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+        right_tensor: Tensor,  # shape: (..., N, P) or (N)
+        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+    ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         res = self._maybe_reshape_rhs(right_tensor)
         if left_tensor is not None:
             res = left_tensor @ res
         return res
 
-    def sqrt(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch M N"]:
+    def sqrt(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, M, N)
         return self
 
     def sqrt_inv_matmul(
-        self: Float[LinearOperator, "*batch N N"],
-        rhs: Float[Tensor, "*batch N P"],
-        lhs: Optional[Float[Tensor, "*batch O N"]] = None,
-    ) -> Union[Float[Tensor, "*batch N P"], Tuple[Float[Tensor, "*batch O P"], Float[Tensor, "*batch O"]]]:
+        self: LinearOperator,  # shape: (*batch, N, N)
+        rhs: Tensor,  # shape: (*batch, N, P)
+        lhs: Optional[Tensor] = None,  # shape: (*batch, O, N)
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:  # shape: (*batch, N, P), (*batch, O, P), (*batch, O)
         if lhs is None:
             return self._maybe_reshape_rhs(rhs)
         else:
@@ -253,12 +262,16 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         )
 
     def zero_mean_mvn_samples(
-        self: Float[LinearOperator, "*batch N N"], num_samples: int
-    ) -> Float[Tensor, "num_samples *batch N"]:
+        self: LinearOperator, num_samples: int  # shape: (*batch, N, N)
+    ) -> Tensor:  # shape: (num_samples, *batch, N)
         base_samples = torch.randn(num_samples, *self.shape[:-1], dtype=self.dtype, device=self.device)
         return base_samples
 
-    def to(self: Float[LinearOperator, "*batch M N"], *args, **kwargs) -> Float[LinearOperator, "*batch M N"]:
+    def to(
+        self: LinearOperator,  # shape: (*batch, M, N)
+        *args,
+        **kwargs,
+    ) -> LinearOperator:  # shape: (*batch, M, N)
 
         # Overwrite the to() method in _linear_operator to also convert the dtype and device saved in _kwargs.
 

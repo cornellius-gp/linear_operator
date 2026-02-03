@@ -3,7 +3,6 @@
 from typing import Callable, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator import settings
@@ -64,13 +63,13 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         self._diag_is_constant = isinstance(self.diag_tensor, ConstantDiagLinearOperator)
 
     def inv_quad_logdet(
-        self: Float[LinearOperator, "*batch N N"],
-        inv_quad_rhs: Optional[Union[Float[Tensor, "*batch N M"], Float[Tensor, "*batch N"]]] = None,
+        self: LinearOperator,  # shape: (*batch, N, N)
+        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
     ) -> Tuple[
-        Optional[Union[Float[Tensor, "*batch M"], Float[Tensor, " *batch"], Float[Tensor, " 0"]]],
-        Optional[Float[Tensor, "..."]],
+        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
+        Optional[Tensor],  # shape: (...)
     ]:
         if inv_quad_rhs is not None:
             inv_quad_term, _ = super().inv_quad_logdet(
@@ -81,7 +80,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         logdet_term = self._logdet() if logdet else None
         return inv_quad_term, logdet_term
 
-    def _logdet(self: Float[LinearOperator, "*batch N N"]) -> Float[Tensor, " *batch"]:
+    def _logdet(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> Tensor:  # shape: (*batch)
         if self._diag_is_constant:
             # symeig requires computing the eigenvectors for it to be differentiable
             evals, _ = self.linear_op._symeig(eigenvectors=True)
@@ -130,15 +131,15 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return None, None, None
 
     def _solve(
-        self: Float[LinearOperator, "... N N"],
-        rhs: Float[torch.Tensor, "... N C"],
-        preconditioner: Optional[Callable[[Float[torch.Tensor, "... N C"]], Float[torch.Tensor, "... N C"]]] = None,
+        self: LinearOperator,  # shape: (..., N, N)
+        rhs: torch.Tensor,  # shape: (..., N, C)
+        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
         num_tridiag: Optional[int] = 0,
     ) -> Union[
-        Float[torch.Tensor, "... N C"],
+        torch.Tensor,  # shape: (..., N, C)
         Tuple[
-            Float[torch.Tensor, "... N C"],
-            Float[torch.Tensor, "..."],  # Note that in case of a tuple the second term size depends on num_tridiag
+            torch.Tensor,  # shape: (..., N, C)
+            torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
         ],
     ]:
 
@@ -222,8 +223,8 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._solve(rhs, preconditioner=preconditioner, num_tridiag=num_tridiag)
 
     def _root_decomposition(
-        self: Float[LinearOperator, "... N N"]
-    ) -> Union[Float[torch.Tensor, "... N N"], Float[LinearOperator, "... N N"]]:
+        self: LinearOperator,  # shape: (..., N, N)
+    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
             updated_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(0.5))
@@ -255,10 +256,10 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._root_decomposition()
 
     def _root_inv_decomposition(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         initial_vectors: Optional[torch.Tensor] = None,
         test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[Float[LinearOperator, "... N N"], Float[Tensor, "... N N"]]:
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
             inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(-0.5))
@@ -290,10 +291,10 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._root_inv_decomposition(initial_vectors=initial_vectors)
 
     def _symeig(
-        self: Float[LinearOperator, "*batch N N"],
+        self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
         return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Float[Tensor, "*batch M"], Optional[Float[LinearOperator, "*batch N M"]]]:
+    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
@@ -305,9 +306,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         return super()._symeig(eigenvectors=eigenvectors)
 
     def __add__(
-        self: Float[LinearOperator, "... #M #N"],
-        other: Union[Float[Tensor, "... #M #N"], Float[LinearOperator, "... #M #N"], float],
-    ) -> Union[Float[LinearOperator, "... M N"], Float[Tensor, "... M N"]]:
+        self: LinearOperator,  # shape: (..., #M, #N)
+        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
         if isinstance(other, ConstantDiagLinearOperator) and self._diag_is_constant:
             # the other cases have only partial implementations
             return KroneckerProductAddedDiagLinearOperator(self.linear_op, self.diag_tensor + other)

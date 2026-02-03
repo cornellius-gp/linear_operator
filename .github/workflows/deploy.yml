@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/run_linter.yml
 
   run_test_suite:
-    uses: ./.github/workflows/run_type_checked_test_suite.yml
+    uses: ./.github/workflows/run_test_suite.yml
 
   deploy_pypi:
     runs-on: ubuntu-latest

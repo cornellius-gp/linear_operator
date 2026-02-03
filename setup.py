@@ -37,10 +37,7 @@ except ImportError:
     pass
 
 # Other requirements
-install_requires += [
-    "scipy",
-    "jaxtyping",
-]
+install_requires += ["scipy"]
 
 
 # Get version

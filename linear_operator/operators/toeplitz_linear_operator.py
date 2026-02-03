@@ -2,7 +2,6 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Float
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
@@ -23,15 +22,17 @@ class ToeplitzLinearOperator(LinearOperator):
         super(ToeplitzLinearOperator, self).__init__(column)
         self.column = column
 
-    def _diagonal(self: Float[LinearOperator, "... M N"]) -> Float[torch.Tensor, "... N"]:
+    def _diagonal(
+        self: LinearOperator,  # shape: (..., M, N)
+    ) -> torch.Tensor:  # shape: (..., N)
         diag_term = self.column[..., 0]
         if self.column.ndimension() > 1:
             diag_term = diag_term.unsqueeze(-1)
         return diag_term.expand(*self.column.size())
 
     def _expand_batch(
-        self: Float[LinearOperator, "... M N"], batch_shape: Union[torch.Size, List[int]]
-    ) -> Float[LinearOperator, "... M N"]:
+        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+    ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(self.column.expand(*batch_shape, self.column.size(-1)))
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
@@ -39,15 +40,15 @@ class ToeplitzLinearOperator(LinearOperator):
         return self.column[(*batch_indices, toeplitz_indices)]
 
     def _matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[torch.Tensor, "*batch2 N C"], Float[torch.Tensor, "*batch2 N"]],
-    ) -> Union[Float[torch.Tensor, "... M C"], Float[torch.Tensor, "... M"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
+    ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
         return sym_toeplitz_matmul(self.column, rhs)
 
     def _t_matmul(
-        self: Float[LinearOperator, "*batch M N"],
-        rhs: Union[Float[Tensor, "*batch2 M P"], Float[LinearOperator, "*batch2 M P"]],
-    ) -> Union[Float[LinearOperator, "... N P"], Float[Tensor, "... N P"]]:
+        self: LinearOperator,  # shape: (*batch, M, N)
+        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
+    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
         # Matrix is symmetric
         return self._matmul(rhs)
 
@@ -67,12 +68,14 @@ class ToeplitzLinearOperator(LinearOperator):
     def _size(self) -> torch.Size:
         return torch.Size((*self.column.shape, self.column.size(-1)))
 
-    def _transpose_nonbatch(self: Float[LinearOperator, "*batch M N"]) -> Float[LinearOperator, "*batch N M"]:
+    def _transpose_nonbatch(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> LinearOperator:  # shape: (*batch, N, M)
         return ToeplitzLinearOperator(self.column)
 
     def add_jitter(
-        self: Float[LinearOperator, "*batch N N"], jitter_val: float = 1e-3
-    ) -> Float[LinearOperator, "*batch N N"]:
+        self: LinearOperator, jitter_val: float = 1e-3  # shape: (*batch, N, N)
+    ) -> LinearOperator:  # shape: (*batch, N, N)
         jitter = torch.zeros_like(self.column)
         jitter.narrow(-1, 0, 1).fill_(jitter_val)
         return ToeplitzLinearOperator(self.column.add(jitter))
