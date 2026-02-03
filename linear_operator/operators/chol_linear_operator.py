@@ -123,10 +123,10 @@ class CholLinearOperator(RootLinearOperator):
         inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
+    ) -> Tuple[  # fmt: off
         Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
         Optional[Tensor],  # shape: (...)
-    ]:
+    ]:  # fmt: on
         if not self.is_square:
             raise RuntimeError(
                 "inv_quad_logdet only operates on (batches of) square (positive semi-definite) LinearOperators. "

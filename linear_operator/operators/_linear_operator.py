@@ -1682,10 +1682,10 @@ class LinearOperator(object):
         inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
+    ) -> Tuple[  # fmt: off
         Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
         Optional[Tensor],  # shape: (...)
-    ]:
+    ]:  # fmt: on
         r"""
         Calls both :func:`inv_quad` and :func:`logdet` on a positive
         definite matrix (or batch) :math:`\mathbf A`.  However, calling this

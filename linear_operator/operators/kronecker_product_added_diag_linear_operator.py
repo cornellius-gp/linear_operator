@@ -67,10 +67,10 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
+    ) -> Tuple[  # fmt: off
         Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
         Optional[Tensor],  # shape: (...)
-    ]:
+    ]:  # fmt: on
         if inv_quad_rhs is not None:
             inv_quad_term, _ = super().inv_quad_logdet(
                 inv_quad_rhs=inv_quad_rhs, logdet=False, reduce_inv_quad=reduce_inv_quad

@@ -165,10 +165,10 @@ class DiagLinearOperator(TriangularLinearOperator):
         inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
+    ) -> Tuple[  # fmt: off
         Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
         Optional[Tensor],  # shape: (...)
-    ]:
+    ]:  # fmt: on
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rathern than append)
         if inv_quad_rhs is None:
             rhs_batch_shape = torch.Size()

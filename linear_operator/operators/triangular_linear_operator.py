@@ -182,10 +182,10 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
         logdet: Optional[bool] = False,
         reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[
+    ) -> Tuple[  # fmt: off
         Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
         Optional[Tensor],  # shape: (...)
-    ]:
+    ]:  # fmt: on
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
         else:
@@ -245,15 +245,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     ) -> torch.Tensor:
         if upper != self.upper:
             raise RuntimeError(
-                f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with `upper={upper}`, "
-                f"but `LinearOperator` has `upper={self.upper}`."
+                f"Incompatible argument: {self.__class__.__name__}.solve_triangular called with 'upper={upper}', "
+                f"but 'LinearOperator' has 'upper={self.upper}'."
             )
         if not left:
             raise NotImplementedError(
-                f"Argument `left=False` not yet supported for {self.__class__.__name__}.solve_triangular."
+                f"Argument 'left=False' not yet supported for {self.__class__.__name__}.solve_triangular."
             )
         if unitriangular:
             raise NotImplementedError(
-                f"Argument `unitriangular=True` not yet supported for {self.__class__.__name__}.solve_triangular."
+                f"Argument 'unitriangular=True' not yet supported for {self.__class__.__name__}.solve_triangular."
             )
         return self.solve(right_tensor=rhs)
