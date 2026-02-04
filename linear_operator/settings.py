@@ -395,10 +395,10 @@ class max_cholesky_size(_value_context):
     If the size of of a LinearOperator is less than `max_cholesky_size`,
     then `root_decomposition` and `solve` of LinearOperator will use Cholesky rather than Lanczos/CG.
 
-    (Default: 800)
+    (Default: 50000)
     """
 
-    _global_value = 800
+    _global_value = 50_000
 
 
 class max_lanczos_quadrature_iterations(_value_context):
