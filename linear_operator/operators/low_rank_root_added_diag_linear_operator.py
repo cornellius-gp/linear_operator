@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-from typing import Callable, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -45,7 +47,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         return chol_cap_mat
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         # We have to over-ride this here for the case where the constant is negative
         if other > 0:
@@ -54,21 +56,21 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
             res = AddedDiagLinearOperator(self._linear_op._mul_constant(other), self._diag_tensor._mul_constant(other))
         return res
 
-    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
+    def _preconditioner(self) -> tuple[Callable | None, LinearOperator | None, torch.Tensor | None]:
         return None, None, None
 
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
         rhs: torch.Tensor,  # shape: (..., N, C)
-        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        torch.Tensor,  # shape: (..., N, C)
-        Tuple[
+        preconditioner: Callable[[torch.Tensor], torch.Tensor] | None = None,  # shape: (..., N, C)
+        num_tridiag: int | None = 0,
+    ) -> (
+        torch.Tensor  # shape: (..., N, C)
+        | tuple[
             torch.Tensor,  # shape: (..., N, C)
             torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
-        ],
-    ]:
+        ]
+    ):
         A_inv = self._diag_tensor.inverse()  # This is fine since it's a DiagLinearOperator
         U = self._linear_op.root
         V = self._linear_op.root.mT
@@ -82,7 +84,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return solve
 
-    def _solve_preconditioner(self) -> Optional[Callable]:
+    def _solve_preconditioner(self) -> Callable | None:
         return None
 
     def _sum_batch(self, dim: int) -> LinearOperator:
@@ -98,8 +100,8 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -109,12 +111,12 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         if not self.is_square:
             raise RuntimeError(
@@ -158,7 +160,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
     def solve(
         self: LinearOperator,  # shape: (..., N, N)
         right_tensor: Tensor,  # shape: (..., N, P) or (N)
-        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+        left_tensor: Tensor | None = None,  # shape: (..., O, N)
     ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         if not self.is_square:
             raise RuntimeError(

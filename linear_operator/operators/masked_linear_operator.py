@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -61,8 +61,8 @@ class MaskedLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         rhs_expanded = self._expand(rhs, self.row_mask)
         res_expanded = self.base._t_matmul(rhs_expanded)
         res = res_expanded[..., self.col_mask, :]
@@ -92,13 +92,13 @@ class MaskedLinearOperator(LinearOperator):
         full_dense = self.base.to_dense()
         return full_dense[..., self.row_mask, :][..., :, self.col_mask]
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         left_vecs = self._expand(left_vecs, self.row_mask)
         right_vecs = self._expand(right_vecs, self.col_mask)
         return self.base._bilinear_derivative(left_vecs, right_vecs) + (None, None)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(self.base._expand_batch(batch_shape), self.row_mask, self.col_mask)
 

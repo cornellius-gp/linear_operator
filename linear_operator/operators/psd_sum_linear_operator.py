@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import LinearOperator

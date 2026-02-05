@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 from abc import abstractmethod
-from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -59,7 +59,7 @@ class BlockLinearOperator(LinearOperator):
         raise NotImplementedError
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         batch_shape = torch.Size((*batch_shape, self.base_linear_op.size(-3)))
         res = self.__class__(self.base_linear_op._expand_batch(batch_shape))
@@ -117,7 +117,7 @@ class BlockLinearOperator(LinearOperator):
             res = res.squeeze(-1)
         return res
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         if left_vecs.ndim == 1:
             left_vecs = left_vecs.unsqueeze(-1)
             right_vecs = right_vecs.unsqueeze(-1)
@@ -150,7 +150,7 @@ class BlockLinearOperator(LinearOperator):
         raise NotImplementedError
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         # We're using a custom method here - the constant mul is applied to the base_lazy tensor
         # This preserves the block structure

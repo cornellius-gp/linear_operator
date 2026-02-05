@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 from linear_operator import beta_features, operators, settings, utils
 from linear_operator.functions import (
     add_diagonal,

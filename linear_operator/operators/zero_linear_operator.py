@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
-
 import torch
 from torch import Tensor
 
@@ -22,9 +20,7 @@ class ZeroLinearOperator(LinearOperator):
     :param device: Device that the LinearOperator will be operating on. (Default: CPU).
     """
 
-    def __init__(
-        self, *sizes: Tuple[int, ...], dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None
-    ):
+    def __init__(self, *sizes: tuple[int, ...], dtype: torch.dtype | None = None, device: torch.device | None = None):
         super(ZeroLinearOperator, self).__init__(*sizes)
         self.sizes = list(sizes)
 
@@ -32,14 +28,14 @@ class ZeroLinearOperator(LinearOperator):
         self._device = device or torch.device("cpu")
 
     @property
-    def dtype(self) -> Optional[torch.dtype]:
+    def dtype(self) -> torch.dtype | None:
         return self._dtype
 
     @property
-    def device(self) -> Optional[torch.device]:
+    def device(self) -> torch.device | None:
         return self._device
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         raise RuntimeError("Backwards through a ZeroLinearOperator is not possible")
 
     def _diagonal(
@@ -49,7 +45,7 @@ class ZeroLinearOperator(LinearOperator):
         return torch.zeros(shape[:-1], dtype=self.dtype, device=self.device)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(*batch_shape, *self.sizes[-2:], dtype=self._dtype, device=self._device)
 
@@ -84,7 +80,7 @@ class ZeroLinearOperator(LinearOperator):
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _root_decomposition_size(self) -> int:
@@ -92,9 +88,9 @@ class ZeroLinearOperator(LinearOperator):
 
     def _root_inv_decomposition(
         self: LinearOperator,  # shape: (*batch, N, N)
-        initial_vectors: Optional[torch.Tensor] = None,
-        test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
+        initial_vectors: torch.Tensor | None = None,
+        test_vectors: torch.Tensor | None = None,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, N)
         raise RuntimeError("ZeroLinearOperators are not positive definite!")
 
     def _size(self) -> torch.Size:
@@ -107,8 +103,8 @@ class ZeroLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         rhs_size_ind = -2 if rhs.ndimension() > 1 else -1
         if self.size(-2) != rhs.size(rhs_size_ind):
             raise RuntimeError("Size mismatch, self: {}, rhs: {}".format(self.size(), rhs.size()))
@@ -171,7 +167,7 @@ class ZeroLinearOperator(LinearOperator):
             )
         return res
 
-    def div(self, other: Union[float, torch.Tensor]) -> LinearOperator:
+    def div(self, other: float | torch.Tensor) -> LinearOperator:
         return self
 
     def inv_quad(
@@ -183,12 +179,12 @@ class ZeroLinearOperator(LinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
@@ -199,8 +195,8 @@ class ZeroLinearOperator(LinearOperator):
 
     def matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        other: Union[Tensor, LinearOperator],  # shape: (*batch2, N, P) or (*batch2, N)
-    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, P) or (..., M)
+        other: Tensor | LinearOperator,  # shape: (*batch2, N, P) or (*batch2, N)
+    ) -> Tensor | LinearOperator:  # shape: (..., M, P) or (..., M)
         tensor_size_ind = -2 if other.ndimension() > 1 else -1
         if self.size(-1) != other.size(tensor_size_ind):
             raise RuntimeError("Size mismatch, self: {}, other: {}".format(self.size(), other.size()))
@@ -215,7 +211,7 @@ class ZeroLinearOperator(LinearOperator):
 
     def mul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        other: Union[float, Tensor, LinearOperator],  # shape: (*batch2, M, N)
+        other: float | Tensor | LinearOperator,  # shape: (*batch2, M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         shape = torch.broadcast_shapes(self.shape, other.shape)
         return self.__class__(*shape, dtype=self._dtype, device=self._device)
@@ -223,7 +219,7 @@ class ZeroLinearOperator(LinearOperator):
     def solve(
         self: LinearOperator,  # shape: (..., N, N)
         right_tensor: Tensor,  # shape: (..., N, P) or (N)
-        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+        left_tensor: Tensor | None = None,  # shape: (..., O, N)
     ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         raise RuntimeError("ZeroLinearOperators are not invertible!")
 
@@ -243,6 +239,6 @@ class ZeroLinearOperator(LinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         return other

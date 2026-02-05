@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import os
 import random
@@ -45,7 +46,7 @@ class BaseTestCase(ABC):
 
         raise AssertionError(
             f"tensor1 ({tensor1.shape}) and tensor2 ({tensor2.shape}) are not close enough. \n"
-            f"max rtol: {rtol_max:0.8f}\t\tmax atol: {atol_max:0.8f}"
+            f"max rtol: {rtol_max:0.8f}\t\tmax atol: {atol_max:0.8f}"  # noqa: E231
         )
 
     def assertEqual(self, item1, item2):

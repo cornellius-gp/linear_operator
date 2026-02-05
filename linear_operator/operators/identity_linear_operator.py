@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
-
 import torch
 from torch import Tensor
 
@@ -29,9 +27,9 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def __init__(
         self,
         diag_shape: int,
-        batch_shape: Optional[torch.Size] = torch.Size([]),
-        dtype: Optional[torch.dtype] = torch.float,
-        device: Optional[torch.device] = None,
+        batch_shape: torch.Size | None = torch.Size([]),
+        dtype: torch.dtype | None = torch.float,
+        device: torch.device | None = None,
     ):
         one = torch.tensor(1.0, dtype=dtype, device=device)
         LinearOperator.__init__(self, diag_shape=diag_shape, batch_shape=batch_shape, dtype=dtype, device=device)
@@ -46,14 +44,14 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return self._batch_shape
 
     @property
-    def dtype(self) -> Optional[torch.dtype]:
+    def dtype(self) -> torch.dtype | None:
         return self._dtype
 
     @property
-    def device(self) -> Optional[torch.device]:
+    def device(self) -> torch.device | None:
         return self._device
 
-    def _maybe_reshape_rhs(self, rhs: Union[torch.Tensor, LinearOperator]) -> Union[torch.Tensor, LinearOperator]:
+    def _maybe_reshape_rhs(self, rhs: torch.Tensor | LinearOperator) -> torch.Tensor | LinearOperator:
         if self._batch_shape != rhs.shape[:-2]:
             batch_shape = torch.broadcast_shapes(rhs.shape[:-2], self._batch_shape)
             return rhs.expand(*batch_shape, *rhs.shape[-2:])
@@ -62,19 +60,19 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     @cached(name="cholesky", ignore_args=True)
     def _cholesky(
-        self: LinearOperator, upper: Optional[bool] = False  # shape: (*batch, N, N)
+        self: LinearOperator, upper: bool | None = False  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         return self
 
     def _cholesky_solve(
         self: LinearOperator,  # shape: (*batch, N, N)
-        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
-        upper: Optional[bool] = False,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
+        rhs: LinearOperator | Tensor,  # shape: (*batch2, N, M)
+        upper: bool | None = False,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, M)
         return self._maybe_reshape_rhs(rhs)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return IdentityLinearOperator(
             diag_shape=self.diag_shape, batch_shape=batch_shape, dtype=self.dtype, device=self.device
@@ -101,13 +99,13 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         return self._maybe_reshape_rhs(rhs)
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         return ConstantDiagLinearOperator(self.diag_values * other, diag_shape=self.diag_shape)
 
     def _mul_matrix(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[torch.Tensor, LinearOperator],  # shape: (..., #M, #N)
+        other: torch.Tensor | LinearOperator,  # shape: (..., #M, #N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return other
 
@@ -126,14 +124,14 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         return self.sqrt()
 
     def _root_inv_decomposition(
         self: LinearOperator,  # shape: (*batch, N, N)
-        initial_vectors: Optional[torch.Tensor] = None,
-        test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
+        initial_vectors: torch.Tensor | None = None,
+        test_vectors: torch.Tensor | None = None,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, N)
         return self.inverse().sqrt()
 
     def _size(self) -> torch.Size:
@@ -142,20 +140,20 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     @cached(name="svd")
     def _svd(
         self: LinearOperator,  # shape: (*batch, N, N)
-    ) -> Tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
+    ) -> tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
         return self, self._diag, self
 
     def _symeig(
         self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
-        return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
+        return_evals_as_lazy: bool | None = False,
+    ) -> tuple[Tensor, LinearOperator | None]:  # shape: (*batch, M), (*batch, N, M)
         return self._diag, self
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         return self._maybe_reshape_rhs(rhs)
 
     def _transpose_nonbatch(
@@ -186,12 +184,12 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         # TODO: Use proper batching for inv_quad_rhs (prepand to shape rather than append)
         if inv_quad_rhs is None:
@@ -218,8 +216,8 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
 
     def matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        other: Union[Tensor, LinearOperator],  # shape: (*batch2, N, P) or (*batch2, N)
-    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, P) or (..., M)
+        other: Tensor | LinearOperator,  # shape: (*batch2, N, P) or (*batch2, N)
+    ) -> Tensor | LinearOperator:  # shape: (..., M, P) or (..., M)
         is_vec = False
         if other.dim() == 1:
             is_vec = True
@@ -232,7 +230,7 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def solve(
         self: LinearOperator,  # shape: (..., N, N)
         right_tensor: Tensor,  # shape: (..., N, P) or (N)
-        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+        left_tensor: Tensor | None = None,  # shape: (..., O, N)
     ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         res = self._maybe_reshape_rhs(right_tensor)
         if left_tensor is not None:
@@ -247,8 +245,8 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     def sqrt_inv_matmul(
         self: LinearOperator,  # shape: (*batch, N, N)
         rhs: Tensor,  # shape: (*batch, N, P)
-        lhs: Optional[Tensor] = None,  # shape: (*batch, O, N)
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:  # shape: (*batch, N, P), (*batch, O, P), (*batch, O)
+        lhs: Tensor | None = None,  # shape: (*batch, O, N)
+    ) -> Tensor | tuple[Tensor, Tensor]:  # shape: (*batch, N, P), (*batch, O, P), (*batch, O)
         if lhs is None:
             return self._maybe_reshape_rhs(rhs)
         else:

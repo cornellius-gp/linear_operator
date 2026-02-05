@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
-
 import torch
 from torch import Tensor
 
@@ -31,9 +29,9 @@ class DenseLinearOperator(LinearOperator):
 
     def _cholesky_solve(
         self: LinearOperator,  # shape: (*batch, N, N)
-        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
-        upper: Optional[bool] = False,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
+        rhs: LinearOperator | Tensor,  # shape: (*batch2, N, M)
+        upper: bool | None = False,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, M)
         return torch.cholesky_solve(rhs, self.to_dense(), upper=upper)
 
     def _diagonal(
@@ -42,7 +40,7 @@ class DenseLinearOperator(LinearOperator):
         return self.tensor.diagonal(dim1=-1, dim2=-2)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(self.tensor.expand(*batch_shape, *self.matrix_shape))
 
@@ -68,7 +66,7 @@ class DenseLinearOperator(LinearOperator):
     def _prod_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self.tensor.prod(dim))
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         res = left_vecs.matmul(right_vecs.mT)
         return (res,)
 
@@ -85,8 +83,8 @@ class DenseLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         return torch.matmul(self.tensor.mT, rhs)
 
     def to_dense(
@@ -96,8 +94,8 @@ class DenseLinearOperator(LinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         if isinstance(other, DenseLinearOperator):
             return DenseLinearOperator(self.tensor + other.tensor)
         elif isinstance(other, torch.Tensor):
@@ -106,19 +104,20 @@ class DenseLinearOperator(LinearOperator):
             return super().__add__(other)
 
 
-def to_linear_operator(obj: Union[torch.Tensor, LinearOperator]) -> LinearOperator:
+def to_linear_operator(obj: torch.Tensor | LinearOperator) -> LinearOperator:
     """
     A function which ensures that `obj` is a LinearOperator.
     - If `obj` is a LinearOperator, this function does nothing.
     - If `obj` is a (normal) Tensor, this function wraps it with a `DenseLinearOperator`.
     """
 
-    if torch.is_tensor(obj):
-        return DenseLinearOperator(obj)
-    elif isinstance(obj, LinearOperator):
-        return obj
-    else:
-        raise TypeError("object of class {} cannot be made into a LinearOperator".format(obj.__class__.__name__))
+    match obj:
+        case _ if torch.is_tensor(obj):
+            return DenseLinearOperator(obj)
+        case LinearOperator():
+            return obj
+        case _:
+            raise TypeError("object of class {} cannot be made into a LinearOperator".format(obj.__class__.__name__))
 
 
 __all__ = ["DenseLinearOperator", "to_linear_operator"]

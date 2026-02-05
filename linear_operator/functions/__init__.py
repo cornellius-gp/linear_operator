@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple, Union
+from typing import Any, TypeAlias
 
 import torch
 
 from linear_operator.functions._dsmm import DSMM
 
-LinearOperatorType = Any  # Want this to be "LinearOperator" but runtime type checker can't handle
+LinearOperatorType: TypeAlias = Any  # Want this to be "LinearOperator" but runtime type checker can't handle
 
 
-Anysor = Union[LinearOperatorType, torch.Tensor]
+Anysor: TypeAlias = LinearOperatorType | torch.Tensor
 
 
 def add_diagonal(input: Anysor, diag: torch.Tensor) -> LinearOperatorType:
@@ -47,9 +47,7 @@ def add_jitter(input: Anysor, jitter_val: float = 1e-3) -> Anysor:
         return input + diag
 
 
-def diagonalization(
-    input: Anysor, method: Optional[str] = None
-) -> Tuple[torch.Tensor, Union[torch.Tensor, LinearOperatorType]]:
+def diagonalization(input: Anysor, method: str | None = None) -> tuple[torch.Tensor, torch.Tensor | LinearOperatorType]:
     r"""
     Returns a (usually partial) diagonalization of a symmetric positive definite matrix (or batch of matrices).
     :math:`\mathbf A`.
@@ -67,7 +65,7 @@ def diagonalization(
 
 
 def dsmm(
-    sparse_mat: Union[torch.sparse.HalfTensor, torch.sparse.FloatTensor, torch.sparse.DoubleTensor],
+    sparse_mat: torch.sparse.HalfTensor | torch.sparse.FloatTensor | torch.sparse.DoubleTensor,
     dense_mat: torch.Tensor,
 ) -> torch.Tensor:
     r"""
@@ -111,8 +109,8 @@ def inv_quad(input: Anysor, inv_quad_rhs: torch.Tensor, reduce_inv_quad: bool = 
 
 
 def inv_quad_logdet(
-    input: Anysor, inv_quad_rhs: Optional[torch.Tensor] = None, logdet: bool = False, reduce_inv_quad: bool = True
-) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+    input: Anysor, inv_quad_rhs: torch.Tensor | None = None, logdet: bool = False, reduce_inv_quad: bool = True
+) -> tuple[torch.Tensor | None, torch.Tensor | None]:
     r"""
     Calls both :func:`inv_quad_logdet` and :func:`logdet` on a positive definite matrix (or batch) :math:`\mathbf A`.
     However, calling this method is far more efficient and stable than calling each method independently.
@@ -133,8 +131,8 @@ def inv_quad_logdet(
 
 
 def pivoted_cholesky(
-    input: Anysor, rank: int, error_tol: Optional[float] = None, return_pivots: bool = False
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    input: Anysor, rank: int, error_tol: float | None = None, return_pivots: bool = False
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     r"""
     Performs a partial pivoted Cholesky factorization of a positive definite matrix (or batch of matrices).
     :math:`\mathbf L \mathbf L^\top = \mathbf A`.
@@ -161,7 +159,7 @@ def pivoted_cholesky(
     return to_linear_operator(input).pivoted_cholesky(rank=rank, error_tol=error_tol, return_pivots=return_pivots)
 
 
-def root_decomposition(input: Anysor, method: Optional[str] = None) -> LinearOperatorType:
+def root_decomposition(input: Anysor, method: str | None = None) -> LinearOperatorType:
     r"""
     Returns a (usually low-rank) root decomposition linear operator of the
     positive definite matrix (or batch of matrices) :math:`\mathbf A`.
@@ -180,9 +178,9 @@ def root_decomposition(input: Anysor, method: Optional[str] = None) -> LinearOpe
 
 def root_inv_decomposition(
     input: Anysor,
-    initial_vectors: Optional[torch.Tensor] = None,
-    test_vectors: Optional[torch.Tensor] = None,
-    method: Optional[str] = None,
+    initial_vectors: torch.Tensor | None = None,
+    test_vectors: torch.Tensor | None = None,
+    method: str | None = None,
 ) -> LinearOperatorType:
     r"""
     Returns a (usually low-rank) inverse root decomposition linear operator
@@ -206,7 +204,7 @@ def root_inv_decomposition(
     )
 
 
-def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) -> torch.Tensor:
+def solve(input: Anysor, rhs: torch.Tensor, lhs: torch.Tensor | None = None) -> torch.Tensor:
     r"""
     Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`,
     computes a linear solve with right hand side :math:`\mathbf R`:
@@ -241,8 +239,8 @@ def solve(input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None) 
 
 
 def sqrt_inv_matmul(
-    input: Anysor, rhs: torch.Tensor, lhs: Optional[torch.Tensor] = None
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    input: Anysor, rhs: torch.Tensor, lhs: torch.Tensor | None = None
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     r"""
     Given a positive definite matrix (or batch of matrices) :math:`\mathbf A`
     and a right hand size :math:`\mathbf R`,

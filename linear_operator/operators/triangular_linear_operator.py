@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, TypeAlias
 
 import torch
 from torch import Tensor
@@ -12,7 +13,7 @@ from linear_operator.operators.dense_linear_operator import DenseLinearOperator
 from linear_operator.utils.errors import NotPSDError
 from linear_operator.utils.memoize import cached
 
-Allsor = Union[Tensor, LinearOperator]
+Allsor: TypeAlias = Tensor | LinearOperator
 
 
 class _TriangularLinearOperatorBase:
@@ -51,8 +52,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -64,15 +65,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor + other
 
     def _cholesky(
-        self: LinearOperator, upper: Optional[bool] = False  # shape: (*batch, N, N)
+        self: LinearOperator, upper: bool | None = False  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         raise NotPSDError("TriangularLinearOperator does not allow a Cholesky decomposition")
 
     def _cholesky_solve(
         self: LinearOperator,  # shape: (*batch, N, N)
-        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
-        upper: Optional[bool] = False,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
+        rhs: LinearOperator | Tensor,  # shape: (*batch2, N, M)
+        upper: bool | None = False,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, M)
         # use custom method if implemented
         try:
             res = self._tensor._cholesky_solve(rhs=rhs, upper=upper)
@@ -93,7 +94,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor._diagonal()
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         if len(batch_shape) == 0:
             return self
@@ -109,20 +110,20 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         return self._tensor.matmul(rhs)
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         return self.__class__(self._tensor * other.unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         raise NotPSDError("TriangularLinearOperator does not allow a root decomposition")
 
     def _root_inv_decomposition(
         self: LinearOperator,  # shape: (*batch, N, N)
-        initial_vectors: Optional[torch.Tensor] = None,
-        test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
+        initial_vectors: torch.Tensor | None = None,
+        test_vectors: torch.Tensor | None = None,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, N)
         raise NotPSDError("TriangularLinearOperator does not allow an inverse root decomposition")
 
     def _size(self) -> torch.Size:
@@ -131,15 +132,15 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
         rhs: torch.Tensor,  # shape: (..., N, C)
-        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        torch.Tensor,  # shape: (..., N, C)
-        Tuple[
+        preconditioner: Callable[[torch.Tensor], torch.Tensor] | None = None,  # shape: (..., N, C)
+        num_tridiag: int | None = 0,
+    ) -> (
+        torch.Tensor  # shape: (..., N, C)
+        | tuple[
             torch.Tensor,  # shape: (..., N, C)
             torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
-        ],
-    ]:
+        ]
+    ):
         # already triangular, can just call solve for the solve
         return self.solve(rhs)
 
@@ -179,12 +180,12 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         if inv_quad_rhs is None:
             inv_quad_term = torch.empty(0, dtype=self.dtype, device=self.device)
@@ -216,7 +217,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def solve(
         self: LinearOperator,  # shape: (..., N, N)
         right_tensor: Tensor,  # shape: (..., N, P) or (N)
-        left_tensor: Optional[Tensor] = None,  # shape: (..., O, N)
+        left_tensor: Tensor | None = None,  # shape: (..., O, N)
     ) -> Tensor:  # shape: (..., N, P) or (..., N) or (..., O, P) or (..., O)
         squeeze = False
         if right_tensor.dim() == 1:

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-from typing import Any, Optional, Union
+from typing import Any
 
 import torch
 
 
 def apply_permutation(
-    matrix: Union[Any, torch.Tensor],  # Union["LinearOperator", torch.Tensor]
-    left_permutation: Optional[torch.Tensor] = None,
-    right_permutation: Optional[torch.Tensor] = None,
+    matrix: Any | torch.Tensor,  # Union["LinearOperator", torch.Tensor]
+    left_permutation: torch.Tensor | None = None,
+    right_permutation: torch.Tensor | None = None,
 ):
     r"""
     Applies a left and/or right (partial) permutation to a given matrix :math:`\mathbf K`:

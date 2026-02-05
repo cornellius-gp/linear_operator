@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import torch
 
@@ -156,54 +157,55 @@ def sparse_getitem(sparse, idxs):
     size = list(sparse.size())
 
     for i, idx in list(enumerate(idxs))[::-1]:
-        if isinstance(idx, int):
-            del size[i]
-            mask = indices[i].eq(idx)
-            if torch.any(mask):
-                new_indices = torch.zeros(
-                    indices.size(0) - 1,
-                    torch.sum(mask),
-                    dtype=indices.dtype,
-                    device=indices.device,
-                )
-                for j in range(indices.size(0)):
-                    if i > j:
+        match idx:
+            case int():
+                del size[i]
+                mask = indices[i].eq(idx)
+                if torch.any(mask):
+                    new_indices = torch.zeros(
+                        indices.size(0) - 1,
+                        torch.sum(mask),
+                        dtype=indices.dtype,
+                        device=indices.device,
+                    )
+                    for j in range(indices.size(0)):
+                        if i > j:
+                            new_indices[j].copy_(indices[j][mask])
+                        elif i < j:
+                            new_indices[j - 1].copy_(indices[j][mask])
+                    indices = new_indices
+                    values = values[mask]
+                else:
+                    indices.resize_(indices.size(0) - 1, 1).zero_()
+                    values.resize_(1).zero_()
+
+                if not len(size):
+                    return sum(values)
+
+            case slice():
+                start, stop, step = idx.indices(size[i])
+                size = list(size[:i]) + [stop - start] + list(size[i + 1 :])
+                if step != 1:
+                    raise RuntimeError("Slicing with step is not supported")
+                mask = indices[i].lt(stop) & indices[i].ge(start)
+                if torch.any(mask):
+                    new_indices = torch.zeros(
+                        indices.size(0),
+                        torch.sum(mask),
+                        dtype=indices.dtype,
+                        device=indices.device,
+                    )
+                    for j in range(indices.size(0)):
                         new_indices[j].copy_(indices[j][mask])
-                    elif i < j:
-                        new_indices[j - 1].copy_(indices[j][mask])
-                indices = new_indices
-                values = values[mask]
-            else:
-                indices.resize_(indices.size(0) - 1, 1).zero_()
-                values.resize_(1).zero_()
+                    new_indices[i].sub_(start)
+                    indices = new_indices
+                    values = values[mask]
+                else:
+                    indices.resize_(indices.size(0), 1).zero_()
+                    values.resize_(1).zero_()
 
-            if not len(size):
-                return sum(values)
-
-        elif isinstance(idx, slice):
-            start, stop, step = idx.indices(size[i])
-            size = list(size[:i]) + [stop - start] + list(size[i + 1 :])
-            if step != 1:
-                raise RuntimeError("Slicing with step is not supported")
-            mask = indices[i].lt(stop) & indices[i].ge(start)
-            if torch.any(mask):
-                new_indices = torch.zeros(
-                    indices.size(0),
-                    torch.sum(mask),
-                    dtype=indices.dtype,
-                    device=indices.device,
-                )
-                for j in range(indices.size(0)):
-                    new_indices[j].copy_(indices[j][mask])
-                new_indices[i].sub_(start)
-                indices = new_indices
-                values = values[mask]
-            else:
-                indices.resize_(indices.size(0), 1).zero_()
-                values.resize_(1).zero_()
-
-        else:
-            raise RuntimeError("Unknown index type")
+            case _:
+                raise RuntimeError("Unknown index type")
 
     return torch.sparse_coo_tensor(indices, values, torch.Size(size), dtype=values.dtype, device=values.device)
 

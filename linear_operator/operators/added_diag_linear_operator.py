@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -35,8 +35,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def __init__(
         self,
-        *linear_ops: Union[Tuple[LinearOperator, DiagLinearOperator], Tuple[DiagLinearOperator, LinearOperator]],
-        preconditioner_override: Optional[Callable] = None,
+        *linear_ops: tuple[LinearOperator, DiagLinearOperator] | tuple[DiagLinearOperator, LinearOperator],
+        preconditioner_override: Callable | None = None,
     ):
         linear_ops = list(linear_ops)
         super(AddedDiagLinearOperator, self).__init__(*linear_ops, preconditioner_override=preconditioner_override)
@@ -83,8 +83,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
         if isinstance(other, DiagLinearOperator):
@@ -92,7 +92,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         else:
             return self.__class__(self._linear_op + other, self._diag_tensor)
 
-    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
+    def _preconditioner(self) -> tuple[Callable | None, LinearOperator | None, torch.Tensor | None]:
         r"""
         Here we use a partial pivoted Cholesky preconditioner:
 
@@ -158,7 +158,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
 
         self._precond_lt = PsdSumLinearOperator(RootLinearOperator(self._piv_chol_self), self._diag_tensor)
 
-    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, List[int]], n: int, k: int):
+    def _init_cache_for_constant_diag(self, eye: Tensor, batch_shape: torch.Size | list[int], n: int, k: int):
         # We can factor out the noise for for both QR and solves.
         self._noise = self._noise.narrow(-2, 0, 1)
         self._q_cache, self._r_cache = torch.linalg.qr(
@@ -171,7 +171,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
         logdet = logdet + (n - k) * self._noise.squeeze(-2).squeeze(-1).log()
         self._precond_logdet_cache = logdet.view(*batch_shape) if len(batch_shape) else logdet.squeeze()
 
-    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: Union[torch.Size, List[int]], n: int):
+    def _init_cache_for_non_constant_diag(self, eye: Tensor, batch_shape: torch.Size | list[int], n: int):
         # With non-constant diagonals, we cant factor out the noise as easily
         self._q_cache, self._r_cache = torch.linalg.qr(
             torch.cat((self._piv_chol_self / self._noise.sqrt(), eye), dim=-2)
@@ -186,7 +186,7 @@ class AddedDiagLinearOperator(SumLinearOperator):
     @cached(name="svd")
     def _svd(
         self: LinearOperator,  # shape: (*batch, N, N)
-    ) -> Tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
+    ) -> tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             U, S_, V = self._linear_op.svd()
             S = S_ + self._diag_tensor._diagonal()
@@ -196,8 +196,8 @@ class AddedDiagLinearOperator(SumLinearOperator):
     def _symeig(
         self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
-        return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
+        return_evals_as_lazy: bool | None = False,
+    ) -> tuple[Tensor, LinearOperator | None]:  # shape: (*batch, M), (*batch, N, M)
         if isinstance(self._diag_tensor, ConstantDiagLinearOperator):
             evals_, evecs = self._linear_op._symeig(eigenvectors=eigenvectors)
             evals = evals_ + self._diag_tensor._diagonal()

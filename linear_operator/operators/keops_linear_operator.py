@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 
@@ -102,7 +100,7 @@ class KeOpsLinearOperator(LinearOperator):
         # Now construct a kernel with those indices
         return self.__class__(x1, x2, covar_func=self.covar_func, **self.params)
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         """
         Use default behavior, but KeOps does not automatically make args contiguous like torch.matmul.
 
