@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -46,7 +45,7 @@ class MatmulLinearOperator(LinearOperator):
             self.right_linear_op = right_linear_op
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(
             self.left_linear_op._expand_batch(batch_shape), self.right_linear_op._expand_batch(batch_shape)
@@ -103,11 +102,11 @@ class MatmulLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         return self.right_linear_op._t_matmul(self.left_linear_op._t_matmul(rhs))
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         if left_vecs.ndimension() == 1:
             left_vecs = left_vecs.unsqueeze(1)
             right_vecs = right_vecs.unsqueeze(1)
@@ -136,9 +135,10 @@ class MatmulLinearOperator(LinearOperator):
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch, M, N)
         # Use element-wise multiplication for DiagLinearOperators
-        if isinstance(self.left_linear_op, DiagLinearOperator):
-            return self.left_linear_op._diag.unsqueeze(-1) * self.right_linear_op.to_dense()
-        if isinstance(self.right_linear_op, DiagLinearOperator):
-            return self.left_linear_op.to_dense() * self.right_linear_op._diag.unsqueeze(-2)
-
-        return torch.matmul(self.left_linear_op.to_dense(), self.right_linear_op.to_dense())
+        match (self.left_linear_op, self.right_linear_op):
+            case (DiagLinearOperator() as left, _):
+                return left._diag.unsqueeze(-1) * self.right_linear_op.to_dense()
+            case (_, DiagLinearOperator() as right):
+                return self.left_linear_op.to_dense() * right._diag.unsqueeze(-2)
+            case _:
+                return torch.matmul(self.left_linear_op.to_dense(), self.right_linear_op.to_dense())

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import List, Optional, Union
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -28,7 +28,7 @@ class RootLinearOperator(LinearOperator):
             return super()._diagonal()
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         if len(batch_shape) == 0:
             return self
@@ -72,7 +72,7 @@ class RootLinearOperator(LinearOperator):
         return self.root._matmul(self.root._t_matmul(rhs))
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         if (other > 0).all():
             res = self.__class__(self.root._mul_constant(other.sqrt()))
@@ -82,29 +82,29 @@ class RootLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         # Matrix is symmetric
         return self._matmul(rhs)
 
     def add_low_rank(
         self: LinearOperator,  # shape: (*batch, N, N)
-        low_rank_mat: Union[Tensor, LinearOperator],  # shape: (..., N, _)
-        root_decomp_method: Optional[str] = None,
-        root_inv_decomp_method: Optional[str] = None,
-        generate_roots: Optional[bool] = True,
+        low_rank_mat: Tensor | LinearOperator,  # shape: (..., N, _)
+        root_decomp_method: str | None = None,
+        root_inv_decomp_method: str | None = None,
+        generate_roots: bool | None = True,
         **root_decomp_kwargs,
     ) -> LinearOperator:  # shape: (*batch, N, N)
         return super().add_low_rank(low_rank_mat, root_inv_decomp_method=root_inv_decomp_method)
 
     def root_decomposition(
-        self: LinearOperator, method: Optional[str] = None  # shape: (*batch, N, N)
+        self: LinearOperator, method: str | None = None  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         return self
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         return self.root
 
     def _root_decomposition_size(self) -> int:

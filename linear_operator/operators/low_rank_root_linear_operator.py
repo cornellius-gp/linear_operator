@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Union
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -51,8 +51,8 @@ class LowRankRootLinearOperator(RootLinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
         from linear_operator.operators.low_rank_root_added_diag_linear_operator import (
             LowRankRootAddedDiagLinearOperator,

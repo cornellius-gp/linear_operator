@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-from typing import Callable, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -40,7 +42,7 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     @cached(name="cholesky")
     def _cholesky(
-        self: LinearOperator, upper: Optional[bool] = False  # shape: (*batch, N, N)
+        self: LinearOperator, upper: bool | None = False  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         from linear_operator.operators.triangular_linear_operator import TriangularLinearOperator
 
@@ -49,9 +51,9 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     def _cholesky_solve(
         self: LinearOperator,  # shape: (*batch, N, N)
-        rhs: Union[LinearOperator, Tensor],  # shape: (*batch2, N, M)
-        upper: Optional[bool] = False,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, M)
+        rhs: LinearOperator | Tensor,  # shape: (*batch2, N, M)
+        upper: bool | None = False,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, M)
         rhs = self._add_batch_dim(rhs)
         res = self.base_linear_op._cholesky_solve(rhs, upper=upper)
         res = self._remove_batch_dim(res)
@@ -88,14 +90,14 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         return self.__class__(self.base_linear_op._root_decomposition())
 
     def _root_inv_decomposition(
         self: LinearOperator,  # shape: (*batch, N, N)
-        initial_vectors: Optional[torch.Tensor] = None,
-        test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
+        initial_vectors: torch.Tensor | None = None,
+        test_vectors: torch.Tensor | None = None,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, N)
         return self.__class__(self.base_linear_op._root_inv_decomposition(initial_vectors))
 
     def _size(self) -> torch.Size:
@@ -108,15 +110,15 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
         rhs: torch.Tensor,  # shape: (..., N, C)
-        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        torch.Tensor,  # shape: (..., N, C)
-        Tuple[
+        preconditioner: Callable[[torch.Tensor], torch.Tensor] | None = None,  # shape: (..., N, C)
+        num_tridiag: int | None = 0,
+    ) -> (
+        torch.Tensor  # shape: (..., N, C)
+        | tuple[
             torch.Tensor,  # shape: (..., N, C)
             torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
-        ],
-    ]:
+        ]
+    ):
         if num_tridiag:
             return super()._solve(rhs, preconditioner, num_tridiag=num_tridiag)
         else:
@@ -127,12 +129,12 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         if inv_quad_rhs is not None:
             inv_quad_rhs = self._add_batch_dim(inv_quad_rhs)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -64,12 +65,12 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         if inv_quad_rhs is not None:
             inv_quad_term, _ = super().inv_quad_logdet(
@@ -126,22 +127,22 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
         return super().inv_quad_logdet(logdet=True)[1]
 
-    def _preconditioner(self) -> Tuple[Optional[Callable], Optional[LinearOperator], Optional[torch.Tensor]]:
+    def _preconditioner(self) -> tuple[Callable | None, LinearOperator | None, torch.Tensor | None]:
         # solves don't use CG so don't waste time computing it
         return None, None, None
 
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
         rhs: torch.Tensor,  # shape: (..., N, C)
-        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        torch.Tensor,  # shape: (..., N, C)
-        Tuple[
+        preconditioner: Callable[[torch.Tensor], torch.Tensor] | None = None,  # shape: (..., N, C)
+        num_tridiag: int | None = 0,
+    ) -> (
+        torch.Tensor  # shape: (..., N, C)
+        | tuple[
             torch.Tensor,  # shape: (..., N, C)
             torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
-        ],
-    ]:
+        ]
+    ):
 
         rhs_dtype = rhs.dtype
 
@@ -224,7 +225,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)
-    ) -> Union[torch.Tensor, LinearOperator]:  # shape: (..., N, N)
+    ) -> torch.Tensor | LinearOperator:  # shape: (..., N, N)
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
             updated_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(0.5))
@@ -257,9 +258,9 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def _root_inv_decomposition(
         self: LinearOperator,  # shape: (*batch, N, N)
-        initial_vectors: Optional[torch.Tensor] = None,
-        test_vectors: Optional[torch.Tensor] = None,
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, N)
+        initial_vectors: torch.Tensor | None = None,
+        test_vectors: torch.Tensor | None = None,
+    ) -> LinearOperator | Tensor:  # shape: (..., N, N)
         if self._diag_is_constant:
             evals, q_matrix = self.linear_op.diagonalization()
             inv_sqrt_evals = DiagLinearOperator((evals + self.diag_tensor._diagonal()).pow(-0.5))
@@ -293,8 +294,8 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _symeig(
         self: LinearOperator,  # shape: (*batch, N, N)
         eigenvectors: bool = False,
-        return_evals_as_lazy: Optional[bool] = False,
-    ) -> Tuple[Tensor, Optional[LinearOperator]]:  # shape: (*batch, M), (*batch, N, M)
+        return_evals_as_lazy: bool | None = False,
+    ) -> tuple[Tensor, LinearOperator | None]:  # shape: (*batch, M), (*batch, N, M)
         # return_evals_as_lazy is a flag to return the eigenvalues as a lazy tensor
         # which is useful for root decompositions here (see the root_decomposition
         # method above)
@@ -307,8 +308,8 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         if isinstance(other, ConstantDiagLinearOperator) and self._diag_is_constant:
             # the other cases have only partial implementations
             return KroneckerProductAddedDiagLinearOperator(self.linear_op, self.diag_tensor + other)

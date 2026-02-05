@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import warnings
 
@@ -38,13 +39,15 @@ def _psd_safe_cholesky(A, out=None, jitter=None, max_tries=None):
         Aprime.diagonal(dim1=-1, dim2=-2).add_(diag_add)
         jitter_prev = jitter_new
         warnings.warn(
-            f"A not p.d., added jitter of {jitter_new:.1e} to the diagonal",
+            f"A not p.d., added jitter of {jitter_new:.1e} to the diagonal",  # noqa: E231
             NumericalWarning,
         )
         L, info = torch.linalg.cholesky_ex(Aprime, out=out)
         if not torch.any(info):
             return L
-    raise NotPSDError(f"Matrix not positive definite after repeatedly adding jitter up to {jitter_new:.1e}.")
+    raise NotPSDError(
+        f"Matrix not positive definite after repeatedly adding jitter up to {jitter_new:.1e}."  # noqa: E231
+    )
 
 
 def psd_safe_cholesky(A, upper=False, out=None, jitter=None, max_tries=None):

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
-
 import torch
 from torch import Tensor
 
@@ -83,7 +81,7 @@ class ConstantMulLinearOperator(LinearOperator):
         return res * self._constant.unsqueeze(-1)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         return self.__class__(
             self.base_linear_op._expand_batch(batch_shape),
@@ -123,7 +121,7 @@ class ConstantMulLinearOperator(LinearOperator):
             self.base_linear_op._permute_batch(*dims), self._constant.expand(self.batch_shape).permute(*dims)
         )
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         # Gradient with respect to the constant
         constant_deriv = left_vecs * self.base_linear_op._matmul(right_vecs)
         constant_deriv = constant_deriv.sum(-2).sum(-1)
@@ -144,8 +142,8 @@ class ConstantMulLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         res = self.base_linear_op._t_matmul(rhs)
         res = res * self.expanded_constant
         return res
@@ -184,7 +182,7 @@ class ConstantMulLinearOperator(LinearOperator):
 
     @cached(name="root_decomposition")
     def root_decomposition(
-        self: LinearOperator, method: Optional[str] = None  # shape: (*batch, N, N)
+        self: LinearOperator, method: str | None = None  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         if torch.all(self._constant >= 0):
             base_root = self.base_linear_op.root_decomposition(method=method).root

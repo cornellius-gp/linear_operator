@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 import torch
 from torch import Tensor
@@ -103,7 +103,7 @@ class CatLinearOperator(LinearOperator):
             (*rep_tensor.shape[:positive_dim], cat_dim_cum_sizes[-1].item(), *rep_tensor.shape[positive_dim + 1 :])
         )
 
-    def _split_slice(self, slice_idx: slice) -> Tuple[Sequence[int], List[slice]]:
+    def _split_slice(self, slice_idx: slice) -> tuple[Sequence[int], list[slice]]:
         """
         Splits a slice(a, b, None) in to a list of slices [slice(a1, b1, None), slice(a2, b2, None), ...]
         so that each slice in the list slices in to a single tensor that we have concatenated with this LinearOperator.
@@ -161,7 +161,7 @@ class CatLinearOperator(LinearOperator):
         return res
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         batch_dim = self.cat_dim + 2
         if batch_dim < 0:
@@ -390,22 +390,22 @@ class CatLinearOperator(LinearOperator):
 
     def inv_quad_logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
-        inv_quad_rhs: Optional[Tensor] = None,  # shape: (*batch, N, M) or (*batch, N)
-        logdet: Optional[bool] = False,
-        reduce_inv_quad: Optional[bool] = True,
-    ) -> Tuple[  # fmt: off
-        Optional[Tensor],  # shape: (*batch, M) or (*batch) or (0)
-        Optional[Tensor],  # shape: (...)
+        inv_quad_rhs: Tensor | None = None,  # shape: (*batch, N, M) or (*batch, N)
+        logdet: bool | None = False,
+        reduce_inv_quad: bool | None = True,
+    ) -> tuple[  # fmt: off
+        Tensor | None,  # shape: (*batch, M) or (*batch) or (0)
+        Tensor | None,  # shape: (...)
     ]:  # fmt: on
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
         return tuple(r.to(self.device) for r in res)
 
     @property
-    def device(self) -> Optional[torch.device]:
+    def device(self) -> torch.device | None:
         return self.output_device
 
     @property
-    def devices(self) -> List[torch.device]:
+    def devices(self) -> list[torch.device]:
         return [t.device for t in self.linear_ops]
 
     @property

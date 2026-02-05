@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable
 
 import torch
 
@@ -133,10 +135,10 @@ class KernelLinearOperator(LinearOperator):
         self,
         x1: Tensor,  # shape: (..., M, D)
         x2: Tensor,  # shape: (..., N, D)
-        covar_func: Callable[..., Union[Tensor, LinearOperator]],  # shape: (..., M, N)
-        num_outputs_per_input: Tuple[int, int] = (1, 1),
-        num_nonbatch_dimensions: Optional[Dict[str, int]] = None,
-        **params: Union[Tensor, Any],
+        covar_func: Callable[..., Tensor | LinearOperator],  # shape: (..., M, N)
+        num_outputs_per_input: tuple[int, int] = (1, 1),
+        num_nonbatch_dimensions: dict[str, int] | None = None,
+        **params: Tensor | Any,
     ):
         # Change num_nonbatch_dimensions into a default dict
         if num_nonbatch_dimensions is None:
@@ -251,7 +253,7 @@ class KernelLinearOperator(LinearOperator):
     @cached(name="covar_mat")
     def covar_mat(
         self: LinearOperator,  # shape: (..., M, N)
-    ) -> Union[Tensor, LinearOperator]:  # shape: (..., M, N)
+    ) -> Tensor | LinearOperator:  # shape: (..., M, N)
         return self.covar_func(self.x1, self.x2, **self.tensor_params, **self.nontensor_params)
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:

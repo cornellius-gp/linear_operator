@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional, Set, Tuple
-
 import torch
 
 
-def _to_helper(*args, **kwargs) -> Tuple[Optional[torch.device], Optional[torch.dtype]]:
+def _to_helper(*args, **kwargs) -> tuple[torch.device | None, torch.dtype | None]:
     """
     Silently plucks out dtype and devices from a list of arguments. Can contain
     `torch.device`,  `torch.dtype` and `torch.Tensor` objects as positional arguments
@@ -20,8 +18,8 @@ def _to_helper(*args, **kwargs) -> Tuple[Optional[torch.device], Optional[torch.
         >>> dtype, device = _to_helper(torch.float, torch.device("cpu"))
         >>> dtype, device = _to_helper(torch.rand(2, dtype=torch.double)
     """
-    dtype_args: Set[torch.dtype] = set()
-    device_args: Set[torch.device] = set()
+    dtype_args: set[torch.dtype] = set()
+    device_args: set[torch.device] = set()
 
     for arg in args:
         if type(arg) is torch.dtype:

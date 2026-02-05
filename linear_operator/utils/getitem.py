@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Tuple, Union
+import types
+from typing import Any, Iterable
 
 import torch
 
 from linear_operator import settings
 from linear_operator.utils.broadcasting import _pad_with_singletons
 
-# EllipsisType is only available in Python 3.10+
-IndexType = Union[type(Ellipsis), slice, Iterable[int], torch.LongTensor, int]
+IndexType = types.EllipsisType | slice | Iterable[int] | torch.LongTensor | int
 
 # A slice that does nothing to a dimension
 _noop_index = slice(None, None, None)
 
 
 def _compute_getitem_size(
-    obj: Union[torch.Tensor, Any],
+    obj: torch.Tensor | Any,
     indices: IndexType,  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
 ) -> torch.Size:
     """
@@ -96,9 +96,9 @@ def _compute_getitem_size(
 
 
 def _convert_indices_to_tensors(
-    obj: Union[torch.Tensor, Any],
+    obj: torch.Tensor | Any,
     indices: IndexType,  # Forward references not supported - obj: Union[torch.Tensor, "LinearOperator"]
-) -> Tuple[torch.LongTensor, ...]:
+) -> tuple[torch.LongTensor, ...]:
     """
     Given an index made up of tensors/slices/ints, returns a tensor-only index that has the
     same outcome as the original index (when applied to the obj)
@@ -167,12 +167,13 @@ def _equal_indices(a, b):
     """
     Helper which checks whether two index components (int, slice, tensor) are equal
     """
-    if torch.is_tensor(a) and torch.is_tensor(b):
-        return torch.equal(a, b)
-    elif not torch.is_tensor(a) and not torch.is_tensor(b):
-        return a == b
-    else:
-        return False
+    match (a, b):
+        case (a, b) if torch.is_tensor(a) and torch.is_tensor(b):
+            return torch.equal(a, b)
+        case (a, b) if not torch.is_tensor(a) and not torch.is_tensor(b):
+            return a == b
+        case _:
+            return False
 
 
 def _is_noop_index(index):

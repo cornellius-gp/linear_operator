@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 from linear_operator.operators._linear_operator import LinearOperator, to_dense
 from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator

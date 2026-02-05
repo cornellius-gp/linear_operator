@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -31,7 +31,7 @@ class SumLinearOperator(LinearOperator):
         return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
 
     def _expand_batch(
-        self: LinearOperator, batch_shape: Union[torch.Size, List[int]]  # shape: (..., M, N)
+        self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)
     ) -> LinearOperator:  # shape: (..., M, N)
         expanded_tensors = [linear_op._expand_batch(batch_shape) for linear_op in self.linear_ops]
         return self.__class__(*expanded_tensors)
@@ -51,12 +51,12 @@ class SumLinearOperator(LinearOperator):
         return sum(linear_op._matmul(rhs) for linear_op in self.linear_ops)
 
     def _mul_constant(
-        self: LinearOperator, other: Union[float, torch.Tensor]  # shape: (*batch, M, N)
+        self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         # We're using a custom method here - the constant mul is applied to the base_linear_ops
         return self.__class__(*[lt._mul_constant(other) for lt in self.linear_ops])
 
-    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> Tuple[Optional[Tensor], ...]:
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
         return tuple(
             var for linear_op in self.linear_ops for var in linear_op._bilinear_derivative(left_vecs, right_vecs)
         )
@@ -69,8 +69,8 @@ class SumLinearOperator(LinearOperator):
 
     def _t_matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
-        rhs: Union[Tensor, LinearOperator],  # shape: (*batch2, M, P)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., N, P)
+        rhs: Tensor | LinearOperator,  # shape: (*batch2, M, P)
+    ) -> LinearOperator | Tensor:  # shape: (..., N, P)
         return sum(linear_op._t_matmul(rhs) for linear_op in self.linear_ops)
 
     def _transpose_nonbatch(
@@ -87,29 +87,30 @@ class SumLinearOperator(LinearOperator):
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
-        other: Union[Tensor, LinearOperator, float],  # shape: (..., #M, #N)
-    ) -> Union[LinearOperator, Tensor]:  # shape: (..., M, N)
+        other: Tensor | LinearOperator | float,  # shape: (..., #M, #N)
+    ) -> LinearOperator | Tensor:  # shape: (..., M, N)
         from linear_operator.operators.added_diag_linear_operator import AddedDiagLinearOperator
         from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 
-        if isinstance(other, ZeroLinearOperator):
-            return self
-        elif isinstance(other, DiagLinearOperator):
-            return AddedDiagLinearOperator(self, other)
-        elif isinstance(other, SumLinearOperator):
-            return SumLinearOperator(*(list(self.linear_ops) + list(other.linear_ops)))
-        elif isinstance(other, LinearOperator):
-            return SumLinearOperator(*(list(self.linear_ops) + [other]))
-        elif isinstance(other, Tensor):
-            # get broadcast shape, assuming mul broadcasting the same as add broadcasting
-            broadcasted_shape = torch.broadcast_shapes(self.shape, other.shape)
+        match other:
+            case ZeroLinearOperator():
+                return self
+            case DiagLinearOperator():
+                return AddedDiagLinearOperator(self, other)
+            case SumLinearOperator():
+                return SumLinearOperator(*(list(self.linear_ops) + list(other.linear_ops)))
+            case LinearOperator():
+                return SumLinearOperator(*(list(self.linear_ops) + [other]))
+            case Tensor():
+                # get broadcast shape, assuming mul broadcasting the same as add broadcasting
+                broadcasted_shape = torch.broadcast_shapes(self.shape, other.shape)
 
-            # to_linear_operator + broadcast other
-            broadcasted_other = to_linear_operator(other.expand(broadcasted_shape))
+                # to_linear_operator + broadcast other
+                broadcasted_other = to_linear_operator(other.expand(broadcasted_shape))
 
-            # update the lazy tensors' shape as well
-            new_self = self if broadcasted_shape == self.shape else self._expand_batch(broadcasted_shape[:-2])
+                # update the lazy tensors' shape as well
+                new_self = self if broadcasted_shape == self.shape else self._expand_batch(broadcasted_shape[:-2])
 
-            return SumLinearOperator(*(list(new_self.linear_ops) + [broadcasted_other]))
-        else:
-            raise AttributeError("other must be a LinearOperator")
+                return SumLinearOperator(*(list(new_self.linear_ops) + [broadcasted_other]))
+            case _:
+                raise AttributeError("other must be a LinearOperator")

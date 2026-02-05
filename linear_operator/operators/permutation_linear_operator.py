@@ -1,4 +1,6 @@
-from typing import Callable, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -20,22 +22,22 @@ class AbstractPermutationLinearOperator(LinearOperator):
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
         rhs: torch.Tensor,  # shape: (..., N, C)
-        preconditioner: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,  # shape: (..., N, C)
-        num_tridiag: Optional[int] = 0,
-    ) -> Union[
-        torch.Tensor,  # shape: (..., N, C)
-        Tuple[
+        preconditioner: Callable[[torch.Tensor], torch.Tensor] | None = None,  # shape: (..., N, C)
+        num_tridiag: int | None = 0,
+    ) -> (
+        torch.Tensor  # shape: (..., N, C)
+        | tuple[
             torch.Tensor,  # shape: (..., N, C)
             torch.Tensor,  # Note that in case of a tuple the second term size depends on num_tridiag  # shape: (...)
-        ],
-    ]:
+        ]
+    ):
         self._matmul_check_shape(rhs)
         return self.inverse() @ rhs
 
     def _matmul_check_shape(self, rhs: Tensor) -> None:
         if rhs.shape[-2] != self.shape[-1]:
             raise ValueError(
-                f"{rhs.shape[0] = } incompatible with first dimensions of"
+                f"rhs.shape[0]={rhs.shape[0]} incompatible with first dimensions of "
                 f"permutation operator with shape {self.shape}."
             )
 
@@ -43,7 +45,7 @@ class AbstractPermutationLinearOperator(LinearOperator):
         return torch.broadcast_shapes(self.batch_shape, rhs.shape[:-2])
 
     @property
-    def dtype(self) -> Optional[torch.dtype]:
+    def dtype(self) -> torch.dtype | None:
         return self._dtype
 
 
@@ -65,7 +67,7 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
     def __init__(
         self,
         perm: Tensor,
-        inv_perm: Optional[Tensor] = None,
+        inv_perm: Tensor | None = None,
         validate_args: bool = True,
     ):
         if not isinstance(perm, Tensor):
@@ -88,7 +90,7 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
                 if (sorted_perm[..., i] != i).any():
                     raise ValueError(
                         f"Invalid perm-inv_perm input, index {i} missing or not at "
-                        f"correct index for permutation with {perm.shape = }."
+                        f"correct index for permutation with perm.shape={perm.shape}."
                     )
 
         self.perm = perm
@@ -115,7 +117,7 @@ class PermutationLinearOperator(AbstractPermutationLinearOperator):
         indices = batch_indices + (perm_indices, final_indices)
         return expanded_rhs[indices]
 
-    def _batch_indexing_helper(self, batch_shape: torch.Size) -> Tuple:
+    def _batch_indexing_helper(self, batch_shape: torch.Size) -> tuple:
         """Creates a tuple of indices with broadcastable shapes to preserve the
         batch dimensions when indexing into the non-batch dimensions with `perm`.
 
@@ -185,7 +187,7 @@ class TransposePermutationLinearOperator(AbstractPermutationLinearOperator):
         return self
 
     @property
-    def dtype(self) -> Optional[torch.dtype]:
+    def dtype(self) -> torch.dtype | None:
         return self._dtype
 
     def type(self: LinearOperator, dtype: torch.dtype) -> LinearOperator:
@@ -193,5 +195,5 @@ class TransposePermutationLinearOperator(AbstractPermutationLinearOperator):
         return self
 
     @property
-    def device(self) -> Optional[torch.device]:
+    def device(self) -> torch.device | None:
         return None
