@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
+import pickle
 import traceback
 from abc import abstractmethod
 from itertools import combinations, product
@@ -954,6 +955,16 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
             if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad, arg_copy.grad, **tolerances)
+
+    def test_pickle(self):
+        linear_op = self.create_linear_op()
+
+        # Make sure that pickle works with populated caches
+        _ = linear_op.to_dense()
+
+        pickled = pickle.dumps(linear_op)
+        unpickled = pickle.loads(pickled)
+        self.assertAllClose(unpickled.to_dense(), linear_op.to_dense())
 
     def test_prod(self):
         with linear_operator.settings.fast_computations(covar_root_decomposition=False):
