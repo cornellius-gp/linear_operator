@@ -14,6 +14,10 @@ from linear_operator.utils.getitem import _noop_index, IndexType
 from linear_operator.utils.memoize import cached
 
 
+def _default_num_nonbatch_dimensions():
+    return 2
+
+
 def _x_getitem(x, batch_indices, data_index):
     """
     Helper function to compute x[*batch_indices, data_index, :] in an efficient way.
@@ -142,9 +146,9 @@ class KernelLinearOperator(LinearOperator):
     ):
         # Change num_nonbatch_dimensions into a default dict
         if num_nonbatch_dimensions is None:
-            num_nonbatch_dimensions = defaultdict(lambda: 2)
+            num_nonbatch_dimensions = defaultdict(_default_num_nonbatch_dimensions)
         else:
-            num_nonbatch_dimensions = defaultdict(lambda: 2, **num_nonbatch_dimensions)
+            num_nonbatch_dimensions = defaultdict(_default_num_nonbatch_dimensions, **num_nonbatch_dimensions)
 
         # Divide params into tensors and non-tensors
         tensor_params = dict()
