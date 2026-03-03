@@ -1074,9 +1074,10 @@ class LinearOperator(object):
                 new_linear_op = to_linear_operator(new_linear_op.to_dense())
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
-        # don't create one
+        # don't create one. Also skip if the caller explicitly doesn't want roots generated.
+        # The root update is only beneficial when self already has cached roots that can be efficiently updated.
         has_roots = any(_is_in_cache_ignore_args(self, key) for key in ("root_decomposition", "root_inv_decomposition"))
-        if not generate_roots and not has_roots:
+        if not (generate_roots and has_roots):
             return new_linear_op
 
         # we are going to compute the following
@@ -1218,8 +1219,14 @@ class LinearOperator(object):
             If :math:`\mathbf B` is ... x N x K, then this matrix should be ... x K x K.
         :param generate_roots: whether to generate the root
             decomposition of :math:`\mathbf A` even if it has not been created yet.
-        :param generate_inv_roots: whether to generate the root inv
+            If True (default), root decompositions will only be updated if
+            :math:`\mathbf A` already has cached roots. Set to False to skip
+            root updates entirely.
+        :param generate_inv_roots: whether to generate the root inverse
             decomposition of :math:`\mathbf A` even if it has not been created yet.
+            If True (default), root inverse decompositions will only be updated if
+            :math:`\mathbf A` already has cached roots. Set to False to skip
+            root inverse updates entirely.
 
         :return: The concatenated LinearOperator with the new rows and columns.
 
@@ -1253,7 +1260,8 @@ class LinearOperator(object):
         new_linear_op = CatLinearOperator(upper_row, lower_row, dim=-1, output_device=A.device)
 
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
-        # don't create one
+        # don't create one. Also skip if the caller explicitly doesn't want roots generated.
+        # The root update is only beneficial when self already has cached roots that can be efficiently updated.
         has_roots = any(
             _is_in_cache_ignore_args(self, key)
             for key in (
@@ -1261,7 +1269,7 @@ class LinearOperator(object):
                 "root_inv_decomposition",
             )
         )
-        if not generate_roots and not has_roots:
+        if not (generate_roots and has_roots):
             return new_linear_op
 
         # Get components for new root Z = [E 0; F G]

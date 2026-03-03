@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+from unittest.mock import patch
 
 import torch
 
@@ -29,6 +30,48 @@ class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             res = root_approx.matmul(test_mat)
             actual = linear_op.matmul(test_mat)
             self.assertLess(torch.norm(res - actual) / actual.norm(), 0.1)
+
+    def test_no_root_computation_when_no_cached_roots(self):
+        """
+        Regression test for add_low_rank speculative root computation bug.
+        Verify root_decomposition is NOT called when no roots are cached.
+
+        This catches a bug where add_low_rank would unnecessarily compute expensive
+        root decompositions even when the base LinearOperator had no cached roots.
+        This caused numerical instability (SVD failures) on ill-conditioned matrices.
+
+        The fix ensures root updates only happen when BOTH:
+        1. generate_roots=True (default)
+        2. The base operator already has cached roots
+        """
+        torch.manual_seed(42)
+
+        # Create a simple PSD matrix without any cached root decomposition
+        n = 5
+        A = torch.randn(n, n)
+        base_matrix = A @ A.T + 0.1 * torch.eye(n)
+        base_op = DenseLinearOperator(base_matrix)
+
+        # Create a low-rank term (like LinearKernel produces)
+        low_rank = torch.randn(n, 2)
+
+        # Patch root_decomposition to track if it's called
+        # Before the fix, add_low_rank would call root_decomposition even when none are cached
+        # After the fix, it should NOT call root_decomposition
+        with patch.object(
+            DenseLinearOperator, "root_decomposition", wraps=base_op.root_decomposition
+        ) as mock_root_decomp:
+            result = base_op.add_low_rank(low_rank)
+
+            # Verify root_decomposition was NOT called (the fix's behavior)
+            # Before the fix, this would fail because root_decomposition was called
+            # add_low_rank should NOT compute root_decomposition when no roots are cached
+            self.assertEqual(mock_root_decomp.call_count, 0)
+
+        # Verify the result is still correct (simple matrix addition)
+        expected = base_matrix + low_rank @ low_rank.T
+        # add_low_rank should return correct sum
+        self.assertTrue(torch.allclose(result.to_dense(), expected, atol=1e-5))
 
 
 class TestDenseLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):

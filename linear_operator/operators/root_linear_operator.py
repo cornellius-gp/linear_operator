@@ -95,7 +95,11 @@ class RootLinearOperator(LinearOperator):
         generate_roots: bool | None = True,
         **root_decomp_kwargs,
     ) -> LinearOperator:  # shape: (*batch, N, N)
-        return super().add_low_rank(low_rank_mat, root_inv_decomp_method=root_inv_decomp_method)
+        return super().add_low_rank(
+            low_rank_mat,
+            root_inv_decomp_method=root_inv_decomp_method,
+            generate_roots=generate_roots,
+        )
 
     def root_decomposition(
         self: LinearOperator, method: str | None = None  # shape: (*batch, N, N)
