@@ -54,9 +54,13 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         linear_op_copy.requires_grad_(True)
         evaluated = self.evaluate_linear_op(linear_op_copy)
 
-        inverse = torch.inverse(linear_op).to_dense()
+        inverse = torch.linalg.inv(linear_op).to_dense()
         inverse_actual = evaluated.inverse()
         self.assertAllClose(inverse, inverse_actual)
+
+        # Verify deprecated torch.inverse also dispatches correctly
+        inverse_deprecated = torch.inverse(linear_op).to_dense()
+        self.assertAllClose(inverse, inverse_deprecated)
 
         # Backwards
         inverse.sum().backward()
