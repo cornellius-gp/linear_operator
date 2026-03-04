@@ -78,7 +78,7 @@ def lanczos_tridiag(
 
     # Begin algorithm
     # Initial Q vector: q_0_vec
-    q_0_vec = init_vecs / torch.norm(init_vecs, 2, dim=dim_dimension).unsqueeze(dim_dimension)
+    q_0_vec = init_vecs / torch.linalg.vector_norm(init_vecs, ord=2, dim=dim_dimension).unsqueeze(dim_dimension)
     q_mat[0].copy_(q_0_vec)
 
     # Initial alpha value: alpha_0
@@ -87,7 +87,7 @@ def lanczos_tridiag(
 
     # Initial beta value: beta_0
     r_vec.sub_(alpha_0.unsqueeze(dim_dimension).mul(q_0_vec))
-    beta_0 = torch.norm(r_vec, 2, dim=dim_dimension)
+    beta_0 = torch.linalg.vector_norm(r_vec, ord=2, dim=dim_dimension)
 
     # Copy over alpha_0 and beta_0 to t_mat
     t_mat[0, 0].copy_(alpha_0)
@@ -118,7 +118,7 @@ def lanczos_tridiag(
             correction = r_vec.unsqueeze(0).mul(q_mat[: k + 1]).sum(dim_dimension, keepdim=True)
             correction = q_mat[: k + 1].mul(correction).sum(0)
             r_vec.sub_(correction)
-            r_vec_norm = torch.norm(r_vec, 2, dim=dim_dimension, keepdim=True)
+            r_vec_norm = torch.linalg.vector_norm(r_vec, ord=2, dim=dim_dimension, keepdim=True)
             r_vec.div_(r_vec_norm)
 
             # Get next beta value
@@ -137,7 +137,7 @@ def lanczos_tridiag(
                 correction = r_vec.unsqueeze(0).mul(q_mat[: k + 1]).sum(dim_dimension, keepdim=True)
                 correction = q_mat[: k + 1].mul(correction).sum(0)
                 r_vec.sub_(correction)
-                r_vec_norm = torch.norm(r_vec, 2, dim=dim_dimension, keepdim=True)
+                r_vec_norm = torch.linalg.vector_norm(r_vec, ord=2, dim=dim_dimension, keepdim=True)
                 r_vec.div_(r_vec_norm)
                 inner_products = q_mat[: k + 1].mul(r_vec.unsqueeze(0)).sum(dim_dimension)
 

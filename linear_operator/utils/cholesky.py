@@ -56,9 +56,9 @@ def psd_safe_cholesky(A, upper=False, out=None, jitter=None, max_tries=None):
         :attr:`A` (Tensor):
             The tensor to compute the Cholesky decomposition of
         :attr:`upper` (bool, optional):
-            See torch.cholesky
+            See torch.linalg.cholesky
         :attr:`out` (Tensor, optional):
-            See torch.cholesky
+            See torch.linalg.cholesky
         :attr:`jitter` (float, optional):
             The jitter to add to the diagonal of A in case A is only p.s.d. If omitted,
             uses settings.cholesky_jitter.value()

@@ -64,8 +64,12 @@ class TestPermutationLinearOperator(unittest.TestCase):
                 self.assertTrue(torch.equal(y, xp))
 
                 # inverse of permutation operator
-                P_inv = torch.inverse(P)
+                P_inv = torch.linalg.inv(P)
                 self.assertTrue(torch.equal(P_inv @ y, expanded_x))
+
+                # Verify deprecated torch.inverse also dispatches correctly
+                P_inv_deprecated = torch.inverse(P)
+                self.assertTrue(torch.equal(P_inv.to_dense(), P_inv_deprecated.to_dense()))
 
                 # transpose of permutation operator is equal to its inverse
                 self.assertTrue(torch.equal(P.transpose(-1, -2).perm, P_inv.perm))

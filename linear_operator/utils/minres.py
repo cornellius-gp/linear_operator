@@ -182,8 +182,8 @@ def minres(
 
         # Check convergence criterion
         if (i + 1) % 10 == 0:
-            torch.norm(search_update, dim=-2, out=search_update_norm)
-            torch.norm(solution, dim=-2, out=solution_norm)
+            torch.linalg.vector_norm(search_update, dim=-2, out=search_update_norm)
+            torch.linalg.vector_norm(solution, dim=-2, out=solution_norm)
             conv = search_update_norm.div_(solution_norm).mean().item()
             if conv < settings.minres_tolerance.value():
                 break

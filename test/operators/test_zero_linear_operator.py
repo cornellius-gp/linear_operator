@@ -13,37 +13,37 @@ class TestZeroLinearOperator(unittest.TestCase):
         lv = ZeroLinearOperator(5, 4, 3)
         actual = torch.zeros(5, 4, 3)
         res = lv.to_dense()
-        self.assertLess(torch.norm(res - actual), 1e-4)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-4)
 
     def test_getitem(self):
         lv = ZeroLinearOperator(5, 4, 3)
 
         res_one = lv[0].to_dense()
-        self.assertLess(torch.norm(res_one - torch.zeros(4, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_one - torch.zeros(4, 3)), 1e-4)
         res_two = lv[:, 1, :]
-        self.assertLess(torch.norm(res_two - torch.zeros(5, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_two - torch.zeros(5, 3)), 1e-4)
         res_three = lv[:, :, 2]
-        self.assertLess(torch.norm(res_three - torch.zeros(5, 4)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_three - torch.zeros(5, 4)), 1e-4)
 
     def test_getitem_complex(self):
         lv = ZeroLinearOperator(5, 4, 3)
 
         res_one = lv[[0, 1]].to_dense()
-        self.assertLess(torch.norm(res_one - torch.zeros(2, 4, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_one - torch.zeros(2, 4, 3)), 1e-4)
         res_two = lv[:, [0, 1], :].to_dense()
-        self.assertLess(torch.norm(res_two - torch.zeros(5, 2, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_two - torch.zeros(5, 2, 3)), 1e-4)
         res_three = lv[:, :, [0, 2]].to_dense()
-        self.assertLess(torch.norm(res_three - torch.zeros(5, 4, 2)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_three - torch.zeros(5, 4, 2)), 1e-4)
 
     def test_getitem_ellipsis(self):
         lv = ZeroLinearOperator(5, 4, 3)
 
         res_one = lv[[0, 1]].to_dense()
-        self.assertLess(torch.norm(res_one - torch.zeros(2, 4, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_one - torch.zeros(2, 4, 3)), 1e-4)
         res_two = lv[:, [0, 1], ...].to_dense()
-        self.assertLess(torch.norm(res_two - torch.zeros(5, 2, 3)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_two - torch.zeros(5, 2, 3)), 1e-4)
         res_three = lv[..., [0, 2]].to_dense()
-        self.assertLess(torch.norm(res_three - torch.zeros(5, 4, 2)), 1e-4)
+        self.assertLess(torch.linalg.norm(res_three - torch.zeros(5, 4, 2)), 1e-4)
 
     def test_get_item_tensor_index(self):
         # Tests the default LV.__getitem__ behavior
