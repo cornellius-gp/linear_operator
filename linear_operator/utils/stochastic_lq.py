@@ -6,7 +6,7 @@ import torch
 from linear_operator.utils.lanczos import lanczos_tridiag
 
 
-class StochasticLQ(object):
+class StochasticLQ:
     """
     Implements an approximate log determinant calculation for symmetric positive definite matrices
     using stochastic Lanczos quadrature. For efficient calculation of derivatives, We additionally

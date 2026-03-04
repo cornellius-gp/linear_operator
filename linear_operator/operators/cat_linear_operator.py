@@ -11,7 +11,6 @@ from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
 
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
-from linear_operator.utils.deprecation import bool_compat
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _noop_index
 
@@ -188,7 +187,7 @@ class CatLinearOperator(LinearOperator):
 
         # Find out for which indices we switch to different tensors
         target_tensors = self.idx_to_tensor_idx[cat_dim_indices]
-        does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=bool_compat, device=self.device)
+        does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=torch.bool, device=self.device)
         torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
         # Get the LinearOperators that will comprise the new LinearOperator
@@ -258,7 +257,7 @@ class CatLinearOperator(LinearOperator):
 
             # Find out for which indices we switch to different tensors
             target_tensors = self.idx_to_tensor_idx[cat_dim_indices]
-            does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=bool_compat, device=self.device)
+            does_switch_tensor = torch.ones(target_tensors.numel() + 1, dtype=torch.bool, device=self.device)
             torch.ne(target_tensors[:-1], target_tensors[1:], out=does_switch_tensor[1:-1])
 
             # Get the LinearOperators that will comprise the new LinearOperator
@@ -294,7 +293,7 @@ class CatLinearOperator(LinearOperator):
 
         else:
             raise RuntimeError(
-                "Unexpected index type {cat_dim_indices.__class__.__name__}. This is a bug in LinearOperator."
+                f"Unexpected index type {cat_dim_indices.__class__.__name__}. This is a bug in LinearOperator."
             )
 
         # Process the list
