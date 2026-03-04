@@ -80,7 +80,7 @@ def _implements_second_arg(torch_function: Callable) -> Callable:
     where the first argument of the function is a torch.Tensor and the
     second argument is a LinearOperator
 
-    Examples of this include :meth:`torch.cholesky_solve`, `torch.solve`, or `torch.matmul`.
+    Examples of this include :meth:`torch.cholesky_solve`, `torch.linalg.solve`, or `torch.matmul`.
     """
 
     @functools.wraps(torch_function)

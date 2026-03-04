@@ -77,7 +77,9 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         chol_cap_mat = self.chol_cap_mat
 
         res = V.matmul(A_inv.matmul(rhs))
-        res = torch.cholesky_solve(res, chol_cap_mat)
+        res = torch.linalg.solve_triangular(
+            chol_cap_mat.mT, torch.linalg.solve_triangular(chol_cap_mat, res, upper=False), upper=True
+        )
         res = A_inv.matmul(U.matmul(res))
 
         solve = A_inv.matmul(rhs) - res

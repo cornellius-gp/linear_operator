@@ -139,8 +139,8 @@ class BatchRepeatLinearOperator(LinearOperator):
         So that the tensor is now rb x m x n.
         """
         if hasattr(self, "_batch_move_memo"):
-            padded_base_batch_shape, batch_repeat = self.__batch_move_memo
-            del self.__batch_move_memo
+            _, padded_base_batch_shape, batch_repeat = self._batch_move_memo
+            del self._batch_move_memo
         else:
             padding_dims = torch.Size(tuple(1 for _ in range(max(len(output_shape) - self.base_linear_op.dim(), 0))))
             padded_base_batch_shape = padding_dims + self.base_linear_op.batch_shape
@@ -188,7 +188,7 @@ class BatchRepeatLinearOperator(LinearOperator):
         batch_matrix = batch_matrix.permute(*batch_dims, -2, -1, *repeat_dims).contiguous()
         batch_matrix = batch_matrix.view(*self.base_linear_op.batch_shape, output_shape[-2], -1)
 
-        self.__batch_move_memo = output_shape, padded_base_batch_shape, batch_repeat
+        self._batch_move_memo = output_shape, padded_base_batch_shape, batch_repeat
         return batch_matrix
 
     def _permute_batch(self, *dims: int) -> LinearOperator:

@@ -6,7 +6,6 @@ import warnings
 import torch
 
 from linear_operator import settings
-from linear_operator.utils.deprecation import bool_compat
 from linear_operator.utils.warnings import NumericalWarning
 
 
@@ -219,7 +218,7 @@ def linear_cg(
         mul_storage = torch.empty_like(residual)
         alpha = torch.empty(*batch_shape, 1, rhs.size(-1), dtype=residual.dtype, device=residual.device)
         beta = torch.empty_like(alpha)
-        is_zero = torch.empty(*batch_shape, 1, rhs.size(-1), dtype=bool_compat, device=residual.device)
+        is_zero = torch.empty(*batch_shape, 1, rhs.size(-1), dtype=torch.bool, device=residual.device)
 
     # Define tridiagonal matrices, if applicable
     if n_tridiag:
@@ -231,7 +230,7 @@ def linear_cg(
             dtype=alpha.dtype,
             device=alpha.device,
         )
-        alpha_tridiag_is_zero = torch.empty(*batch_shape, n_tridiag, dtype=bool_compat, device=t_mat.device)
+        alpha_tridiag_is_zero = torch.empty(*batch_shape, n_tridiag, dtype=torch.bool, device=t_mat.device)
         alpha_reciprocal = torch.empty(*batch_shape, n_tridiag, dtype=t_mat.dtype, device=t_mat.device)
         prev_alpha_reciprocal = torch.empty_like(alpha_reciprocal)
         prev_beta = torch.empty_like(alpha_reciprocal)
