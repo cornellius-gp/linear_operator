@@ -1803,13 +1803,17 @@ class LinearOperator(object):
             inv_quad_term = inv_quad_term.sum(-1)
         return inv_quad_term, logdet_term
 
+    @_implements(torch.linalg.inv)
     @_implements(torch.inverse)
     def inverse(
         self: LinearOperator,  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
         # Only implemented by some LinearOperator subclasses
-        # We define it here so that we can map the torch function torch.inverse to the LinearOperator method
-        raise NotImplementedError(f"torch.inverse({self.__class__.__name__}) is not implemented.")
+        # We define it here so that we can map torch.linalg.inv / torch.inverse to the LinearOperator method
+        raise NotImplementedError(
+            f"torch.linalg.inv({self.__class__.__name__}) is not implemented. "
+            "The LinearOperator subclass must implement the `inverse` method."
+        )
 
     @property
     def is_square(self) -> bool:
@@ -2296,7 +2300,7 @@ class LinearOperator(object):
         elif method == "pinverse":
             # this is numerically unstable and should rarely be used
             root = self.root_decomposition().root.to_dense()
-            inv_root = torch.pinverse(root).mT
+            inv_root = torch.linalg.pinv(root).mT
         else:
             raise RuntimeError(f"Unknown root inv decomposition method '{method}'")
 

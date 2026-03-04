@@ -295,7 +295,7 @@ def linear_cg(
                 curr_conjugate_vec,
             )
 
-        torch.norm(residual, 2, dim=-2, keepdim=True, out=residual_norm)
+        torch.linalg.vector_norm(residual, ord=2, dim=-2, keepdim=True, out=residual_norm)
         residual_norm.masked_fill_(rhs_is_zero, 0)
         torch.lt(residual_norm, stop_updating_after, out=has_converged)
 

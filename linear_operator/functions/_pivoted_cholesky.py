@@ -41,7 +41,7 @@ class PivotedCholesky(Function):
             device=matrix.device,
         )
         orig_error = torch.max(matrix_diag, dim=-1)[0]
-        errors = torch.norm(matrix_diag, 1, dim=-1) / orig_error
+        errors = torch.linalg.vector_norm(matrix_diag, ord=1, dim=-1) / orig_error
 
         # The permutation
         permutation = torch.arange(0, matrix_shape[-1], dtype=torch.long, device=matrix_diag.device)
@@ -96,7 +96,7 @@ class PivotedCholesky(Function):
                 L[..., m, :] = L_m
 
                 # Keep track of errors - for potential early stopping
-                errors = torch.norm(matrix_diag.gather(-1, pi_i), 1, dim=-1) / orig_error
+                errors = torch.linalg.vector_norm(matrix_diag.gather(-1, pi_i), ord=1, dim=-1) / orig_error
 
             m = m + 1
 

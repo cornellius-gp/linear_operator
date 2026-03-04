@@ -16,7 +16,7 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.mm(sparse.to_dense(), dense)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
     def test_forward_batch(self):
         i = torch.tensor(
@@ -29,7 +29,7 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
     def test_forward_multi_batch(self):
         i = torch.tensor(
@@ -47,7 +47,7 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
     def test_backward(self):
         i = torch.tensor([[0, 1, 1], [2, 0, 2]], dtype=torch.long)
@@ -61,7 +61,7 @@ class TestDSMM(unittest.TestCase):
         res.backward(grad_output)
         actual = torch.mm(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
     def test_backward_batch(self):
         i = torch.tensor(
@@ -78,7 +78,7 @@ class TestDSMM(unittest.TestCase):
         res.backward(grad_output)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
     def test_backward_multi_batch(self):
         i = torch.tensor(
@@ -100,7 +100,7 @@ class TestDSMM(unittest.TestCase):
         res.backward(grad_output)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
     def test_broadcast_rhs(self):
         i = torch.tensor([[0, 1, 1, 0, 1, 1], [2, 0, 2, 2, 0, 2]], dtype=torch.long)
@@ -111,12 +111,12 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
         grad_output = torch.randn(4, 2, 2, 4)
         res.backward(grad_output)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
         i = torch.tensor(
             [[0, 0, 0, 1, 1, 1], [0, 1, 1, 0, 1, 1], [2, 0, 2, 2, 0, 2]],
@@ -129,12 +129,12 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
         grad_output = torch.randn(4, 2, 2, 4)
         res.backward(grad_output)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
     def test_broadcast_sparse(self):
         i = torch.tensor(
@@ -148,12 +148,12 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
         grad_output = torch.randn(2, 2, 4)
         res.backward(grad_output)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
     def test_broadcast_singleton(self):
         i = torch.tensor(
@@ -167,12 +167,12 @@ class TestDSMM(unittest.TestCase):
 
         res = linear_operator.dsmm(sparse, dense)
         actual = torch.matmul(sparse.to_dense(), dense_copy)
-        self.assertLess(torch.norm(res - actual), 1e-5)
+        self.assertLess(torch.linalg.norm(res - actual), 1e-5)
 
         grad_output = torch.randn(2, 2, 4)
         res.backward(grad_output)
         actual.backward(grad_output)
-        self.assertLess(torch.norm(dense.grad - dense_copy.grad).item(), 1e-5)
+        self.assertLess(torch.linalg.norm(dense.grad - dense_copy.grad).item(), 1e-5)
 
 
 if __name__ == "__main__":

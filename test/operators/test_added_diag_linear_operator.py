@@ -119,7 +119,7 @@ class TestAddedDiagLinearOperatorPrecondOverride(unittest.TestCase):
 
         # gut checking that our preconditioner is not breaking anything
         self.assertEqual(standard_solve.shape, overrode_solve.shape)
-        self.assertLess(torch.norm(standard_solve - overrode_solve) / standard_solve.norm(), 1.0)
+        self.assertLess(torch.linalg.norm(standard_solve - overrode_solve) / standard_solve.norm(), 1.0)
 
 
 if __name__ == "__main__":

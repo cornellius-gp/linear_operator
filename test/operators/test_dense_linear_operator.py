@@ -29,7 +29,7 @@ class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             root_approx = linear_op.root_decomposition()
             res = root_approx.matmul(test_mat)
             actual = linear_op.matmul(test_mat)
-            self.assertLess(torch.norm(res - actual) / actual.norm(), 0.1)
+            self.assertLess(torch.linalg.norm(res - actual) / actual.norm(), 0.1)
 
     def test_no_root_computation_when_no_cached_roots(self):
         """
@@ -93,7 +93,7 @@ class TestDenseLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
             root_approx = linear_op.root_decomposition()
             res = root_approx.matmul(test_mat)
             actual = linear_op.matmul(test_mat)
-            self.assertLess(torch.norm(res - actual) / actual.norm(), 0.1)
+            self.assertLess(torch.linalg.norm(res - actual) / actual.norm(), 0.1)
 
 
 class TestDenseLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):

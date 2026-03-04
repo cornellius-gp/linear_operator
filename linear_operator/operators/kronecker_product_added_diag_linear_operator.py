@@ -110,7 +110,7 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
 
             else:
                 # we use the same matrix determinant identity: |K + D| = |D| |I + D^{-1}K|
-                # but have to symmetrize the second matrix because torch.eig may not be
+                # but have to symmetrize the second matrix because torch.linalg.eig may not be
                 # completely differentiable.
                 lt = self.linear_op
                 dlt = self.diag_tensor
