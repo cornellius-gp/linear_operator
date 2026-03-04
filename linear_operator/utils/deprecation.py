@@ -4,10 +4,6 @@ from __future__ import annotations
 import functools
 import warnings
 
-import torch
-
-bool_compat = torch.bool
-
 
 class DeprecationError(Exception):
     pass

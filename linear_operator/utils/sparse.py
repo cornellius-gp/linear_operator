@@ -125,7 +125,7 @@ def bdsmm(sparse, dense):
         return res
 
     else:
-        return torch.mm(sparse, dense)
+        return torch.sparse.mm(sparse, dense)
 
 
 def sparse_eye(size):
