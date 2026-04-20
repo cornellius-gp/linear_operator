@@ -14,7 +14,7 @@ def _default_preconditioner(x):
     return x.clone()
 
 
-@torch.jit.script
+@torch.compile
 def _jit_linear_cg_updates(
     result,
     alpha,
@@ -47,7 +47,7 @@ def _jit_linear_cg_updates(
     curr_conjugate_vec.mul_(beta).add_(precond_residual)
 
 
-@torch.jit.script
+@torch.compile
 def _jit_linear_cg_updates_no_precond(
     mvms,
     result,
