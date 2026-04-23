@@ -194,7 +194,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
             inv_quad_term = (inv_quad_rhs * self.solve(inv_quad_rhs)).sum(dim=-2)
         if logdet:
             diag = self._diagonal()
-            logdet_term = self._diagonal().abs().log().sum(-1)
+            logdet_term = diag.abs().log().sum(-1)
             if torch.sign(diag).prod(-1) < 0:
                 logdet_term = torch.full_like(logdet_term, float("nan"))
         else:

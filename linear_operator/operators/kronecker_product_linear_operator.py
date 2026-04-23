@@ -35,7 +35,7 @@ def _matmul(linear_ops, kp_shape, rhs):
     output_shape = _matmul_broadcast_shape(kp_shape, rhs.shape)
     output_batch_shape = output_shape[:-2]
 
-    res = rhs.contiguous().expand(*output_batch_shape, *rhs.shape[-2:])
+    res = rhs.expand(*output_batch_shape, *rhs.shape[-2:])
     num_cols = rhs.size(-1)
     for linear_op in linear_ops:
         res = res.view(*output_batch_shape, linear_op.size(-1), -1)
@@ -50,7 +50,7 @@ def _t_matmul(linear_ops, kp_shape, rhs):
     output_shape = _matmul_broadcast_shape(kp_t_shape, rhs.shape)
     output_batch_shape = torch.Size(output_shape[:-2])
 
-    res = rhs.contiguous().expand(*output_batch_shape, *rhs.shape[-2:])
+    res = rhs.expand(*output_batch_shape, *rhs.shape[-2:])
     num_cols = rhs.size(-1)
     for linear_op in linear_ops:
         res = res.view(*output_batch_shape, linear_op.size(-2), -1)

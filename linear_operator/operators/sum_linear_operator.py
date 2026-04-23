@@ -28,7 +28,7 @@ class SumLinearOperator(LinearOperator):
     def _diagonal(
         self: LinearOperator,  # shape: (..., M, N)
     ) -> torch.Tensor:  # shape: (..., N)
-        return sum(linear_op._diagonal().contiguous() for linear_op in self.linear_ops)
+        return sum(linear_op._diagonal() for linear_op in self.linear_ops)
 
     def _expand_batch(
         self: LinearOperator, batch_shape: torch.Size | list[int]  # shape: (..., M, N)

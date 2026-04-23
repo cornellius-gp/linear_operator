@@ -58,13 +58,10 @@ def make_sparse_from_indices_and_values(interp_indices, interp_values, num_rows)
         value_tensor = value_tensor.resize_(1).zero_()
 
     # Make the sparse tensor
-    type_name = value_tensor.type().split(".")[-1]  # e.g. FloatTensor
     interp_size = torch.Size((*batch_shape, num_rows, n_target_points))
-    if index_tensor.is_cuda:
-        cls = getattr(torch.cuda.sparse, type_name)
-    else:
-        cls = getattr(torch.sparse, type_name)
-    res = cls(index_tensor, value_tensor, interp_size)
+    res = torch.sparse_coo_tensor(
+        index_tensor, value_tensor, interp_size, dtype=value_tensor.dtype, device=value_tensor.device
+    )
 
     # Wrap things as a variable, if necessary
     return res
@@ -114,7 +111,7 @@ def bdsmm(sparse, dense):
         )
 
         dense_2d = dense.reshape(batch_size * num_cols, -1)
-        res = torch.dsmm(sparse_2d, dense_2d)
+        res = torch.mm(sparse_2d, dense_2d)
         res = res.view(*batch_shape, num_rows, -1)
         return res
 
@@ -122,13 +119,13 @@ def bdsmm(sparse, dense):
         *batch_shape, num_rows, num_cols = dense.size()
         batch_size = torch.Size(batch_shape).numel()
         dense = dense.view(batch_size, num_rows, num_cols)
-        res = torch.dsmm(sparse, dense.transpose(0, 1).reshape(-1, batch_size * num_cols))
+        res = torch.mm(sparse, dense.transpose(0, 1).reshape(-1, batch_size * num_cols))
         res = res.view(-1, batch_size, num_cols)
         res = res.transpose(0, 1).reshape(*batch_shape, -1, num_cols)
         return res
 
     else:
-        return torch.dsmm(sparse, dense)
+        return torch.sparse.mm(sparse, dense)
 
 
 def sparse_eye(size):
@@ -137,8 +134,7 @@ def sparse_eye(size):
     """
     indices = torch.arange(0, size).long().unsqueeze(0).expand(2, size)
     values = torch.tensor(1.0).expand(size)
-    cls = getattr(torch.sparse, values.type().split(".")[-1])
-    return cls(indices, values, torch.Size([size, size]))
+    return torch.sparse_coo_tensor(indices, values, torch.Size([size, size]))
 
 
 def sparse_getitem(sparse, idxs):
@@ -273,8 +269,4 @@ def to_sparse(dense):
         values = torch.tensor(0, dtype=dense.dtype, device=dense.device)
 
     # Construct sparse tensor
-    klass = getattr(torch.sparse, dense.type().split(".")[-1])
-    res = klass(indices.t(), values, dense.size())
-    if dense.is_cuda:
-        res = res.cuda()
-    return res
+    return torch.sparse_coo_tensor(indices.t(), values, dense.size(), dtype=dense.dtype, device=dense.device)
