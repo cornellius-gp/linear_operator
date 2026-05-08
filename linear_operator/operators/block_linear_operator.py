@@ -88,15 +88,26 @@ class BlockLinearOperator(LinearOperator):
         # Let's make sure that the slice dimensions perfectly correspond with the number of
         # outputs per input that we have
         # Otherwise - its too complicated. We'll go with the base case
-        if (row_start % num_blocks) or (col_start % num_blocks) or (row_end % num_blocks) or (col_end % num_blocks):
+        block_size = num_rows // num_blocks
+        if (row_start % block_size) or (col_start % block_size) or (row_end % block_size) or (col_end % block_size):
             return super()._getitem(row_index, col_index, *batch_indices)
 
-        # Otherwise - let's divide the slices by the number of outputs per input
-        row_index = slice(row_start // num_blocks, row_end // num_blocks, None)
-        col_index = slice(col_start // num_blocks, col_end // num_blocks, None)
+        # Compute block-level indices
+        block_row_idx = slice(row_start // block_size, row_end // block_size, None)
+        block_col_idx = slice(col_start // block_size, col_end // block_size, None)
 
-        # Now we can try the super call!
-        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
+        # If the row and column block ranges differ, this is a cross-block slice.
+        # The block-diagonal structure is lost, so fall back to the general case.
+        if block_row_idx != block_col_idx:
+            row_index = slice(row_start, row_end, row_step)
+            col_index = slice(col_start, col_end, col_step)
+            return super()._getitem(row_index, col_index, *batch_indices)
+
+        # Select blocks from the base operator's batch dimension.
+        # block_row_idx selects which blocks to keep; row/col are all (keep per-block matrix intact).
+        new_base_linear_op = self.base_linear_op._getitem(
+            slice(None), slice(None), *batch_indices, block_row_idx
+        )
 
         # Now construct a kernel with those indices
         return self.__class__(new_base_linear_op, block_dim=-3)
