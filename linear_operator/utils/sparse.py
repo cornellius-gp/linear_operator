@@ -210,7 +210,7 @@ def sparse_getitem(sparse, idxs):
                 raise RuntimeError("Unknown index type")
 
     return torch.sparse_coo_tensor(
-        indices, values, torch.Size(size), dtype=values.dtype, device=values.devicei, check_invariants=False
+        indices, values, torch.Size(size), dtype=values.dtype, device=values.device, check_invariants=False
     )
 
 
