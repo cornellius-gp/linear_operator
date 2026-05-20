@@ -60,7 +60,12 @@ def make_sparse_from_indices_and_values(interp_indices, interp_values, num_rows)
     # Make the sparse tensor
     interp_size = torch.Size((*batch_shape, num_rows, n_target_points))
     res = torch.sparse_coo_tensor(
-        index_tensor, value_tensor, interp_size, dtype=value_tensor.dtype, device=value_tensor.device
+        index_tensor,
+        value_tensor,
+        interp_size,
+        dtype=value_tensor.dtype,
+        device=value_tensor.device,
+        check_invariants=False,
     )
 
     # Wrap things as a variable, if necessary
@@ -108,6 +113,7 @@ def bdsmm(sparse, dense):
             torch.Size((batch_size * num_rows, batch_size * num_cols)),
             dtype=sparse._values().dtype,
             device=sparse._values().device,
+            check_invariants=False,
         )
 
         dense_2d = dense.reshape(batch_size * num_cols, -1)
@@ -134,7 +140,7 @@ def sparse_eye(size):
     """
     indices = torch.arange(0, size).long().unsqueeze(0).expand(2, size)
     values = torch.tensor(1.0).expand(size)
-    return torch.sparse_coo_tensor(indices, values, torch.Size([size, size]))
+    return torch.sparse_coo_tensor(indices, values, torch.Size([size, size]), check_invariants=False)
 
 
 def sparse_getitem(sparse, idxs):
@@ -203,7 +209,9 @@ def sparse_getitem(sparse, idxs):
             case _:
                 raise RuntimeError("Unknown index type")
 
-    return torch.sparse_coo_tensor(indices, values, torch.Size(size), dtype=values.dtype, device=values.device)
+    return torch.sparse_coo_tensor(
+        indices, values, torch.Size(size), dtype=values.dtype, device=values.devicei, check_invariants=False
+    )
 
 
 def sparse_repeat(sparse, *repeat_sizes):
@@ -232,6 +240,7 @@ def sparse_repeat(sparse, *repeat_sizes):
             torch.Size((*[1 for _ in range(num_new_dims)], *sparse.shape)),
             dtype=sparse.dtype,
             device=sparse.device,
+            check_invariants=False,
         )
 
     for i, repeat_size in enumerate(repeat_sizes):
@@ -253,6 +262,7 @@ def sparse_repeat(sparse, *repeat_sizes):
                 ),
                 dtype=sparse.dtype,
                 device=sparse.device,
+                check_invariants=False,
             )
 
     return sparse
@@ -269,4 +279,6 @@ def to_sparse(dense):
         values = torch.tensor(0, dtype=dense.dtype, device=dense.device)
 
     # Construct sparse tensor
-    return torch.sparse_coo_tensor(indices.t(), values, dense.size(), dtype=dense.dtype, device=dense.device)
+    return torch.sparse_coo_tensor(
+        indices.t(), values, dense.size(), dtype=dense.dtype, device=dense.device, check_invariants=False
+    )
