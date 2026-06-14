@@ -69,6 +69,7 @@ def left_t_interp(interp_indices, interp_values, rhs, output_dim):
         size,
         dtype=summing_matrix_values.dtype,
         device=summing_matrix_values.device,
+        check_invariants=False,
     )
 
     # Sum up the values appropriately by performing sparse matrix multiplication
