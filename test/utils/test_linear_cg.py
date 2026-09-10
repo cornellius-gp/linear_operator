@@ -4,6 +4,7 @@ import os
 import random
 import unittest
 import warnings
+from unittest.mock import MagicMock
 
 import torch
 
@@ -62,6 +63,30 @@ class TestLinearCG(unittest.TestCase):
         actual = torch.cholesky_solve(rhs, matrix_chol)
         self.assertTrue(torch.allclose(solves, actual, atol=1e-3, rtol=1e-4))
         self.assertTrue(torch.allclose(solves_with_init, actual, atol=1e-3, rtol=1e-4))
+
+    def test_cg_with_preconditioner(self):
+        size = 100
+        matrix = torch.randn(size, size, dtype=torch.float64)
+        matrix = matrix.matmul(matrix.mT)
+        matrix.div_(matrix.norm())
+        matrix.add_(torch.eye(matrix.size(-1), dtype=torch.float64).mul_(1e-1))
+        rhs = torch.randn(size, 10, dtype=torch.float64)
+        diagonal = matrix.diagonal().unsqueeze(dim=-1)
+
+        def jacobi_preconditioner(tensor: torch.Tensor) -> torch.Tensor:
+            return tensor / diagonal
+
+        preconditioner = MagicMock(wraps=jacobi_preconditioner)
+        solves = linear_cg(
+            matmul_closure=matrix.matmul,
+            rhs=rhs,
+            max_iter=size,
+            preconditioner=preconditioner,
+        )
+
+        actual = torch.linalg.solve(matrix, rhs)
+        self.assertTrue(torch.allclose(solves, actual, atol=1e-3, rtol=1e-4))
+        self.assertGreater(preconditioner.call_count, 1)
 
     def test_cg_with_tridiag(self):
         size = 10
