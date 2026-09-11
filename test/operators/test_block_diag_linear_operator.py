@@ -115,3 +115,34 @@ class TestBlockDiagLinearOperatorMetaClass(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBlockDiagCrossBlockSlicing(unittest.TestCase):
+    def test_cross_block_getitem(self):
+        T, n_blocks = 12, 200
+        blocks = torch.randn(n_blocks, T, T)
+        dense = DenseLinearOperator(blocks)
+        bd = BlockDiagLinearOperator(dense)
+
+        total = n_blocks * T  # 2400
+
+        # Cross-block slices (row blocks != col blocks) should work
+        n_train = 150
+        sliced = bd[n_train * T:, :n_train * T]
+        self.assertEqual(sliced.shape, (total - n_train * T, n_train * T))
+
+        # Same-range block-aligned slices (fixed by the block_size fix)
+        sliced2 = bd[:T, :T]
+        self.assertEqual(sliced2.shape, (T, T))
+
+        # Same-range block-aligned, multiple blocks
+        sliced3 = bd[500:600, 500:600]
+        self.assertEqual(sliced3.shape, (100, 100))
+
+        # Non-aligned, non-square
+        sliced4 = bd[5:100, 50:200]
+        self.assertEqual(sliced4.shape, (95, 150))
+
+        # Single element
+        sliced5 = bd[0:1, 0:1]
+        self.assertEqual(sliced5.shape, (1, 1))
