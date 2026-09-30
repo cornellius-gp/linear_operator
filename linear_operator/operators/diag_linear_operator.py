@@ -180,7 +180,7 @@ class DiagLinearOperator(TriangularLinearOperator):
             for _ in rhs_batch_shape:
                 diag = diag.unsqueeze(-1)
             inv_quad_term = inv_quad_rhs.div(diag).mul(inv_quad_rhs).sum(-(1 + len(rhs_batch_shape)))
-            if reduce_inv_quad:
+            if reduce_inv_quad and rhs_batch_shape:
                 inv_quad_term = inv_quad_term.sum(-1)
 
         if not logdet:

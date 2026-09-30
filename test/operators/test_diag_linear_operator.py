@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import DiagLinearOperator, KroneckerProductDiagLinearOperator
+from linear_operator.operators import ConstantDiagLinearOperator, DiagLinearOperator, KroneckerProductDiagLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -162,6 +162,65 @@ class TestKroneckerProductDiagLinearOperator(TestDiagLinearOperator):
 
     def test_log(self):
         pass
+
+
+class TestDiagInvQuadVectorBatch(unittest.TestCase):
+    def test_vector_and_matrix_rhs(self):
+        for operator in (DiagLinearOperator, ConstantDiagLinearOperator):
+            for dtype in (torch.float32, torch.float64):
+                for batch_shape in ((), (2,), (2, 3), (1, 3)):
+                    for columns in (None, 1, 3):
+                        for reduce in (False, True):
+                            with self.subTest(
+                                operator=operator.__name__,
+                                dtype=dtype,
+                                batch=batch_shape,
+                                columns=columns,
+                                reduce=reduce,
+                            ):
+                                n = 5
+                                diag_shape = (*batch_shape, 1 if operator is ConstantDiagLinearOperator else n)
+                                diagonal = torch.arange(torch.Size(diag_shape).numel(), dtype=dtype).reshape(diag_shape)
+                                diagonal = (diagonal / 7 + 1).requires_grad_()
+                                reference_diag = diagonal.detach().clone().requires_grad_()
+                                if operator is ConstantDiagLinearOperator:
+                                    linear_op = operator(diagonal, diag_shape=n)
+                                    dense = torch.diag_embed(reference_diag.expand(*batch_shape, n))
+                                else:
+                                    linear_op = operator(diagonal)
+                                    dense = torch.diag_embed(reference_diag)
+                                rhs_shape = (*batch_shape, n) if columns is None else (*batch_shape, n, columns)
+                                rhs = torch.arange(torch.Size(rhs_shape).numel(), dtype=dtype).reshape(rhs_shape)
+                                rhs = (rhs / 11 - 1).requires_grad_()
+                                reference_rhs = rhs.detach().clone().requires_grad_()
+                                matrix_rhs = reference_rhs.unsqueeze(-1) if columns is None else reference_rhs
+                                solved = torch.linalg.solve(dense, matrix_rhs)
+                                expected = (matrix_rhs * solved).sum(-2)
+                                if columns is None:
+                                    expected = expected.squeeze(-1)
+                                elif reduce:
+                                    expected = expected.sum(-1)
+                                expected_logdet = torch.linalg.slogdet(dense).logabsdet
+                                actual, actual_logdet = linear_op.inv_quad_logdet(
+                                    rhs,
+                                    logdet=True,
+                                    reduce_inv_quad=reduce,
+                                )
+                                self.assertEqual(actual.shape, expected.shape)
+                                torch.testing.assert_close(actual, expected)
+                                torch.testing.assert_close(actual_logdet, expected_logdet)
+                                # Different batch/column weights detect gradients leaking across samples.
+                                weights = torch.arange(expected.numel(), dtype=dtype).reshape(expected.shape) + 1
+                                actual_grads = torch.autograd.grad(
+                                    (actual * weights).sum() + actual_logdet.sum(),
+                                    (diagonal, rhs),
+                                )
+                                expected_grads = torch.autograd.grad(
+                                    (expected * weights).sum() + expected_logdet.sum(),
+                                    (reference_diag, reference_rhs),
+                                )
+                                for actual_grad, expected_grad in zip(actual_grads, expected_grads):
+                                    torch.testing.assert_close(actual_grad, expected_grad)
 
 
 if __name__ == "__main__":
