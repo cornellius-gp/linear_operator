@@ -156,6 +156,9 @@ class BlockLinearOperator(LinearOperator):
         # This preserves the block structure
         from linear_operator.operators.constant_mul_linear_operator import ConstantMulLinearOperator
 
+        if torch.is_tensor(other):
+            # Apply each batch constant to all blocks in that batch.
+            other = other.unsqueeze(-1)
         return self.__class__(ConstantMulLinearOperator(self.base_linear_op, other))
 
     def _transpose_nonbatch(
