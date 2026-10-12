@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+from itertools import product
 
 import torch
 
@@ -8,7 +9,39 @@ from linear_operator.operators import BlockInterleavedLinearOperator, DenseLinea
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
-class TestBlockInterleavedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
+class _BlockSliceTestMixin:
+    def test_getitem_slices(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        num_blocks, block_size = linear_op.num_blocks, linear_op.base_linear_op.size(-1)
+        size = num_blocks * block_size
+        slices = [
+            slice(0, num_blocks),  # bounds are multiples of num_blocks
+            slice(num_blocks, 3 * num_blocks),
+            slice(num_blocks, size),
+            slice(0, block_size),  # bounds are multiples of the block size
+            slice(block_size, 2 * block_size),
+            slice(1, num_blocks + 1),
+            slice(-num_blocks, None),
+            slice(None, num_blocks),
+            slice(0, num_blocks, 1),
+            slice(0, 2 * num_blocks, 2),
+        ]
+        for row_index, col_index in product(slices, repeat=2):
+            with self.subTest(row_index=row_index, col_index=col_index):
+                res = linear_op[..., row_index, col_index]
+                self.assertAllClose(res.to_dense(), evaluated[..., row_index, col_index])
+                if linear_op.dim() > 2:
+                    res = linear_op[1, ..., row_index, col_index]
+                    self.assertAllClose(res.to_dense(), evaluated[1, ..., row_index, col_index])
+
+        # Slices whose bounds are multiples of num_blocks keep the interleaved structure
+        res = linear_op[..., num_blocks : 3 * num_blocks, 0 : 2 * num_blocks]
+        self.assertIsInstance(res, BlockInterleavedLinearOperator)
+        self.assertEqual(res.num_blocks, num_blocks)
+
+
+class TestBlockInterleavedLinearOperator(_BlockSliceTestMixin, LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -28,7 +61,7 @@ class TestBlockInterleavedLinearOperator(LinearOperatorTestCase, unittest.TestCa
         return actual
 
 
-class TestBlockInterleavedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
+class TestBlockInterleavedLinearOperatorBatch(_BlockSliceTestMixin, LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     should_test_sample = True
 
@@ -49,7 +82,7 @@ class TestBlockInterleavedLinearOperatorBatch(LinearOperatorTestCase, unittest.T
         return actual
 
 
-class TestBlockInterleavedLinearOperatorMultiBatch(LinearOperatorTestCase, unittest.TestCase):
+class TestBlockInterleavedLinearOperatorMultiBatch(_BlockSliceTestMixin, LinearOperatorTestCase, unittest.TestCase):
     seed = 0
     # Because these LTs are large, we'll skil the big tests
     should_test_sample = False

@@ -70,36 +70,9 @@ class BlockLinearOperator(LinearOperator):
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             return self.__class__(self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index))
 
-        # If either of the dimensions are indices, it's too complicated - go with the base case
-        if not isinstance(row_index, slice) or not isinstance(col_index, slice):
-            # It's too complicated to deal with tensor indices in this case - we'll use the super method
-            return super()._getitem(row_index, col_index, *batch_indices)
-
-        # Now we know that row_index and col_index
-        num_blocks = self.num_blocks
-        num_rows, num_cols = self.matrix_shape
-        row_start, row_end, row_step = row_index.start or 0, row_index.stop or num_rows, row_index.step
-        col_start, col_end, col_step = col_index.start or 0, col_index.stop or num_cols, col_index.step
-
-        # If we have a step, it's too complicated - go with the base case
-        if row_step is not None or col_step is not None:
-            return super()._getitem(row_index, col_index, *batch_indices)
-
-        # Let's make sure that the slice dimensions perfectly correspond with the number of
-        # outputs per input that we have
-        # Otherwise - its too complicated. We'll go with the base case
-        if (row_start % num_blocks) or (col_start % num_blocks) or (row_end % num_blocks) or (col_end % num_blocks):
-            return super()._getitem(row_index, col_index, *batch_indices)
-
-        # Otherwise - let's divide the slices by the number of outputs per input
-        row_index = slice(row_start // num_blocks, row_end // num_blocks, None)
-        col_index = slice(col_start // num_blocks, col_end // num_blocks, None)
-
-        # Now we can try the super call!
-        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
-
-        # Now construct a kernel with those indices
-        return self.__class__(new_base_linear_op, block_dim=-3)
+        # Which rows and columns of the blocks a slice selects depends on how the blocks are laid out,
+        # so subclasses handle the slices that they can map onto the blocks. Otherwise, use the base case.
+        return super()._getitem(row_index, col_index, *batch_indices)
 
     def _matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
