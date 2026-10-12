@@ -279,7 +279,11 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
         new_kwargs = {}
         for arg in self._args:
             if hasattr(arg, "to"):
-                if hasattr(arg, "dtype") and arg.dtype.is_floating_point == dtype.is_floating_point:
+                if (
+                    dtype is not None
+                    and hasattr(arg, "dtype")
+                    and arg.dtype.is_floating_point == dtype.is_floating_point
+                ):
                     new_args.append(arg.to(dtype=dtype, device=device))
                 else:
                     new_args.append(arg.to(device=device))
@@ -290,6 +294,6 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
                 new_kwargs[name] = val.to(dtype=dtype, device=device)
             else:
                 new_kwargs[name] = val
-        new_kwargs["device"] = device
-        new_kwargs["dtype"] = dtype
+        new_kwargs["device"] = self.device if device is None else device
+        new_kwargs["dtype"] = self.dtype if dtype is None else dtype
         return self.__class__(*new_args, **new_kwargs)

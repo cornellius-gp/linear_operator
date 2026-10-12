@@ -1284,3 +1284,16 @@ class LinearOperatorTestCase(RectangularLinearOperatorTestCase):
         except RuntimeError:
             raise RuntimeError(f"Could not convert {type(linear_op)} to double.")
         self.assertEqual(linear_op.dtype, torch.float64)
+
+    def test_to_device_or_dtype_only(self):
+        # to() with only a device (only a dtype) should keep the dtype (device) of the linear_op
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        device = evaluated.device
+        for res in (linear_op.to(device), linear_op.to(device=device)):
+            self.assertEqual(res.dtype, linear_op.dtype)
+            self.assertEqual(res.device, device)
+            self.assertAllClose(res.to_dense(), evaluated)
+        res = res.to(torch.float64)
+        self.assertEqual(res.dtype, torch.float64)
+        self.assertEqual(res.device, device)

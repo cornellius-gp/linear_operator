@@ -424,7 +424,7 @@ class CatLinearOperator(LinearOperator):
         """
         device, dtype = _to_helper(*args, **kwargs)
 
-        new_kwargs = {**self._kwargs, "output_device": device}
+        new_kwargs = {**self._kwargs, "output_device": self.output_device if device is None else device}
         res = self.__class__(*self._args, **new_kwargs)
 
         if dtype is not None:
