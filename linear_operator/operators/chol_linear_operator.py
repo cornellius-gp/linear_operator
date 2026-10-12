@@ -8,10 +8,11 @@ from typing import Callable
 import torch
 from torch import Tensor
 
-from linear_operator.operators._linear_operator import LinearOperator
+from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.root_linear_operator import RootLinearOperator
 from linear_operator.operators.triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
 
+from linear_operator.utils.getitem import _is_noop_index
 from linear_operator.utils.memoize import cached
 
 
@@ -27,6 +28,8 @@ class CholLinearOperator(RootLinearOperator):
         (i.e. :math:`\mathbf R^\top \mathbf R`).
         If false, then the orientation is assumed to be a lower triangular matrix
         (i.e. :math:`\mathbf L \mathbf L^\top`).
+        An upper triangular factor :math:`\mathbf R` is stored as the lower triangular factor
+        :math:`\mathbf L = \mathbf R^\top`, i.e. the matrix is always ``root @ root.mT``.
     """
 
     def __init__(self, chol: _TriangularLinearOperatorBase, upper: bool = False):
@@ -42,8 +45,12 @@ class CholLinearOperator(RootLinearOperator):
                 chol = TriangularLinearOperator(chol, upper=True)
             else:
                 raise ValueError("chol must be either lower or upper triangular")
+        if upper:
+            # RootLinearOperator's methods (and reconstructing this operator from its representation)
+            # assume that the matrix is root @ root.mT, so store R^T R as L L^T with L = R^T
+            chol = chol._transpose_nonbatch()
         super().__init__(chol)
-        self.upper = upper
+        self.upper = False
 
     @property
     def _chol_diag(
@@ -66,6 +73,12 @@ class CholLinearOperator(RootLinearOperator):
     ) -> torch.Tensor:  # shape: (..., N)
         # TODO: Can we be smarter here?
         return (self.root.to_dense() ** 2).sum(-1)
+
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
+        if _is_noop_index(row_index) and _is_noop_index(col_index):
+            return super()._getitem(row_index, col_index, *batch_indices)
+        # Some rows of a Cholesky factor are not a triangular matrix, so return a RootLinearOperator
+        return RootLinearOperator(self.root)._getitem(row_index, col_index, *batch_indices)
 
     def _solve(
         self: LinearOperator,  # shape: (..., N, N)
@@ -102,7 +115,8 @@ class CholLinearOperator(RootLinearOperator):
         Returns the inverse of the CholLinearOperator.
         """
         Linv = self.root.inverse()  # this could be slow in some cases w/ structured lazies
-        return CholLinearOperator(TriangularLinearOperator(Linv, upper=not self.upper), upper=not self.upper)
+        # (L L^T)^{-1} = L^{-T} L^{-1}, where L^{-T} is upper triangular, so it is not a Cholesky factorization
+        return RootLinearOperator(Linv._transpose_nonbatch())
 
     def inv_quad(
         self: LinearOperator,  # shape: (*batch, N, N)

@@ -15,6 +15,14 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     should_call_lanczos = False
     should_call_lanczos_diagonalization = True
 
+    # Whether to pass the Cholesky factor as an upper triangular matrix R = L^T
+    _upper = False
+
+    def _create_chol_linear_op(self, chol):
+        if self._upper:
+            chol = chol.detach().mT.contiguous().requires_grad_(chol.requires_grad)
+        return CholLinearOperator(TriangularLinearOperator(chol, upper=self._upper), upper=self._upper)
+
     def create_linear_op(self):
         chol = torch.tensor(
             [
@@ -27,11 +35,18 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             dtype=torch.float,
             requires_grad=True,
         )
-        return CholLinearOperator(TriangularLinearOperator(chol))
+        return self._create_chol_linear_op(chol)
 
     def evaluate_linear_op(self, linear_op):
         chol = linear_op.root.to_dense()
-        return chol.matmul(chol.mT)
+        return chol.mT.matmul(chol) if linear_op.upper else chol.matmul(chol.mT)
+
+    def test_getitem_square_slices(self):
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        for index in (slice(1, 4), slice(None, 2), slice(-2, None)):
+            res = linear_op[..., index, index]
+            self.assertAllClose(res.to_dense(), evaluated[..., index, index])
 
     def test_inverse(self):
         linear_op = self.create_linear_op()
@@ -43,6 +58,9 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         inverse = torch.linalg.inv(linear_op).to_dense()
         inverse_actual = evaluated.inverse()
         self.assertAllClose(inverse, inverse_actual)
+        rhs = torch.randn(*evaluated.shape[:-1], 2)
+        self.assertAllClose(torch.linalg.inv(linear_op).matmul(rhs), inverse_actual.matmul(rhs), rtol=1e-3)
+        self.assertAllClose(torch.linalg.inv(linear_op).solve(rhs), evaluated.matmul(rhs), rtol=1e-3)
 
         # Verify deprecated torch.inverse also dispatches correctly
         inverse_deprecated = torch.inverse(linear_op).to_dense()
@@ -54,7 +72,7 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
 
         # Check grads
         for arg, arg_copy in zip(linear_op.representation(), linear_op_copy.representation()):
-            if arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
+            if arg.is_leaf and arg_copy.requires_grad and arg_copy.is_leaf and arg_copy.grad is not None:
                 self.assertAllClose(arg.grad.tril(), arg_copy.grad.tril())
 
 
@@ -83,7 +101,7 @@ class TestCholLinearOperatorBatch(TestCholLinearOperator):
         )
         chol.add_(torch.eye(5).unsqueeze(0))
         chol.requires_grad_(True)
-        return CholLinearOperator(TriangularLinearOperator(chol))
+        return self._create_chol_linear_op(chol)
 
 
 class TestCholLinearOperatorMultiBatch(TestCholLinearOperator):
@@ -117,7 +135,19 @@ class TestCholLinearOperatorMultiBatch(TestCholLinearOperator):
         chol[2].mul_(0.5)
         chol.add_(torch.eye(5).unsqueeze_(0).unsqueeze_(0))
         chol.requires_grad_(True)
-        return CholLinearOperator(TriangularLinearOperator(chol))
+        return self._create_chol_linear_op(chol)
+
+
+class TestCholLinearOperatorUpper(TestCholLinearOperator):
+    _upper = True
+
+
+class TestCholLinearOperatorUpperBatch(TestCholLinearOperatorBatch):
+    _upper = True
+
+
+class TestCholLinearOperatorUpperMultiBatch(TestCholLinearOperatorMultiBatch):
+    _upper = True
 
 
 if __name__ == "__main__":
