@@ -56,7 +56,7 @@ While this is easy, the `solve` routine is $\mathcal O(N^3)$, which gets very sl
 
 However, let's imagine that we knew that $\boldsymbol A$ was equal to a low rank matrix plus a diagonal
 (i.e. $\boldsymbol A = \boldsymbol C \boldsymbol C^\top + \boldsymbol D$
-for some skinny matrix $\boldsymbol C$ and some diagonal matrix $\boldsymbol D$.)
+for some skinny matrix $\boldsymbol C$ and some positive definite diagonal matrix $\boldsymbol D$.)
 There's now a very efficient $\boldsymbol O(N)$ routine to compute $\boldsymbol A^{-1}$ (the [Woodbury formula](https://en.wikipedia.org/wiki/Woodbury_matrix_identity)).
 **In general**, if we know that $\boldsymbol A$ has structure,
 we want to use efficient linear algebra routines - rather than the general routines -
@@ -65,7 +65,7 @@ that exploit this structure.
 
 ### Without LinearOperator
 
-Implementing the efficient solve that exploits $\boldsymbol A$'s low-rank-plus-diagonal structure would look something like this:
+For a vector `b`, implementing the efficient solve that exploits $\boldsymbol A$'s low-rank-plus-diagonal structure would look something like this:
 
 ```python
 def low_rank_plus_diagonal_solve(C, d, b):
@@ -75,18 +75,18 @@ def low_rank_plus_diagonal_solve(C, d, b):
 
     D_inv_b = b / d
     D_inv_C = C / d.unsqueeze(-1)
-    eye = torch.eye(C.size(-2))
+    eye = torch.eye(C.size(-1), dtype=C.dtype, device=C.device)
     return (
         D_inv_b - D_inv_C @ torch.cholesky_solve(
-            C.mT @ D_inv_b,
+            (C.mT @ D_inv_b).unsqueeze(-1),
             torch.linalg.cholesky(eye + C.mT @ D_inv_C, upper=False),
             upper=False
-        )
+        ).squeeze(-1)
     )
 
 
 # C = torch.randn(1000, 20)
-# d = torch.randn(1000)
+# d = 1 + torch.rand(1000)
 # b = torch.randn(1000)
 low_rank_plus_diagonal_solve(C, d, b)  # computes A^{-1} b in O(N) time, instead of O(N^3)
 ```
@@ -104,7 +104,7 @@ The LinearOperator package offers the best of both worlds:
 ```python
 from linear_operator.operators import DiagLinearOperator, LowRankRootLinearOperator
 # C = torch.randn(1000, 20)
-# d = torch.randn(1000)
+# d = 1 + torch.rand(1000)
 # b = torch.randn(1000)
 A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents C C^T + diag(d)
 ```
@@ -125,7 +125,7 @@ to very large operators without running out of memory:
 
 ```python
 # C = torch.randn(10000000, 20)
-# d = torch.randn(10000000)
+# d = 1 + torch.rand(10000000)
 # b = torch.randn(10000000)
 A = LowRankRootLinearOperator(C) + DiagLinearOperator(d)  # represents a 10M x 10M matrix!
 torch.linalg.solve(A, b)  # computes A^{-1} b efficiently!
