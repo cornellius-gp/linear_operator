@@ -50,7 +50,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
         self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
         # We have to over-ride this here for the case where the constant is negative
-        if other > 0:
+        if (other > 0).all():
             res = super()._mul_constant(other)
         else:
             res = AddedDiagLinearOperator(self._linear_op._mul_constant(other), self._diag_tensor._mul_constant(other))
