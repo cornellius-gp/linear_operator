@@ -134,6 +134,7 @@ class LowRankRootAddedDiagLinearOperator(AddedDiagLinearOperator):
                             self.shape, inv_quad_rhs.shape
                         )
                     )
+                inv_quad_rhs = inv_quad_rhs.unsqueeze(-1)
             elif self.dim() != inv_quad_rhs.dim():
                 raise RuntimeError(
                     "LinearOperator (size={}) and right-hand-side Tensor (size={}) should have the same number "
