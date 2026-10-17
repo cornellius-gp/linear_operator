@@ -112,7 +112,7 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _mul_constant(
         self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
-        return self.__class__(self._tensor * other.unsqueeze(-1), upper=self.upper)
+        return self.__class__(self._tensor * other.unsqueeze(-1).unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(
         self: LinearOperator,  # shape: (..., N, N)

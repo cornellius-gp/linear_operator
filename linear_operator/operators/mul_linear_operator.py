@@ -82,7 +82,7 @@ class MulLinearOperator(LinearOperator):
     def _mul_constant(
         self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
-        if other > 0:
+        if (other > 0).all():
             res = self.__class__(self.left_linear_op._mul_constant(other), self.right_linear_op)
         else:
             # Negative constants can screw up the root_decomposition

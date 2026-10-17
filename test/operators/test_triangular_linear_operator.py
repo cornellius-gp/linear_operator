@@ -69,6 +69,18 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Incompatible argument"):
             torch.linalg.solve_triangular(linear_op, rhs, upper=not is_upper)
 
+    def test_constant_mul_batch(self):
+        upper = self.create_linear_op().upper
+        for batch_shape in (torch.Size([5]), torch.Size([2, 3])):
+            tensor = torch.randn(*batch_shape, 5, 5)
+            tensor = tensor.triu() if upper else tensor.tril()
+            linear_op = TriangularLinearOperator(DenseLinearOperator(tensor), upper=upper)
+            constant = torch.rand(*batch_shape, 1, 1) + 0.5
+            res = linear_op * constant
+            self.assertIsInstance(res, TriangularLinearOperator)
+            self.assertEqual(res.upper, upper)
+            self.assertAllClose(res.to_dense(), tensor * constant)
+
     # Tests that we bypass because TriangularLinearOperators are not symmetric or PSD
 
     def test_add_low_rank(self):
