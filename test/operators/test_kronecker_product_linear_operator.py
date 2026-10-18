@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+from unittest.mock import patch
 
 import torch
 
@@ -94,6 +95,56 @@ class TestKroneckerProductLinearOperatorRectangularMultiBatch(TestKroneckerProdu
             DenseLinearOperator(a), DenseLinearOperator(b), DenseLinearOperator(c)
         )
         return kp_linear_op
+
+
+class TestKroneckerProductRectangularFactors(unittest.TestCase):
+    def test_diagonal_empty(self):
+        for dtype in (torch.float32, torch.float64):
+            for shapes, expected_shape in (
+                (((0, 1), (1, 0)), (0,)),
+                (((1, 0), (0, 1)), (0,)),
+                (((2, 1, 0, 1), (1, 3, 1, 0)), (2, 3, 0)),
+            ):
+                with self.subTest(dtype=dtype, shapes=shapes):
+                    linear_op = KroneckerProductLinearOperator(*(torch.empty(shape, dtype=dtype) for shape in shapes))
+                    torch.testing.assert_close(linear_op.diagonal(), torch.empty(expected_shape, dtype=dtype))
+
+    def test_diagonal(self):
+        for dtype in (torch.float32, torch.float64):
+            for shapes in (((2, 3), (3, 2)), ((3, 2), (2, 3)), ((2, 3), (2, 2), (3, 2))):
+                with self.subTest(dtype=dtype, shapes=shapes):
+                    factors = [
+                        torch.arange(1, rows * cols + 1, dtype=dtype).reshape(rows, cols).requires_grad_()
+                        for rows, cols in shapes
+                    ]
+                    linear_op = KroneckerProductLinearOperator(*factors)
+                    expected = factors[0]
+                    for factor in factors[1:]:
+                        expected = torch.kron(expected, factor)
+                    expected = expected.diagonal()
+
+                    with patch.object(KroneckerProductLinearOperator, "to_dense", side_effect=AssertionError):
+                        actual = linear_op.diagonal()
+                    torch.testing.assert_close(actual, expected)
+                    actual_grads = torch.autograd.grad(actual.sum(), factors)
+                    expected_grads = torch.autograd.grad(expected.sum(), factors)
+                    for actual_grad, expected_grad in zip(actual_grads, expected_grads):
+                        torch.testing.assert_close(actual_grad, expected_grad)
+
+    def test_diagonal_broadcast_batches(self):
+        a = torch.arange(1, 13, dtype=torch.float64).reshape(2, 1, 2, 3).requires_grad_()
+        b = torch.arange(1, 19, dtype=torch.float64).reshape(1, 3, 3, 2).requires_grad_()
+        linear_op = KroneckerProductLinearOperator(a, b)
+        expected = torch.stack([torch.stack([torch.kron(ai[0], bj) for bj in b[0]]) for ai in a])
+        expected = expected.diagonal(dim1=-2, dim2=-1)
+
+        with patch.object(KroneckerProductLinearOperator, "to_dense", side_effect=AssertionError):
+            actual = linear_op.diagonal()
+        torch.testing.assert_close(actual, expected)
+        actual_grads = torch.autograd.grad(actual.sum(), (a, b))
+        expected_grads = torch.autograd.grad(expected.sum(), (a, b))
+        for actual_grad, expected_grad in zip(actual_grads, expected_grads):
+            torch.testing.assert_close(actual_grad, expected_grad)
 
 
 if __name__ == "__main__":

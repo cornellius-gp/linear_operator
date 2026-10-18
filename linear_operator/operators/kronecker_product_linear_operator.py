@@ -188,6 +188,8 @@ class KroneckerProductLinearOperator(LinearOperator):
     def _diagonal(
         self: LinearOperator,  # shape: (..., M, N)
     ) -> torch.Tensor:  # shape: (..., N)
+        if self.size(-1) > 0 and any(not linear_op.is_square for linear_op in self.linear_ops):
+            return super()._diagonal()
         return _kron_diag(*self.linear_ops)
 
     def _expand_batch(
