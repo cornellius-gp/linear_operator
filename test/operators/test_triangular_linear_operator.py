@@ -15,6 +15,58 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     should_call_cg = False
     should_call_lanczos = False
 
+    def test_matmul_gradgrad(self):
+        for upper in (False, True):
+            for vector in (False, True):
+                with self.subTest(upper=upper, vector=vector):
+                    raw = torch.tensor([[1.2, 0.1], [0.3, 0.9]], dtype=torch.double, requires_grad=True)
+                    rhs = torch.tensor([[0.7, 0.2], [-0.4, 0.6]], dtype=torch.double)
+                    rhs = (rhs[:, 0] if vector else rhs).requires_grad_()
+
+                    def matmul(raw, rhs):
+                        triangle = raw.triu() if upper else raw.tril()
+                        return TriangularLinearOperator(triangle, upper=upper).matmul(rhs).square()
+
+                    self.assertTrue(torch.autograd.gradcheck(matmul, (raw, rhs)))
+                    self.assertTrue(torch.autograd.gradgradcheck(matmul, (raw, rhs)))
+
+    def test_cholesky_matmul_second_derivative(self):
+        raw = torch.tensor([[1.2, 0.1], [0.3, 0.9]], dtype=torch.double, requires_grad=True)
+        rhs = torch.tensor([0.7, -0.4], dtype=torch.double)
+        gradients = []
+        for wrapped in (False, True):
+            covariance = raw @ raw.mT + torch.eye(2, dtype=torch.double)
+            root = torch.linalg.cholesky(covariance)
+            sample = TriangularLinearOperator(root).matmul(rhs) if wrapped else root @ rhs
+            first = torch.autograd.grad(sample.square().sum(), raw, create_graph=True)[0]
+            second = torch.autograd.grad(first.sum(), raw)[0]
+            gradients.append((first, second))
+        for actual, expected in zip(*gradients):
+            self.assertAllClose(actual, expected)
+
+    def test_matrix_hessian_with_constant_rhs(self):
+        devices = [torch.device("cpu")]
+        if torch.cuda.is_available():
+            devices.append(torch.device("cuda"))
+        for device in devices:
+            with self.subTest(device=device):
+                root = torch.tensor(
+                    [[1.2, 0.0], [0.3, 0.9]],
+                    dtype=torch.double,
+                    device=device,
+                    requires_grad=True,
+                )
+                rhs = root.new_tensor([0.7, -0.4])
+                wrapped = TriangularLinearOperator(root).matmul(rhs)
+                first = torch.autograd.grad(wrapped.square().sum(), root, create_graph=True)[0]
+                expected = torch.autograd.grad((root @ rhs).square().sum(), root, create_graph=True)[0]
+                self.assertAllClose(first, expected)
+                self.assertTrue(first.requires_grad)
+                self.assertAllClose(
+                    torch.autograd.grad(first.sum(), root)[0],
+                    torch.autograd.grad(expected.sum(), root)[0],
+                )
+
     def _ensure_symmetric_grad(self, grad):
         # Hack! we don't actually want symmetric grads for this LinearOperator test case
         # We actually want triangular gradients
