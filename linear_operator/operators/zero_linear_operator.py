@@ -6,7 +6,6 @@ import torch
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
-
 from linear_operator.utils.getitem import _compute_getitem_size
 from linear_operator.utils.memoize import cached
 
@@ -51,11 +50,11 @@ class ZeroLinearOperator(LinearOperator):
 
     def _get_indices(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> torch.Tensor:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
-        return torch.zeros(*new_size)
+        return torch.zeros(new_size, dtype=self.dtype, device=self.device)
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
-        return ZeroLinearOperator(*new_size)
+        return ZeroLinearOperator(*new_size, dtype=self.dtype, device=self.device)
 
     def _matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
@@ -191,7 +190,7 @@ class ZeroLinearOperator(LinearOperator):
     def logdet(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch)
-        return torch.log(torch.tensor(0.0))
+        return torch.full(self.batch_shape, -torch.inf, dtype=self.dtype, device=self.device)
 
     def matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
@@ -227,7 +226,7 @@ class ZeroLinearOperator(LinearOperator):
     def to_dense(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch, M, N)
-        return torch.zeros(*self.sizes)
+        return torch.zeros(self.sizes, dtype=self.dtype, device=self.device)
 
     def transpose(self, dim1: int, dim2: int) -> LinearOperator:
         sizes = self.sizes.copy()
@@ -235,7 +234,7 @@ class ZeroLinearOperator(LinearOperator):
         sizes[dim1] = sizes[dim2]
         sizes[dim2] = tmp
 
-        return ZeroLinearOperator(*sizes)
+        return ZeroLinearOperator(*sizes, dtype=self.dtype, device=self.device)
 
     def __add__(
         self: LinearOperator,  # shape: (..., #M, #N)
