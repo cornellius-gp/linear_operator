@@ -9,7 +9,6 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator, to_dense
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
-
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _noop_index
@@ -302,6 +301,36 @@ class CatLinearOperator(LinearOperator):
         else:
             res = self.__class__(*res_list, dim=updated_cat_dim, output_device=self.output_device)
             return res
+
+    def _bilinear_derivative(self, left_vecs: Tensor, right_vecs: Tensor) -> tuple[Tensor | None, ...]:
+        # Concatenation is linear in its children. Delegate each corresponding
+        # vector slice directly instead of using the detached autograd fallback,
+        # retaining mixed and higher derivatives through the incoming vectors.
+        if left_vecs.ndim == 1:
+            left_vecs = left_vecs.unsqueeze(-1)
+        if right_vecs.ndim == 1:
+            right_vecs = right_vecs.unsqueeze(-1)
+        if left_vecs.size(-1) != right_vecs.size(-1):
+            left_vecs = left_vecs.unsqueeze(-1)
+        batch_shape = torch.broadcast_shapes(self.batch_shape, left_vecs.shape[:-2], right_vecs.shape[:-2])
+        left_vecs = left_vecs.expand(*batch_shape, *left_vecs.shape[-2:])
+        right_vecs = right_vecs.expand(*batch_shape, *right_vecs.shape[-2:])
+        sizes = [linear_op.size(self.cat_dim) for linear_op in self.linear_ops]
+        left_parts = (
+            left_vecs.split(sizes, dim=-2 if self.cat_dim == -2 else self.cat_dim)
+            if self.cat_dim != -1
+            else (left_vecs,) * len(self.linear_ops)
+        )
+        right_parts = (
+            right_vecs.split(sizes, dim=-2 if self.cat_dim == -1 else self.cat_dim)
+            if self.cat_dim != -2
+            else (right_vecs,) * len(self.linear_ops)
+        )
+        return tuple(
+            gradient
+            for linear_op, left, right in zip(self.linear_ops, left_parts, right_parts)
+            for gradient in linear_op._bilinear_derivative(left.to(linear_op.device), right.to(linear_op.device))
+        )
 
     def _matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
