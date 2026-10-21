@@ -14,11 +14,9 @@ from typing import Any, Callable
 
 import numpy as np
 import torch
-
 from torch import Tensor
 
 import linear_operator
-
 from linear_operator import settings, utils
 from linear_operator.functions._diagonalization import Diagonalization
 from linear_operator.functions._inv_quad import InvQuad
@@ -362,12 +360,15 @@ class LinearOperator(object):
         """
         from collections import deque
 
-        # Construct a detached version of each argument in the linear operator
+        create_graph = torch.is_grad_enabled()
+        # Independent views make these partial derivatives with respect to the
+        # representation, even when representations or vector inputs depend on
+        # one another. Retain their original graph for higher-order backward.
         args = []
         for arg in self.representation():
             # All arguments here are guaranteed to be tensors
             if arg.dtype.is_floating_point and arg.requires_grad:
-                args.append(arg.detach().requires_grad_(True))
+                args.append(arg.view_as(arg) if create_graph else arg.detach().requires_grad_(True))
             else:
                 args.append(arg.detach())
 
@@ -380,7 +381,9 @@ class LinearOperator(object):
             lin_op = self.representation_tree()(*args)
             loss = (left_vecs * lin_op._matmul(right_vecs)).sum()
             args_with_grads = [arg for arg in args if arg.requires_grad]
-            actual_grads = deque(torch.autograd.grad(loss, args_with_grads, allow_unused=True))
+            actual_grads = deque(
+                torch.autograd.grad(loss, args_with_grads, allow_unused=True, create_graph=create_graph)
+            )
 
         # Now make sure that the object we return has one entry for every item in args
         grads = []
