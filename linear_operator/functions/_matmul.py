@@ -36,15 +36,16 @@ class Matmul(Function):
         rhs = ctx.saved_tensors[0]
         matrix_args = ctx.saved_tensors[1:]
         rhs_shape = rhs.shape
+        is_vector = rhs.ndimension() == 1
+        rhs_matrix = rhs.unsqueeze(-1) if is_vector else rhs
+        grad_output_matrix = grad_output.unsqueeze(-1) if is_vector else grad_output
 
         rhs_grad = None
         arg_grads = [None] * len(matrix_args)
 
         # input_1 gradient
         if any(ctx.needs_input_grad[2:]):
-            rhs = rhs.unsqueeze(-1) if (rhs.ndimension() == 1) else rhs
-            grad_output_matrix = grad_output.unsqueeze(-1) if grad_output.ndimension() == 1 else grad_output
-            arg_grads = ctx.representation_tree(*matrix_args)._bilinear_derivative(grad_output_matrix, rhs)
+            arg_grads = ctx.representation_tree(*matrix_args)._bilinear_derivative(grad_output_matrix, rhs_matrix)
 
         # input_2 gradient
         if ctx.needs_input_grad[1]:
@@ -53,11 +54,12 @@ class Matmul(Function):
             else:
                 linear_op = ctx.representation_tree(*matrix_args)
 
-            if grad_output.dim() == 1:
-                # Confusing Cublas_Sgemv bug when grad_output is single dimensional on GPU.
-                rhs_grad = linear_op._t_matmul(grad_output.unsqueeze(-1)).squeeze(-1)
-            else:
-                rhs_grad = linear_op._t_matmul(grad_output)
+            # The original right hand side determines vector semantics. A
+            # batched operator produces a batched vector gradient, even when
+            # that input was one-dimensional.
+            rhs_grad = linear_op._t_matmul(grad_output_matrix)
+            if is_vector:
+                rhs_grad = rhs_grad.squeeze(-1)
 
             # For broadcasting
             if rhs_grad.dim() > len(rhs_shape):
