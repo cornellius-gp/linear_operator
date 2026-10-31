@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+import math
 import unittest
 
 import torch
 
-from linear_operator.operators import IdentityLinearOperator, to_dense
+from linear_operator.operators import ConstantDiagLinearOperator, DenseLinearOperator, IdentityLinearOperator, to_dense
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -106,6 +107,31 @@ class TestIdentityLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def test_logdet(self):
         linear_op = self.create_linear_op()
         self.assertAllClose(torch.logdet(linear_op), torch.zeros(linear_op.batch_shape))
+
+    def test_mul_matrix(self):
+        linear_op = self.create_linear_op()
+        other = torch.randn(*linear_op.shape)
+        expected = self.evaluate_linear_op(linear_op) * other
+        for rhs in (other, DenseLinearOperator(other)):
+            self.assertAllClose((linear_op * rhs).to_dense(), expected)
+            self.assertAllClose(torch.mul(linear_op, rhs).to_dense(), expected)
+
+    def test_mul_constant_diag(self):
+        linear_op = self.create_linear_op()
+        others = (
+            self.create_linear_op(),
+            IdentityLinearOperator(5),
+            ConstantDiagLinearOperator(torch.tensor([2.5]), diag_shape=5),
+            ConstantDiagLinearOperator(
+                torch.linspace(0.5, 1.5, math.prod(linear_op.batch_shape)).view(*linear_op.batch_shape, 1),
+                diag_shape=5,
+            ),
+        )
+        for other in others:
+            expected = self.evaluate_linear_op(linear_op) * other.to_dense()
+            self.assertAllClose((linear_op * other).to_dense(), expected)
+            self.assertAllClose((other * linear_op).to_dense(), expected)
+            self.assertAllClose(torch.mul(linear_op, other).to_dense(), expected)
 
     def test_sqrt_inv_matmul(self):
         linear_op = self.create_linear_op().detach().requires_grad_(True)

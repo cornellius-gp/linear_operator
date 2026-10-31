@@ -103,12 +103,6 @@ class IdentityLinearOperator(ConstantDiagLinearOperator):
     ) -> LinearOperator:  # shape: (*batch, M, N)
         return ConstantDiagLinearOperator(self.diag_values * other, diag_shape=self.diag_shape)
 
-    def _mul_matrix(
-        self: LinearOperator,  # shape: (..., #M, #N)
-        other: torch.Tensor | LinearOperator,  # shape: (..., #M, #N)
-    ) -> LinearOperator:  # shape: (..., M, N)
-        return other
-
     def _permute_batch(self, *dims: int) -> LinearOperator:
         batch_shape = self.diag_values.permute(*dims, -1).shape[:-1]
         return IdentityLinearOperator(

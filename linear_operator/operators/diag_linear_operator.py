@@ -369,7 +369,7 @@ class ConstantDiagLinearOperator(DiagLinearOperator):
                     "Dimension Mismatch: Must have same diag_shape, but got "
                     f"{self.diag_shape} and {other.diag_shape}"
                 )
-            return self.__class__(self.diag_values * other.diag_values, diag_shape=self.diag_shape)
+            return ConstantDiagLinearOperator(self.diag_values * other.diag_values, diag_shape=self.diag_shape)
         return super()._mul_matrix(other)
 
     def _prod_batch(self, dim: int) -> LinearOperator:
