@@ -64,8 +64,9 @@ class BatchRepeatLinearOperator(LinearOperator):
     def _compute_batch_repeat_size(
         self, current_batch_shape: torch.Size | list[int], desired_batch_shape: torch.Size | list[int]
     ) -> torch.Size:
+        # Repeating an empty batch axis leaves it empty for any repeat factor.
         batch_repeat = torch.Size(
-            desired_batch_size // current_batch_size
+            desired_batch_size // current_batch_size if current_batch_size else 1
             for desired_batch_size, current_batch_size in zip(desired_batch_shape, current_batch_shape)
         )
         return batch_repeat
@@ -112,24 +113,18 @@ class BatchRepeatLinearOperator(LinearOperator):
         self: LinearOperator,  # shape: (*batch, M, N)
         rhs: torch.Tensor,  # shape: (*batch2, N, C) or (*batch2, N)
     ) -> torch.Tensor:  # shape: (..., M, C) or (..., M)
+        is_vector = rhs.ndim == 1
+        if is_vector:
+            rhs = rhs.unsqueeze(-1)
         output_shape = _matmul_broadcast_shape(self.shape, rhs.shape)
+        input_shape = output_shape[:-2] + rhs.shape[-2:]
+        if rhs.shape != input_shape:
+            rhs = rhs.expand(*input_shape)
 
-        # only attempt broadcasting if the non-batch dimensions are the same
-        if self.is_square:
-            if rhs.shape != output_shape:
-                rhs = rhs.expand(*output_shape)
-
-            rhs = self._move_repeat_batches_to_columns(rhs, output_shape)
-            res = self.base_linear_op._matmul(rhs)
-            res = self._move_repeat_batches_back(res, output_shape)
-            return res
-        else:
-            # otherwise, we will rely on base tensor broadcasting
-            res = self.base_linear_op._matmul(rhs)
-            if res.shape != output_shape:
-                res = res.expand(*output_shape)
-
-            return res
+        rhs = self._move_repeat_batches_to_columns(rhs, input_shape)
+        res = self.base_linear_op._matmul(rhs)
+        res = self._move_repeat_batches_back(res, output_shape)
+        return res.squeeze(-1) if is_vector else res
 
     def _move_repeat_batches_back(self, batch_matrix, output_shape):
         """
@@ -147,7 +142,7 @@ class BatchRepeatLinearOperator(LinearOperator):
             batch_repeat = self._compute_batch_repeat_size(padded_base_batch_shape, output_shape[:-2])
 
         # Now we have to move the columns back to their original repeat dimensions
-        batch_matrix = batch_matrix.view(*padded_base_batch_shape, output_shape[-2], -1, *batch_repeat)
+        batch_matrix = batch_matrix.view(*padded_base_batch_shape, output_shape[-2], output_shape[-1], *batch_repeat)
         output_dims = len(output_shape)
         dims = tuple(
             itertools.chain.from_iterable([i + output_dims, i] for i in range(len(padded_base_batch_shape)))
@@ -186,7 +181,9 @@ class BatchRepeatLinearOperator(LinearOperator):
         repeat_dims = range(0, len(batch_repeat) * 2, 2)
         batch_dims = range(1, len(batch_repeat) * 2, 2)
         batch_matrix = batch_matrix.permute(*batch_dims, -2, -1, *repeat_dims).contiguous()
-        batch_matrix = batch_matrix.view(*self.base_linear_op.batch_shape, output_shape[-2], -1)
+        batch_matrix = batch_matrix.view(
+            *self.base_linear_op.batch_shape, output_shape[-2], output_shape[-1] * batch_repeat.numel()
+        )
 
         self._batch_move_memo = output_shape, padded_base_batch_shape, batch_repeat
         return batch_matrix
