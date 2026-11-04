@@ -76,6 +76,14 @@ class DenseLinearOperator(LinearOperator):
     def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self.tensor.sum(dim))
 
+    def _svd(
+        self: LinearOperator,  # shape: (*batch, M, N)
+    ) -> tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, M, K), (..., K), (*batch, N, K)
+        # The default implementation goes through a symmetric eigendecomposition,
+        # which is only correct for symmetric matrices.
+        U, S, Vh = torch.linalg.svd(self.tensor, full_matrices=False)
+        return DenseLinearOperator(U), S, DenseLinearOperator(Vh.mT)
+
     def _transpose_nonbatch(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, N, M)

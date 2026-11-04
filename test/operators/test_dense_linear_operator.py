@@ -73,6 +73,16 @@ class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # add_low_rank should return correct sum
         self.assertTrue(torch.allclose(result.to_dense(), expected, atol=1e-5))
 
+    def test_svd_not_symmetric(self):
+        torch.manual_seed(0)
+        for shape in ((5, 5), (5, 3), (3, 5), (2, 4, 4)):
+            mat = torch.randn(*shape, dtype=torch.float64)
+            U, S, V = DenseLinearOperator(mat).svd()
+            self.assertAllClose(S.sort(dim=-1).values, torch.linalg.svdvals(mat).sort(dim=-1).values)
+            self.assertAllClose((U.to_dense() * S.unsqueeze(-2)) @ V.to_dense().mT, mat)
+            U, S, Vt = torch.linalg.svd(DenseLinearOperator(mat))
+            self.assertAllClose((U.to_dense() * S.unsqueeze(-2)) @ Vt.to_dense(), mat)
+
 
 class TestDenseLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0

@@ -104,9 +104,6 @@ class TestTriangularLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def test_sqrt_inv_matmul_no_lhs(self):
         pass
 
-    def test_svd(self):
-        pass
-
 
 class TestUpperTriangularLinearOperator(TestTriangularLinearOperator):
     def _ensure_symmetric_grad(self, grad):
