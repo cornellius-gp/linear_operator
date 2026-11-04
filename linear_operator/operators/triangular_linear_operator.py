@@ -227,18 +227,18 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
         if isinstance(self._tensor, DenseLinearOperator):
             res = torch.linalg.solve_triangular(self.to_dense(), right_tensor, upper=self.upper)
         elif isinstance(self._tensor, BatchRepeatLinearOperator):
-            res = self._tensor.base_linear_op.solve(right_tensor, left_tensor)
+            res = self._tensor.base_linear_op.solve(right_tensor)
             # TODO: Proper broadcasting
             res = res.expand(self._tensor.batch_repeat + res.shape[-2:])
         else:
             # TODO: Can we be smarter here?
-            res = self._tensor.solve(right_tensor=right_tensor, left_tensor=left_tensor)
-
-        if squeeze:
-            res = res.squeeze(-1)
+            res = self._tensor.solve(right_tensor=right_tensor)
 
         if left_tensor is not None:
             res = left_tensor @ res
+
+        if squeeze:
+            res = res.squeeze(-1)
         return res
 
     def solve_triangular(
