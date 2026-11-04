@@ -147,6 +147,14 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _sum_batch(self, dim: int) -> LinearOperator:
         return self.__class__(self._tensor._sum_batch(dim), upper=self.upper)
 
+    def _svd(
+        self: LinearOperator,  # shape: (*batch, N, N)
+    ) -> tuple[LinearOperator, Tensor, LinearOperator]:  # shape: (*batch, N, N), (..., N), (*batch, N, N)
+        # A triangular matrix is not symmetric, so the default (eigendecomposition
+        # based) implementation does not apply.
+        U, S, Vh = torch.linalg.svd(self.to_dense())
+        return DenseLinearOperator(U), S, DenseLinearOperator(Vh.mT)
+
     def _transpose_nonbatch(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, N, M)

@@ -283,7 +283,10 @@ class DiagLinearOperator(TriangularLinearOperator):
         evals, evecs = self._symeig(eigenvectors=True)
         S = torch.abs(evals)
         U = evecs
-        V = evecs * torch.sign(evals).unsqueeze(-1)
+        # diag(evals) = I diag(|evals|) diag(signs)^T. (Multiplying the identity
+        # `evecs` elementwise by a column of signs drops the signs.)
+        signs = torch.where(evals < 0, -1.0, 1.0).to(evals)
+        V = DiagLinearOperator(signs)
         return U, S, V
 
     def _symeig(

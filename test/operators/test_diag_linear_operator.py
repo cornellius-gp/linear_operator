@@ -38,6 +38,16 @@ class TestDiagLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         evaluated = self.evaluate_linear_op(linear_op_copy)
         self.assertAllClose(torch.abs(linear_op).to_dense(), torch.abs(evaluated))
 
+    def test_svd_negative_diagonal(self):
+        linear_op = self.create_linear_op().detach()
+        n = linear_op._diag.shape[-1]
+        signs = torch.where(torch.arange(n) % 2 == 0, 1.0, -1.0).to(linear_op._diag)
+        linear_op = DiagLinearOperator(linear_op._diag * signs)
+        evaluated = linear_op.to_dense()
+        U, S, V = linear_op.svd()
+        self.assertAllClose(S, linear_op._diag.abs())
+        self.assertAllClose((U.to_dense() * S.unsqueeze(-2)) @ V.to_dense().mT, evaluated)
+
     def test_exp(self):
         linear_op = self.create_linear_op()
         linear_op_copy = linear_op.detach().clone()
