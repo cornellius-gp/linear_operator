@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import CholLinearOperator, TriangularLinearOperator
+from linear_operator.operators import CholLinearOperator, DenseLinearOperator, TriangularLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase
 
 
@@ -32,6 +32,23 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         chol = linear_op.root.to_dense()
         return chol.matmul(chol.mT)
+
+    def test_inv_quad_vector(self):
+        linear_op = self.create_linear_op().detach()
+        if linear_op.batch_shape:
+            return  # vector right-hand sides are only accepted for non-batch operators
+        evaluated = self.evaluate_linear_op(linear_op)
+        vec = torch.randn(linear_op.size(-1))
+        expected = vec @ torch.linalg.solve(evaluated, vec)
+        self.assertAllClose(linear_op.inv_quad(vec), expected)
+        self.assertAllClose(linear_op.inv_quad(vec, reduce_inv_quad=False), expected.unsqueeze(-1))
+        inv_quad, logdet = linear_op.inv_quad_logdet(vec, logdet=True)
+        self.assertAllClose(inv_quad, expected)
+        self.assertAllClose(logdet, torch.logdet(evaluated))
+        # dense operators of this size are handled through a CholLinearOperator as well
+        inv_quad, logdet = DenseLinearOperator(evaluated).inv_quad_logdet(vec, logdet=True)
+        self.assertAllClose(inv_quad, expected)
+        self.assertAllClose(logdet, torch.logdet(evaluated))
 
     def test_inverse(self):
         linear_op = self.create_linear_op()

@@ -109,6 +109,9 @@ class CholLinearOperator(RootLinearOperator):
         inv_quad_rhs: Tensor,  # shape: (*batch, N, M) or (*batch, N)
         reduce_inv_quad: bool = True,
     ) -> Tensor:  # shape: (*batch, M) or (*batch)
+        if self.dim() == 2 and inv_quad_rhs.dim() == 1:
+            # a vector right-hand side is a single column, as in the default implementation
+            inv_quad_rhs = inv_quad_rhs.unsqueeze(-1)
         if self.upper:
             R = self.root._transpose_nonbatch().solve(inv_quad_rhs)
         else:

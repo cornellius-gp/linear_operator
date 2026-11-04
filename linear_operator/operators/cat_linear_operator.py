@@ -397,7 +397,8 @@ class CatLinearOperator(LinearOperator):
         Tensor | None,  # shape: (...)
     ]:  # fmt: on
         res = super().inv_quad_logdet(inv_quad_rhs, logdet, reduce_inv_quad)
-        return tuple(r.to(self.device) for r in res)
+        # a term that is not requested can be None
+        return tuple(r.to(self.device) if r is not None else None for r in res)
 
     @property
     def device(self) -> torch.device | None:

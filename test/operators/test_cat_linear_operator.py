@@ -28,6 +28,14 @@ class TestCatLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     def evaluate_linear_op(self, linear_op):
         return self.psd_mat.detach().clone().requires_grad_()
 
+    def test_logdet_without_inv_quad(self):
+        linear_op = self.create_linear_op().detach()
+        evaluated = self.evaluate_linear_op(linear_op).detach()
+        self.assertAllClose(linear_op.logdet(), torch.logdet(evaluated))
+        inv_quad, logdet = linear_op.inv_quad_logdet(logdet=True)
+        self.assertIsNone(inv_quad)
+        self.assertAllClose(logdet, torch.logdet(evaluated))
+
 
 class TestCatLinearOperatorColumn(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
