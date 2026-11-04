@@ -113,5 +113,38 @@ class TestBlockDiagLinearOperatorMetaClass(unittest.TestCase):
                     BlockDiagLinearOperator(base_diag, block_dim=-2)
 
 
+class TestBlockDiagDiagonalMatmulBroadcast(unittest.TestCase):
+    def test_diagonal_matmul_broadcast(self) -> None:
+        batches = (((), (2,)), ((2,), ()), ((2, 1), (1, 2)), ((1, 2), (2, 1)), ((2,), (2,)))
+        for block_batch, diag_batch in batches:
+            for dtype in (torch.float32, torch.float64):
+                shape = (*block_batch, 3, 2, 2)
+                root = torch.arange(torch.Size(shape).numel(), dtype=dtype).reshape(shape) / 100
+                blocks = (root @ root.mT + torch.eye(2, dtype=dtype)).requires_grad_()
+                diagonal = torch.linspace(0.7, 1.6, torch.Size((*diag_batch, 6)).numel(), dtype=dtype)
+                diagonal = diagonal.reshape(*diag_batch, 6).requires_grad_()
+                dense = torch.zeros(*block_batch, 6, 6, dtype=dtype)
+                for i in range(3):
+                    dense[..., 2 * i : 2 * i + 2, 2 * i : 2 * i + 2] = blocks[..., i, :, :]
+                for diagonal_left in (False, True):
+                    with self.subTest(batch=(block_batch, diag_batch), dtype=dtype, diagonal_left=diagonal_left):
+                        block_op = BlockDiagLinearOperator(DenseLinearOperator(blocks))
+                        diag_op = DiagLinearOperator(diagonal)
+                        actual = diag_op @ block_op if diagonal_left else block_op @ diag_op
+                        expected = diagonal.unsqueeze(-1) * dense if diagonal_left else dense * diagonal.unsqueeze(-2)
+                        self.assertEqual(actual.shape, expected.shape)
+                        torch.testing.assert_close(actual.to_dense(), expected)
+                        torch.testing.assert_close(actual.diagonal(), expected.diagonal(dim1=-2, dim2=-1))
+                        weight = torch.linspace(-1, 1, expected.numel(), dtype=dtype).reshape(expected.shape)
+                        actual_grads = torch.autograd.grad(
+                            (actual.to_dense() * weight).sum(), (blocks, diagonal), retain_graph=True
+                        )
+                        expected_grads = torch.autograd.grad(
+                            (expected * weight).sum(), (blocks, diagonal), retain_graph=True
+                        )
+                        for actual_grad, expected_grad in zip(actual_grads, expected_grads):
+                            torch.testing.assert_close(actual_grad, expected_grad)
+
+
 if __name__ == "__main__":
     unittest.main()

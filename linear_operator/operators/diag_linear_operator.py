@@ -215,7 +215,7 @@ class DiagLinearOperator(TriangularLinearOperator):
             case TriangularLinearOperator():
                 return TriangularLinearOperator(self @ other._tensor, upper=other.upper)
             case BlockDiagLinearOperator():
-                diag_reshape = self._diag.view(*other.base_linear_op.shape[:-1])
+                diag_reshape = self._diag.view(*self.batch_shape, other.num_blocks, other.base_linear_op.size(-1))
                 diag = DiagLinearOperator(diag_reshape)
                 # using matmul here avoids having to implement special case of elementwise multiplication
                 # with block diagonal operator, which itself has special cases for vectors and matrices
