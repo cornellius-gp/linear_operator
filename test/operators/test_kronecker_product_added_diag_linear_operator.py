@@ -158,5 +158,36 @@ class TestKroneckerProductAddedConstDiagLinearOperator(TestKroneckerProductAdded
                 chol_mock.assert_not_called()
 
 
+class TestConstantKroneckerDiagonalLogdet(unittest.TestCase):
+    def test_logdet_and_noise_derivatives(self):
+        for dtype in (torch.float32, torch.float64):
+            for constants in ((2.0, 3.0), (0.0, 3.0), (-2.0, -3.0)):
+                with self.subTest(dtype=dtype, constants=constants):
+                    a = torch.tensor([[2.0, 0.2], [0.2, 3.0]], dtype=dtype)
+                    b = torch.tensor([[1.5, 0.3], [0.3, 2.5]], dtype=dtype)
+                    noise = torch.tensor(constants, dtype=dtype, requires_grad=True)
+                    kron = KroneckerProductLinearOperator(a, b)
+                    diag = KroneckerProductDiagLinearOperator(
+                        ConstantDiagLinearOperator(noise[:1], diag_shape=2),
+                        ConstantDiagLinearOperator(noise[1:], diag_shape=2),
+                    )
+                    linear_op = KroneckerProductAddedDiagLinearOperator(kron, diag)
+                    dense = torch.kron(a, b) + noise.prod() * torch.eye(4, dtype=dtype)
+                    with settings.max_cholesky_size(0):
+                        actual = linear_op.logdet()
+                    expected = torch.linalg.slogdet(dense).logabsdet
+                    torch.testing.assert_close(actual, expected)
+                    actual_grad = torch.autograd.grad(actual, noise, create_graph=True)[0]
+                    expected_grad = torch.autograd.grad(expected, noise, create_graph=True)[0]
+                    torch.testing.assert_close(actual_grad, expected_grad)
+                    actual_hessian = torch.stack(
+                        [torch.autograd.grad(g, noise, retain_graph=True)[0] for g in actual_grad]
+                    )
+                    expected_hessian = torch.stack(
+                        [torch.autograd.grad(g, noise, retain_graph=True)[0] for g in expected_grad]
+                    )
+                    torch.testing.assert_close(actual_hessian, expected_hessian)
+
+
 if __name__ == "__main__":
     unittest.main()
