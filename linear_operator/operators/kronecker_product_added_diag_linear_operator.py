@@ -84,7 +84,11 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
     def _logdet(
         self: LinearOperator,  # shape: (*batch, N, N)
     ) -> Tensor:  # shape: (*batch)
-        if self._diag_is_constant:
+        if self._diag_is_constant or (
+            self.shape[-1] >= settings.max_cholesky_size.value()
+            and isinstance(self.diag_tensor, KroneckerProductDiagLinearOperator)
+            and all(isinstance(dt, ConstantDiagLinearOperator) for dt in self.diag_tensor.linear_ops)
+        ):
             # symeig requires computing the eigenvectors for it to be differentiable
             evals, _ = self.linear_op._symeig(eigenvectors=True)
             evals_plus_diag = evals + self.diag_tensor._diagonal()
@@ -92,38 +96,17 @@ class KroneckerProductAddedDiagLinearOperator(AddedDiagLinearOperator):
         if self.shape[-1] >= settings.max_cholesky_size.value() and isinstance(
             self.diag_tensor, KroneckerProductDiagLinearOperator
         ):
-            # If the diagonal has the same Kronecker structure as the full matrix, with each factor being
-            # constant, wee can compute the logdet efficiently
-            if len(self.linear_op.linear_ops) == len(self.diag_tensor.linear_ops) and all(
-                isinstance(dt, ConstantDiagLinearOperator) for dt in self.diag_tensor.linear_ops
-            ):
-                # here the log determinant identity is |D + K| = | D| |I + D^{-1} K|
-                # as D is assumed to have constant components, we can look solely at the diag_values
-                diag_term = self.diag_tensor._diagonal().clamp(min=1e-7).log().sum(dim=-1)
-                # symeig requires computing the eigenvectors for it to be differentiable
-                evals, _ = self.linear_op._symeig(eigenvectors=True)
-                const_times_evals = KroneckerProductLinearOperator(
-                    *[ee * d.diag_values for ee, d in zip(evals.linear_ops, self.diag_tensor.linear_ops)]
+            # Use |K + D| = |D| |I + D^{-1}K|, symmetrizing the second
+            # matrix because its eigendecomposition must remain differentiable.
+            lt = self.linear_op
+            dlt = self.diag_tensor
+            if isinstance(lt, KroneckerProductAddedDiagLinearOperator):
+                raise NotImplementedError(
+                    "Log determinant for KroneckerProductAddedDiagLinearOperator + "
+                    "DiagLinearOperator not implemented."
                 )
-                first_term = (const_times_evals._diagonal() + 1).log().sum(dim=-1)
-                return diag_term + first_term
-
-            else:
-                # we use the same matrix determinant identity: |K + D| = |D| |I + D^{-1}K|
-                # but have to symmetrize the second matrix because torch.linalg.eig may not be
-                # completely differentiable.
-                lt = self.linear_op
-                dlt = self.diag_tensor
-                if isinstance(lt, KroneckerProductAddedDiagLinearOperator):
-                    raise NotImplementedError(
-                        "Log determinant for KroneckerProductAddedDiagLinearOperator + "
-                        "DiagLinearOperator not implemented."
-                    )
-                else:
-                    _, evals_plus_i, _ = _symmetrize_kpadlt_constructor(lt, dlt)
-
-                diag_term = self.diag_tensor.logdet()
-                return diag_term + evals_plus_i.logdet()
+            _, evals_plus_i, _ = _symmetrize_kpadlt_constructor(lt, dlt)
+            return self.diag_tensor.logdet() + evals_plus_i.logdet()
 
         return super().inv_quad_logdet(logdet=True)[1]
 
