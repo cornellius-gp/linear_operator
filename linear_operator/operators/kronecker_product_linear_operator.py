@@ -265,9 +265,34 @@ class KroneckerProductLinearOperator(LinearOperator):
     def _logdet(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch)
-        evals, _ = self.diagonalization()
-        logdet = evals.clamp(min=1e-7).log().sum(-1)
-        return logdet
+        if self.size(-1) == 0:
+            evals, _ = self.diagonalization()
+            return evals.sum(-1)
+
+        # log|A_1 kron ... kron A_k| = sum_i (N / n_i) log|A_i|.
+        # Take logs before forming products to preserve small eigenvalues and
+        # avoid underflow/overflow in the full Kronecker spectrum.
+        logdet = 0
+        has_positive, has_negative = True, False
+        linear_ops = list(reversed(self.linear_ops))
+        while linear_ops:
+            linear_op = linear_ops.pop()
+            if type(linear_op) in (KroneckerProductLinearOperator, KroneckerProductDiagLinearOperator):
+                # Flatten before a nested Kronecker spectrum multiplies its eigenvalues.
+                # Other subclasses retain their own spectral decomposition contracts.
+                linear_ops.extend(reversed(linear_op.linear_ops))
+                continue
+            evals, _ = linear_op._symeig(eigenvectors=True)
+            factor_positive = (evals > 0).any(-1)
+            factor_negative = (evals < 0).any(-1)
+            has_positive, has_negative = (
+                (has_positive & factor_positive) | (has_negative & factor_negative),
+                (has_positive & factor_negative) | (has_negative & factor_positive),
+            )
+            logdet = logdet + evals.abs().log().sum(-1) * (self.size(-1) // linear_op.size(-1))
+        # Two negative diagonal factors can have a positive Kronecker spectrum.
+        # Do not turn a product with negative eigenvalues into a log-absolute determinant.
+        return logdet.masked_fill(has_negative, float("nan"))
 
     def _matmul(
         self: LinearOperator,  # shape: (*batch, M, N)
