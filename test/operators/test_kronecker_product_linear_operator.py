@@ -4,7 +4,14 @@ import unittest
 
 import torch
 
-from linear_operator.operators import DenseLinearOperator, KroneckerProductLinearOperator
+from linear_operator.operators import (
+    DenseLinearOperator,
+    DiagLinearOperator,
+    KroneckerProductDiagLinearOperator,
+    KroneckerProductLinearOperator,
+    KroneckerProductTriangularLinearOperator,
+    TriangularLinearOperator,
+)
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
@@ -194,6 +201,160 @@ class TestKroneckerProductLogdetScale(unittest.TestCase):
         torch.testing.assert_close(
             torch.autograd.grad(logdet(log_scale), log_scale)[0], torch.tensor(6.0, dtype=torch.float64)
         )
+
+    def test_nested_logdet_grouping(self):
+        for dtype, exponent in ((torch.float32, 30.0), (torch.float64, 200.0)):
+            for sign in (-1, 1):
+                for diagonal in (False, True):
+                    for group_left in (False, True):
+                        with self.subTest(dtype=dtype, sign=sign, diagonal=diagonal, group_left=group_left):
+                            powers = [sign * exponent, sign * exponent, -sign * exponent]
+                            if not group_left:
+                                powers.reverse()
+                            log_scales = torch.tensor(powers, dtype=dtype, requires_grad=True)
+                            scales = 10.0**log_scales
+                            factors = [
+                                DiagLinearOperator(scale * torch.ones(n, dtype=dtype))
+                                for scale, n in zip(scales, (2, 3, 2))
+                            ]
+                            if not diagonal:
+                                factors = [DenseLinearOperator(factor.to_dense()) for factor in factors]
+                            constructor = (
+                                KroneckerProductDiagLinearOperator if diagonal else KroneckerProductLinearOperator
+                            )
+                            a, b, c = factors
+                            if group_left:
+                                nested = KroneckerProductLinearOperator(constructor(a, b), c)
+                            else:
+                                nested = KroneckerProductLinearOperator(a, constructor(b, c))
+                            flat = KroneckerProductLinearOperator(a, b, c)
+                            actual = nested.logdet()
+                            expected = 12 * log_scales.sum() * torch.tensor(10.0, dtype=dtype).log()
+                            torch.testing.assert_close(actual, expected)
+                            torch.testing.assert_close(actual, flat.logdet())
+                            torch.testing.assert_close(
+                                torch.autograd.grad(actual, log_scales)[0],
+                                torch.full_like(log_scales, 12) * torch.tensor(10.0, dtype=dtype).log(),
+                            )
+
+    def test_nested_logdet_zero_eigenvalue(self):
+        for dtype in (torch.float32, torch.float64):
+            for diagonal in (False, True):
+                for group_left in (False, True):
+                    with self.subTest(dtype=dtype, diagonal=diagonal, group_left=group_left):
+                        a = DiagLinearOperator(torch.tensor([1.0, 0.0], dtype=dtype))
+                        b = DiagLinearOperator(torch.ones(3, dtype=dtype))
+                        c = DiagLinearOperator(torch.ones(2, dtype=dtype))
+                        constructor = KroneckerProductDiagLinearOperator if diagonal else KroneckerProductLinearOperator
+                        if group_left:
+                            nested = KroneckerProductLinearOperator(constructor(a, b), c)
+                        else:
+                            nested = KroneckerProductLinearOperator(c, constructor(b, a))
+                        self.assertEqual(nested.logdet().item(), -float("inf"))
+
+    def test_nested_logdet_broadcast_batches(self):
+        for dtype, exponent in ((torch.float32, 30.0), (torch.float64, 200.0)):
+            for diagonal in (False, True):
+                with self.subTest(dtype=dtype, diagonal=diagonal):
+                    log_scales = torch.tensor([[-exponent], [-exponent + 1]], dtype=dtype, requires_grad=True)
+                    a = DiagLinearOperator((10.0**log_scales)[..., None] * torch.ones(2, dtype=dtype))
+                    b = DiagLinearOperator(10.0 ** (-exponent) * torch.arange(1, 10, dtype=dtype).reshape(1, 3, 3))
+                    c = DiagLinearOperator(torch.full((2,), 10.0**exponent, dtype=dtype))
+                    constructor = KroneckerProductDiagLinearOperator if diagonal else KroneckerProductLinearOperator
+                    nested = KroneckerProductLinearOperator(constructor(a, b), c)
+                    actual = nested.logdet()
+                    expected = 12 * log_scales * torch.tensor(10.0, dtype=dtype).log() + 4 * torch.arange(
+                        1, 10, dtype=dtype
+                    ).reshape(1, 3, 3).log().sum(-1)
+                    self.assertEqual(actual.shape, torch.Size([2, 3]))
+                    torch.testing.assert_close(actual, expected)
+                    torch.testing.assert_close(
+                        torch.autograd.grad(actual.sum(), log_scales)[0],
+                        torch.full_like(log_scales, 36) * torch.tensor(10.0, dtype=dtype).log(),
+                    )
+
+    def test_nested_triangular_symeig_remains_unsupported(self):
+        for upper in (False, True):
+            with self.subTest(upper=upper):
+                a = TriangularLinearOperator(torch.eye(2), upper=upper)
+                b = TriangularLinearOperator(torch.eye(3), upper=upper)
+                triangular = KroneckerProductTriangularLinearOperator(a, b, upper=upper)
+                operator = KroneckerProductLinearOperator(triangular, torch.eye(2))
+                with self.assertRaisesRegex(NotImplementedError, "_symeig not applicable"):
+                    operator.logdet()
+
+    def test_negative_diagonal_factors_with_positive_product(self):
+        for dtype, exponent in ((torch.float32, 30.0), (torch.float64, 200.0)):
+            for power in (-exponent, 0.0, exponent):
+                for signs in ((-1, -1, 1), (-1, 1, -1), (1, -1, -1)):
+                    for group_left in (False, True):
+                        with self.subTest(dtype=dtype, power=power, signs=signs, group_left=group_left):
+                            log_scales = torch.tensor([power, power, -power], dtype=dtype, requires_grad=True)
+                            factors = [
+                                DiagLinearOperator(sign * 10.0**scale * torch.ones(n, dtype=dtype))
+                                for sign, scale, n in zip(signs, log_scales, (2, 3, 2))
+                            ]
+                            a, b, c = factors
+                            if group_left:
+                                operator = KroneckerProductLinearOperator(KroneckerProductDiagLinearOperator(a, b), c)
+                            else:
+                                operator = KroneckerProductLinearOperator(a, KroneckerProductDiagLinearOperator(b, c))
+                            actual = operator.logdet()
+                            expected = 12 * log_scales.sum() * torch.tensor(10.0, dtype=dtype).log()
+                            torch.testing.assert_close(actual, expected)
+                            torch.testing.assert_close(actual, KroneckerProductLinearOperator(*factors).logdet())
+                            torch.testing.assert_close(
+                                torch.autograd.grad(actual, log_scales)[0],
+                                torch.full_like(log_scales, 12) * torch.tensor(10.0, dtype=dtype).log(),
+                            )
+
+    def test_negative_product_spectrum_is_not_logabsdet(self):
+        for values in ((-1.0, -2.0), (-1.0, 2.0)):
+            for diagonal in (False, True):
+                with self.subTest(values=values, diagonal=diagonal):
+                    a = DiagLinearOperator(torch.tensor(values, dtype=torch.float64))
+                    b = DiagLinearOperator(torch.ones(2, dtype=torch.float64))
+                    constructor = KroneckerProductDiagLinearOperator if diagonal else KroneckerProductLinearOperator
+                    operator = KroneckerProductLinearOperator(constructor(a, b), torch.eye(2, dtype=torch.float64))
+                    self.assertTrue(operator.logdet().isnan())
+                    # An all-zero factor makes the full product zero even if another
+                    # factor has mixed signs.
+                    zero_product = KroneckerProductLinearOperator(operator, torch.zeros(2, 2, dtype=torch.float64))
+                    self.assertEqual(zero_product.logdet().item(), -float("inf"))
+
+    def test_empty_product_preserves_metadata_and_gradients(self):
+        for dtype in (torch.float32, torch.float64):
+            for batch_shape in ((), (2,)):
+                for empty_first in (False, True):
+                    with self.subTest(dtype=dtype, batch_shape=batch_shape, empty_first=empty_first):
+                        empty = torch.empty(*batch_shape, 0, 0, dtype=dtype, requires_grad=True)
+                        nonempty = torch.eye(3, dtype=dtype, requires_grad=True)
+                        factors = (empty, nonempty) if empty_first else (nonempty, empty)
+                        actual = KroneckerProductLinearOperator(*factors).logdet()
+                        torch.testing.assert_close(actual, torch.zeros(batch_shape, dtype=dtype))
+                        for gradient, factor in zip(torch.autograd.grad(actual.sum(), factors), factors):
+                            torch.testing.assert_close(gradient, torch.zeros_like(factor))
+
+    def test_rectangular_factors_do_not_gain_logdet_support(self):
+        for shapes in (((2, 3), (3, 2)), ((0, 2), (2, 0))):
+            with self.subTest(shapes=shapes):
+                with self.assertRaises(RuntimeError):
+                    KroneckerProductLinearOperator(*(torch.empty(*shape) for shape in shapes)).logdet()
+
+    def test_reused_factor_supports_independent_backward_passes(self):
+        for dtype in (torch.float32, torch.float64):
+            for nested in (False, True):
+                with self.subTest(dtype=dtype, nested=nested):
+                    matrix = torch.tensor([[2.0, 0.3], [0.3, 1.0]], dtype=dtype, requires_grad=True)
+                    factor = DenseLinearOperator(matrix)
+                    for _ in range(2):
+                        operator = KroneckerProductLinearOperator(factor, torch.eye(3, dtype=dtype))
+                        multiplicity = 3
+                        if nested:
+                            operator = KroneckerProductLinearOperator(operator, torch.eye(2, dtype=dtype))
+                            multiplicity *= 2
+                        (gradient,) = torch.autograd.grad(operator.logdet(), matrix)
+                        torch.testing.assert_close(gradient, multiplicity * torch.linalg.inv(matrix).mT)
 
 
 if __name__ == "__main__":
