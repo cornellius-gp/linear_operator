@@ -265,8 +265,13 @@ class KroneckerProductLinearOperator(LinearOperator):
     def _logdet(
         self: LinearOperator,  # shape: (*batch, M, N)
     ) -> Tensor:  # shape: (*batch)
-        evals, _ = self.diagonalization()
-        logdet = evals.clamp(min=1e-7).log().sum(-1)
+        # log|A_1 kron ... kron A_k| = sum_i (N / n_i) log|A_i|.
+        # Take logs before forming products to preserve small eigenvalues and
+        # avoid underflow/overflow in the full Kronecker spectrum.
+        logdet = 0
+        for linear_op in self.linear_ops:
+            evals, _ = linear_op.diagonalization(method="symeig")
+            logdet = logdet + evals.log().sum(-1) * (self.size(-1) // linear_op.size(-1))
         return logdet
 
     def _matmul(
