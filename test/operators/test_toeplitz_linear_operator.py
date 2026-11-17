@@ -12,6 +12,22 @@ from linear_operator.test.linear_operator_test_case import LinearOperatorTestCas
 class TestToeplitzLinearOperator(LinearOperatorTestCase, unittest.TestCase):
     seed = 1
 
+    def test_hadamard_product(self):
+        a = torch.randn(2, 1, 5, dtype=torch.double, requires_grad=True)
+        b = torch.randn(3, 5, dtype=torch.double, requires_grad=True)
+        rhs = torch.randn(5, 2, dtype=torch.double)
+        distance = (torch.arange(5)[:, None] - torch.arange(5)).abs()
+        expected = (a[..., distance] * b[..., distance]) @ rhs
+        product = ToeplitzLinearOperator(a) * ToeplitzLinearOperator(b)
+        self.assertIsInstance(product, ToeplitzLinearOperator)
+        actual = product @ rhs
+        torch.testing.assert_close(actual, expected)
+        grad = torch.randn_like(actual)
+        for observed, reference in zip(
+            torch.autograd.grad(actual, (a, b), grad), torch.autograd.grad(expected, (a, b), grad)
+        ):
+            torch.testing.assert_close(observed, reference)
+
     def create_linear_op(self):
         toeplitz_column = torch.tensor([4, 0.5, 0, 1], dtype=torch.float, requires_grad=True)
         return ToeplitzLinearOperator(toeplitz_column)

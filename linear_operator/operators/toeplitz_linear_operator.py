@@ -73,6 +73,11 @@ class ToeplitzLinearOperator(LinearOperator):
     ) -> LinearOperator:  # shape: (*batch, N, M)
         return ToeplitzLinearOperator(self.column)
 
+    def _mul_matrix(self, other: Tensor | LinearOperator) -> LinearOperator:
+        if isinstance(other, ToeplitzLinearOperator):
+            return ToeplitzLinearOperator(self.column * other.column)
+        return super()._mul_matrix(other)
+
     def add_jitter(
         self: LinearOperator, jitter_val: float = 1e-3  # shape: (*batch, N, N)
     ) -> LinearOperator:  # shape: (*batch, N, N)
