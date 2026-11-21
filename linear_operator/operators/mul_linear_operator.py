@@ -7,7 +7,6 @@ from torch import Tensor
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.linear_operator_representation_tree import LinearOperatorRepresentationTree
 from linear_operator.operators.root_linear_operator import RootLinearOperator
-
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.memoize import cached
 
@@ -82,7 +81,9 @@ class MulLinearOperator(LinearOperator):
     def _mul_constant(
         self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
-        if other > 0:
+        if not torch.is_tensor(other):
+            other = torch.as_tensor(other, dtype=self.dtype, device=self.device)
+        if (other > 0).all():
             res = self.__class__(self.left_linear_op._mul_constant(other), self.right_linear_op)
         else:
             # Negative constants can screw up the root_decomposition
