@@ -9,6 +9,37 @@ from linear_operator.test.utils import approx_equal
 
 
 class TestZeroLinearOperator(unittest.TestCase):
+    def test_dtype_device_preservation(self):
+        devices = [torch.device("cpu")]
+        if torch.cuda.is_available():
+            devices.append(torch.device("cuda"))
+        for device in devices:
+            for dtype in (torch.float32, torch.float64):
+                with self.subTest(device=device, dtype=dtype):
+                    zero = ZeroLinearOperator(2, 4, 4, dtype=dtype, device=device)
+                    dense = torch.zeros(2, 4, 4, dtype=dtype, device=device)
+                    indices = torch.tensor([0, 1], device=device)
+                    outputs = (
+                        (zero.to_dense(), dense),
+                        (zero[0].to_dense(), dense[0]),
+                        (zero[:, 1, :], dense[:, 1, :]),
+                        (zero[:, indices, indices], dense[:, indices, indices]),
+                        (zero[0, 1, 2], dense[0, 1, 2]),
+                        (zero.transpose(-1, -2).to_dense(), dense.mT),
+                        (zero.transpose(0, 1).to_dense(), dense.transpose(0, 1)),
+                        (zero.logdet(), torch.full((2,), -torch.inf, dtype=dtype, device=device)),
+                        (zero.to(device).to_dense(), dense),
+                        (
+                            ZeroLinearOperator(2, 3, 4, 4, dtype=dtype, device=device).permute(1, 0, 2, 3).to_dense(),
+                            torch.zeros(3, 2, 4, 4, dtype=dtype, device=device),
+                        ),
+                    )
+                    for actual, expected in outputs:
+                        torch.testing.assert_close(actual, expected)
+                    converted = zero.type(torch.float64 if dtype == torch.float32 else torch.float32)
+                    self.assertEqual(converted.device, device)
+                    self.assertEqual(converted.dtype, torch.float64 if dtype == torch.float32 else torch.float32)
+
     def test_to_dense(self):
         lv = ZeroLinearOperator(5, 4, 3)
         actual = torch.zeros(5, 4, 3)
