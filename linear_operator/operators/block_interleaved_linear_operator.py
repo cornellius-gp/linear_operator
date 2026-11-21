@@ -8,7 +8,7 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_linear_operator import BlockLinearOperator
-
+from linear_operator.utils.getitem import _is_noop_index, _noop_index
 from linear_operator.utils.memoize import cached
 
 
@@ -79,6 +79,31 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
         res = self.base_linear_op._get_indices(row_index, col_index, *batch_indices, row_index_block)
         res = res * torch.eq(row_index_block, col_index_block).type_as(res)
         return res
+
+    def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
+        # Batch indexing, tensor indices and steps are handled by the base case
+        if (_is_noop_index(row_index) and _is_noop_index(col_index)) or not (
+            isinstance(row_index, slice) and isinstance(col_index, slice)
+        ):
+            return super()._getitem(row_index, col_index, *batch_indices)
+        num_blocks = self.num_blocks
+        num_rows, num_cols = self.matrix_shape
+        row_start, row_end, row_step = row_index.indices(num_rows)
+        col_start, col_end, col_step = col_index.indices(num_cols)
+        if row_step != 1 or col_step != 1:
+            return super()._getitem(row_index, col_index, *batch_indices)
+        row_end = max(row_start, row_end)
+        col_end = max(col_start, col_end)
+
+        # Row (column) i of the matrix is row (column) i // num_blocks of block i % num_blocks.
+        # So if the slice bounds are multiples of num_blocks, the slices select the same rows and
+        # columns of every block. Otherwise, use the base case
+        if (row_start % num_blocks) or (col_start % num_blocks) or (row_end % num_blocks) or (col_end % num_blocks):
+            return super()._getitem(row_index, col_index, *batch_indices)
+        row_index = slice(row_start // num_blocks, row_end // num_blocks, None)
+        col_index = slice(col_start // num_blocks, col_end // num_blocks, None)
+        new_base_linear_op = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
+        return self.__class__(new_base_linear_op, block_dim=-3)
 
     def _remove_batch_dim(self, other):
         other = other.transpose(-2, -3).contiguous()
