@@ -48,6 +48,17 @@ class TestCholLinearOperator(LinearOperatorTestCase, unittest.TestCase):
             res = linear_op[..., index, index]
             self.assertAllClose(res.to_dense(), evaluated[..., index, index])
 
+    def test_upper_orientation_against_explicit_product(self):
+        upper_factor = torch.tensor([[2.0, 1.0], [0.0, 3.0]])
+        expected = upper_factor.mT @ upper_factor
+        op_wrapped = CholLinearOperator(TriangularLinearOperator(upper_factor, upper=True), upper=True)
+        self.assertAllClose(op_wrapped.to_dense(), expected)
+        op_implicit = CholLinearOperator(TriangularLinearOperator(upper_factor, upper=True))
+        self.assertAllClose(op_implicit.to_dense(), expected)
+        with self.assertWarns(DeprecationWarning):
+            op_tensor = CholLinearOperator(upper_factor)
+        self.assertAllClose(op_tensor.to_dense(), expected)
+
     def test_inverse(self):
         linear_op = self.create_linear_op()
         linear_op_copy = linear_op.detach().clone()

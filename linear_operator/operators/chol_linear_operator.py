@@ -11,7 +11,6 @@ from torch import Tensor
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.root_linear_operator import RootLinearOperator
 from linear_operator.operators.triangular_linear_operator import _TriangularLinearOperatorBase, TriangularLinearOperator
-
 from linear_operator.utils.getitem import _is_noop_index
 from linear_operator.utils.memoize import cached
 
@@ -43,9 +42,10 @@ class CholLinearOperator(RootLinearOperator):
                 chol = TriangularLinearOperator(chol, upper=False)
             elif torch.all(torch.triu(chol) == chol):
                 chol = TriangularLinearOperator(chol, upper=True)
+                upper = True
             else:
                 raise ValueError("chol must be either lower or upper triangular")
-        if upper:
+        if upper or getattr(chol, "upper", False):
             # RootLinearOperator's methods (and reconstructing this operator from its representation)
             # assume that the matrix is root @ root.mT, so store R^T R as L L^T with L = R^T
             chol = chol._transpose_nonbatch()
