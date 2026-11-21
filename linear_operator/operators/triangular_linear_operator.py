@@ -9,7 +9,6 @@ from torch import Tensor
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.batch_repeat_linear_operator import BatchRepeatLinearOperator
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator
-
 from linear_operator.utils.errors import NotPSDError
 from linear_operator.utils.memoize import cached
 
@@ -112,6 +111,8 @@ class TriangularLinearOperator(LinearOperator, _TriangularLinearOperatorBase):
     def _mul_constant(
         self: LinearOperator, other: float | torch.Tensor  # shape: (*batch, M, N)
     ) -> LinearOperator:  # shape: (*batch, M, N)
+        if not torch.is_tensor(other):
+            other = torch.as_tensor(other, dtype=self.dtype, device=self.device)
         return self.__class__(self._tensor * other.unsqueeze(-1).unsqueeze(-1), upper=self.upper)
 
     def _root_decomposition(
