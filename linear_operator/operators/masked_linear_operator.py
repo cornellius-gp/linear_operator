@@ -4,7 +4,6 @@ import torch
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import _is_noop_index, IndexType, LinearOperator
-
 from linear_operator.utils.generic import _to_helper
 
 
@@ -150,7 +149,14 @@ class MaskedLinearOperator(LinearOperator):
                 new_args.append(arg)
         for name, val in self._kwargs.items():
             if hasattr(val, "to"):
-                new_kwargs[name] = val.to(dtype=dtype, device=device)
+                if (
+                    dtype is not None
+                    and hasattr(val, "dtype")
+                    and val.dtype.is_floating_point == dtype.is_floating_point
+                ):
+                    new_kwargs[name] = val.to(dtype=dtype, device=device)
+                else:
+                    new_kwargs[name] = val.to(device=device)
             else:
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)

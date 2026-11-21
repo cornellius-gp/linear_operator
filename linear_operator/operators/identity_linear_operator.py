@@ -8,7 +8,6 @@ from torch import Tensor
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.diag_linear_operator import ConstantDiagLinearOperator
 from linear_operator.operators.zero_linear_operator import ZeroLinearOperator
-
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _compute_getitem_size, _is_noop_index
 from linear_operator.utils.memoize import cached

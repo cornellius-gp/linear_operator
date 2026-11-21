@@ -9,7 +9,6 @@ from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
 from linear_operator.operators.diag_linear_operator import DiagLinearOperator
 from linear_operator.operators.root_linear_operator import RootLinearOperator
-
 from linear_operator.utils import sparse
 from linear_operator.utils.broadcasting import _pad_with_singletons
 from linear_operator.utils.generic import _to_helper
@@ -488,7 +487,14 @@ class InterpolatedLinearOperator(LinearOperator):
                 new_args.append(arg)
         for name, val in self._kwargs.items():
             if hasattr(val, "to"):
-                new_kwargs[name] = val.to(dtype=dtype, device=device)
+                if (
+                    dtype is not None
+                    and hasattr(val, "dtype")
+                    and val.dtype.is_floating_point == dtype.is_floating_point
+                ):
+                    new_kwargs[name] = val.to(dtype=dtype, device=device)
+                else:
+                    new_kwargs[name] = val.to(device=device)
             else:
                 new_kwargs[name] = val
         return self.__class__(*new_args, **new_kwargs)
