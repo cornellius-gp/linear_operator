@@ -310,7 +310,9 @@ class CatLinearOperator(LinearOperator):
             left_vecs = left_vecs.unsqueeze(-1)
         if right_vecs.ndim == 1:
             right_vecs = right_vecs.unsqueeze(-1)
-        if left_vecs.size(-1) != right_vecs.size(-1):
+        if left_vecs.size(-1) != right_vecs.size(-1) or (
+            right_vecs.shape == (self.size(-1), 1) and left_vecs.shape == self.shape[:-1]
+        ):
             left_vecs = left_vecs.unsqueeze(-1)
         batch_shape = torch.broadcast_shapes(self.batch_shape, left_vecs.shape[:-2], right_vecs.shape[:-2])
         left_vecs = left_vecs.expand(*batch_shape, *left_vecs.shape[-2:])

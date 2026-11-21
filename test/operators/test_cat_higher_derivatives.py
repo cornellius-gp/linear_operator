@@ -128,3 +128,20 @@ class TestCatHigherDerivatives(unittest.TestCase):
                             if order < 2:
                                 actual_loss = sum(g.square().sum().to(output_device) for g in observed)
                                 expected_loss = sum(g.square().sum().to(output_device) for g in reference)
+
+    def test_single_row_batched_vector_bilinear_derivative(self):
+        devices = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+        for device in devices:
+            with self.subTest(device=device):
+                torch.manual_seed(0)
+                first = torch.randn(1, 1, 2, device=device, dtype=torch.double, requires_grad=True)
+                second = torch.randn(1, 1, 2, device=device, dtype=torch.double, requires_grad=True)
+                vec = torch.randn(2, device=device, dtype=torch.double)
+                weights = torch.tensor([[1.0], [5.0]], device=device, dtype=torch.double)
+                operator = CatLinearOperator(DenseLinearOperator(first), DenseLinearOperator(second), dim=-3)
+                actual_loss = ((operator @ vec) * weights).sum()
+                expected_loss = ((torch.cat((first, second), dim=-3) @ vec) * weights).sum()
+                actual_grads = torch.autograd.grad(actual_loss, (first, second), create_graph=True)
+                expected_grads = torch.autograd.grad(expected_loss, (first, second), create_graph=True)
+                for a, b in zip(actual_grads, expected_grads):
+                    torch.testing.assert_close(a, b)
