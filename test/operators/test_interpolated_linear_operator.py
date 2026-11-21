@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from linear_operator.operators import DenseLinearOperator, InterpolatedLinearOperator
+from linear_operator.operators import CatLinearOperator, DenseLinearOperator, InterpolatedLinearOperator
 from linear_operator.test.linear_operator_test_case import LinearOperatorTestCase, RectangularLinearOperatorTestCase
 
 
@@ -60,6 +60,20 @@ class TestInterpolatedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         self.assertEqual(linear_op.dtype, torch.float64)
         self.assertFalse(linear_op.left_interp_indices.dtype.is_floating_point)
         self.assertFalse(linear_op.right_interp_indices.dtype.is_floating_point)
+
+    def test_to_device_or_dtype_only(self):
+        super().test_to_device_or_dtype_only()
+        # check that the index matrices are still integer after conversion
+        linear_op = self.create_linear_op().to(torch.device("cpu"))
+        self.assertFalse(linear_op.left_interp_indices.dtype.is_floating_point)
+        self.assertFalse(linear_op.right_interp_indices.dtype.is_floating_point)
+
+    def test_getitem_cat(self):
+        # Indexing a CatLinearOperator moves the selected operator to the output device
+        linear_op = self.create_linear_op()
+        evaluated = self.evaluate_linear_op(linear_op)
+        cat = CatLinearOperator(linear_op.unsqueeze(0), linear_op.unsqueeze(0), dim=0, output_device=linear_op.device)
+        self.assertAllClose(cat[1].to_dense(), evaluated)
 
 
 class TestInterpolatedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):

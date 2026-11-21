@@ -38,6 +38,13 @@ class TestMaskedLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         self.assertEqual(linear_op.col_mask.dtype, torch.bool)
         self.assertEqual(linear_op.row_mask.dtype, torch.bool)
 
+    def test_to_device_or_dtype_only(self):
+        super().test_to_device_or_dtype_only()
+        # check that the mask matrices are still boolean after conversion
+        linear_op = self.create_linear_op().to(torch.device("cpu"))
+        self.assertEqual(linear_op.col_mask.dtype, torch.bool)
+        self.assertEqual(linear_op.row_mask.dtype, torch.bool)
+
 
 class TestMaskedLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 2023
