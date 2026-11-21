@@ -30,6 +30,8 @@ class _BlockSliceTestMixin:
             slice(1, num_blocks + 1),
             slice(-num_blocks, None),
             slice(None, num_blocks),
+            slice(None, 0),
+            slice(0, size + block_size),
             slice(0, num_blocks, 1),
             slice(0, 2 * num_blocks, 2),
         ]

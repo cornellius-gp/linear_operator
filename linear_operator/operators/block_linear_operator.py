@@ -7,8 +7,8 @@ import torch
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
-from linear_operator.operators.dense_linear_operator import to_linear_operator
-from linear_operator.utils.getitem import _is_noop_index, _noop_index
+from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
+from linear_operator.utils.getitem import _compute_getitem_size, _is_noop_index, _noop_index
 
 
 class BlockLinearOperator(LinearOperator):
@@ -68,6 +68,10 @@ class BlockLinearOperator(LinearOperator):
         # First the easy case: just batch indexing
         if _is_noop_index(row_index) and _is_noop_index(col_index):
             return self.__class__(self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index))
+
+        new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
+        if 0 in new_size:
+            return DenseLinearOperator(torch.zeros(new_size, dtype=self.dtype, device=self.device))
 
         # Which rows and columns of the blocks a slice selects depends on how the blocks are laid out,
         # so subclasses handle the slices that they can map onto the blocks. Otherwise, use the base case.
