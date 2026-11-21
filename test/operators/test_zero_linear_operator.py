@@ -28,9 +28,17 @@ class TestZeroLinearOperator(unittest.TestCase):
                         (zero.transpose(-1, -2).to_dense(), dense.mT),
                         (zero.transpose(0, 1).to_dense(), dense.transpose(0, 1)),
                         (zero.logdet(), torch.full((2,), -torch.inf, dtype=dtype, device=device)),
+                        (zero.to(device).to_dense(), dense),
+                        (
+                            ZeroLinearOperator(2, 3, 4, 4, dtype=dtype, device=device).permute(1, 0, 2, 3).to_dense(),
+                            torch.zeros(3, 2, 4, 4, dtype=dtype, device=device),
+                        ),
                     )
                     for actual, expected in outputs:
                         torch.testing.assert_close(actual, expected)
+                    converted = zero.type(torch.float64 if dtype == torch.float32 else torch.float32)
+                    self.assertEqual(converted.device, device)
+                    self.assertEqual(converted.dtype, torch.float64 if dtype == torch.float32 else torch.float32)
 
     def test_to_dense(self):
         lv = ZeroLinearOperator(5, 4, 3)
