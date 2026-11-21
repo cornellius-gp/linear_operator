@@ -8,7 +8,6 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_linear_operator import BlockLinearOperator
-
 from linear_operator.utils.getitem import _is_noop_index, _noop_index
 from linear_operator.utils.memoize import cached
 
@@ -89,10 +88,12 @@ class BlockInterleavedLinearOperator(BlockLinearOperator):
             return super()._getitem(row_index, col_index, *batch_indices)
         num_blocks = self.num_blocks
         num_rows, num_cols = self.matrix_shape
-        row_start, row_end, row_step = row_index.start or 0, row_index.stop or num_rows, row_index.step
-        col_start, col_end, col_step = col_index.start or 0, col_index.stop or num_cols, col_index.step
-        if row_step is not None or col_step is not None:
+        row_start, row_end, row_step = row_index.indices(num_rows)
+        col_start, col_end, col_step = col_index.indices(num_cols)
+        if row_step != 1 or col_step != 1:
             return super()._getitem(row_index, col_index, *batch_indices)
+        row_end = max(row_start, row_end)
+        col_end = max(col_start, col_end)
 
         # Row (column) i of the matrix is row (column) i // num_blocks of block i % num_blocks.
         # So if the slice bounds are multiples of num_blocks, the slices select the same rows and

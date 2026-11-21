@@ -8,7 +8,6 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.dense_linear_operator import to_linear_operator
-
 from linear_operator.utils.getitem import _is_noop_index, _noop_index
 
 
