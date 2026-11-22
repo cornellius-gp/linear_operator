@@ -14,11 +14,9 @@ from typing import Any, Callable
 
 import numpy as np
 import torch
-
 from torch import Tensor
 
 import linear_operator
-
 from linear_operator import settings, utils
 from linear_operator.functions._diagonalization import Diagonalization
 from linear_operator.functions._inv_quad import InvQuad
@@ -45,7 +43,6 @@ from linear_operator.utils.getitem import (
 from linear_operator.utils.lanczos import _postprocess_lanczos_root_inv_decomp
 from linear_operator.utils.memoize import (
     _is_in_cache_ignore_all_args,
-    _is_in_cache_ignore_args,
     add_to_cache,
     cached,
     pop_from_cache,
@@ -1076,7 +1073,9 @@ class LinearOperator(object):
         # if the old LinearOperator does not have either a root decomposition or a root inverse decomposition
         # don't create one. Also skip if the caller explicitly doesn't want roots generated.
         # The root update is only beneficial when self already has cached roots that can be efficiently updated.
-        has_roots = any(_is_in_cache_ignore_args(self, key) for key in ("root_decomposition", "root_inv_decomposition"))
+        has_roots = any(
+            _is_in_cache_ignore_all_args(self, key) for key in ("root_decomposition", "root_inv_decomposition")
+        )
         if not (generate_roots and has_roots):
             return new_linear_op
 
@@ -1132,11 +1131,20 @@ class LinearOperator(object):
         # finally \tilde{L}^{-1} = L^{-1} U \tilde{S}^{-1}
         updated_inv_root = current_inv_root.mT.matmul(inner_inv_root)
 
-        if return_triangular:
-            updated_root = TriangularLinearOperator(updated_root)
-            updated_inv_root = TriangularLinearOperator(updated_inv_root)
+        if return_triangular and inner_root.shape[-1] == current_root.shape[-1]:
+            from linear_operator.operators.chol_linear_operator import CholLinearOperator
 
-        add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(updated_root))
+            updated_root_dense = to_dense(updated_root)
+            q_mat, r_mat = torch.linalg.qr(updated_root_dense.mT)
+            signs = torch.diagonal(r_mat, dim1=-2, dim2=-1).sign()
+            signs = torch.where(signs == 0, torch.ones_like(signs), signs)
+            q_mat = q_mat * signs.unsqueeze(-2)
+            r_mat = r_mat * signs.unsqueeze(-1)
+            updated_root = TriangularLinearOperator(r_mat.mT, upper=False)
+            updated_inv_root = TriangularLinearOperator(to_dense(updated_inv_root).matmul(q_mat), upper=True)
+            add_to_cache(new_linear_op, "root_decomposition", CholLinearOperator(updated_root))
+        else:
+            add_to_cache(new_linear_op, "root_decomposition", RootLinearOperator(updated_root))
         add_to_cache(new_linear_op, "root_inv_decomposition", RootLinearOperator(updated_inv_root))
 
         return new_linear_op
@@ -1263,7 +1271,7 @@ class LinearOperator(object):
         # don't create one. Also skip if the caller explicitly doesn't want roots generated.
         # The root update is only beneficial when self already has cached roots that can be efficiently updated.
         has_roots = any(
-            _is_in_cache_ignore_args(self, key)
+            _is_in_cache_ignore_all_args(self, key)
             for key in (
                 "root_decomposition",
                 "root_inv_decomposition",
