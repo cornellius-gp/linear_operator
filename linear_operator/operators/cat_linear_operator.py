@@ -9,7 +9,6 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator, to_dense
 from linear_operator.operators.dense_linear_operator import DenseLinearOperator, to_linear_operator
-
 from linear_operator.utils.broadcasting import _matmul_broadcast_shape
 from linear_operator.utils.generic import _to_helper
 from linear_operator.utils.getitem import _noop_index
@@ -324,10 +323,9 @@ class CatLinearOperator(LinearOperator):
         elif self.cat_dim == -1:
             curr_idx = 0
             res_list = []
-            index = [slice(None, None, None) for _ in range(rhs.ndimension())]
-            for t, size, rhs in zip(self.linear_ops, self.cat_dim_sizes, rhs_):
-                index[-2] = slice(curr_idx, curr_idx + size, None)
-                res_list.append(t._matmul(rhs[index]))
+            for t, size, rhs in zip(self.linear_ops, self.cat_dim_sizes.tolist(), rhs_):
+                narrow_dim = -2 if rhs.ndimension() > 1 else -1
+                res_list.append(t._matmul(rhs.narrow(narrow_dim, curr_idx, size)))
                 curr_idx += size
             # copy result back to output device and sum
             res_list = [x.to(output_device) for x in res_list]

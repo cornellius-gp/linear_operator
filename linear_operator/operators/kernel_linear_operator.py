@@ -4,11 +4,9 @@ from collections import defaultdict
 from typing import Any, Callable
 
 import torch
-
 from torch import Tensor
 
 from linear_operator.operators._linear_operator import LinearOperator, to_dense
-
 from linear_operator.utils.broadcasting import _pad_with_singletons
 from linear_operator.utils.getitem import _noop_index, IndexType
 from linear_operator.utils.memoize import cached
@@ -31,7 +29,7 @@ def _x_getitem(x, batch_indices, data_index):
     except IndexError:
         if isinstance(batch_indices, slice):
             x = x.expand(1, *x.shape[-2:])
-            x = [(*batch_indices, data_index, _noop_index)]
+            x = x[(*batch_indices, data_index, _noop_index)]
         elif isinstance(batch_indices, tuple):
             if any(not isinstance(bi, slice) for bi in batch_indices):
                 raise RuntimeError(
@@ -383,10 +381,13 @@ class KernelLinearOperator(LinearOperator):
         return self.covar_mat @ rhs.contiguous()
 
     def _permute_batch(self, *dims: int) -> LinearOperator:
-        x1 = self.x1.permute(*dims, -2, -1)
-        x2 = self.x2.permute(*dims, -2, -1)
+        x1 = self.x1.expand(*self.batch_broadcast_shape, *self.x1.shape[-2:]).permute(*dims, -2, -1)
+        x2 = self.x2.expand(*self.batch_broadcast_shape, *self.x2.shape[-2:]).permute(*dims, -2, -1)
         tensor_params = {
-            name: val.permute(*dims, *range(-self.num_nonbatch_dimensions[name], 0))
+            name: val.expand(
+                *self.batch_broadcast_shape,
+                *(val.shape[-self.num_nonbatch_dimensions[name] :] if self.num_nonbatch_dimensions[name] else ()),
+            ).permute(*dims, *range(-self.num_nonbatch_dimensions[name], 0))
             for name, val in self.tensor_params.items()
         }
         return self.__class__(
