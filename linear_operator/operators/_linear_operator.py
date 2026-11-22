@@ -14,11 +14,9 @@ from typing import Any, Callable
 
 import numpy as np
 import torch
-
 from torch import Tensor
 
 import linear_operator
-
 from linear_operator import settings, utils
 from linear_operator.functions._diagonalization import Diagonalization
 from linear_operator.functions._inv_quad import InvQuad
@@ -241,6 +239,19 @@ class LinearOperator(object):
         components = []
         for component in self._args:
             if torch.is_tensor(component):
+                if len(dims) > 0 and component.shape[: len(dims)] != self.batch_shape:
+                    for nonbatch_ndim in (2, 1, 0):
+                        if component.dim() >= nonbatch_ndim:
+                            try:
+                                torch.broadcast_shapes(
+                                    self.batch_shape,
+                                    component.shape[: component.dim() - nonbatch_ndim],
+                                )
+                                tail = component.shape[component.dim() - nonbatch_ndim :] if nonbatch_ndim else ()
+                                component = component.expand(*self.batch_shape, *tail)
+                                break
+                            except RuntimeError:
+                                continue
                 extra_dims = range(len(dims), component.dim())
                 components.append(component.permute(*dims, *extra_dims))
             elif isinstance(component, LinearOperator):
@@ -289,6 +300,12 @@ class LinearOperator(object):
                 return res
             else:
                 return self
+
+        new_size = _compute_getitem_size(self, batch_indices + (row_index, col_index))
+        if 0 in new_size:
+            from linear_operator.operators.dense_linear_operator import DenseLinearOperator
+
+            return DenseLinearOperator(torch.zeros(new_size, dtype=self.dtype, device=self.device))
 
         # Normal case: we have to do some processing on either the rows or columns
         # We will handle this through "interpolation"
@@ -2984,6 +3001,11 @@ class LinearOperator(object):
     ) -> Any:
         if kwargs is None:
             kwargs = {}
+
+        if func is torch.cat:
+            from linear_operator.operators.cat_linear_operator import cat
+
+            return cat(*args, **kwargs)
 
         if not isinstance(args[0], cls):
             if func not in _HANDLED_SECOND_ARG_FUNCTIONS or not all(

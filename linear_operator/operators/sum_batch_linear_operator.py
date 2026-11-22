@@ -6,7 +6,6 @@ from torch import Tensor
 
 from linear_operator.operators._linear_operator import IndexType, LinearOperator
 from linear_operator.operators.block_linear_operator import BlockLinearOperator
-
 from linear_operator.utils.broadcasting import _pad_with_singletons
 from linear_operator.utils.getitem import _noop_index
 
@@ -53,7 +52,7 @@ class SumBatchLinearOperator(BlockLinearOperator):
 
     def _getitem(self, row_index: IndexType, col_index: IndexType, *batch_indices: IndexType) -> LinearOperator:
         res = self.base_linear_op._getitem(row_index, col_index, *batch_indices, _noop_index)
-        return self.__class__(res, **self._kwargs)
+        return self.__class__(res)
 
     def _remove_batch_dim(self, other):
         return other.sum(-3)

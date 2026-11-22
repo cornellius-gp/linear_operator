@@ -76,6 +76,9 @@ def bdsmm(sparse, dense):
     """
     Batch dense-sparse matrix multiply
     """
+    if 0 in sparse.shape or 0 in dense.shape:
+        output_shape = _matmul_broadcast_shape(sparse.shape, dense.shape)
+        return torch.zeros(output_shape, dtype=dense.dtype, device=dense.device)
     # Make the batch sparse matrix into a block-diagonal matrix
     if sparse.ndimension() > 2:
         # Expand the tensors to account for broadcasting
