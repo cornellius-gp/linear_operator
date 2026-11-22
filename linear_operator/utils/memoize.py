@@ -122,4 +122,6 @@ def _is_in_cache_ignore_args(obj, name):
 
 def _is_in_cache_ignore_all_args(obj, name):
     """checks if item is in cache by name."""
-    return hasattr(obj, "_memoize_cache") and name in [x[0] for x in obj._memoize_cache.keys()]
+    return hasattr(obj, "_memoize_cache") and any(
+        (x[0] == name if isinstance(x, tuple) else x == name) for x in obj._memoize_cache.keys()
+    )

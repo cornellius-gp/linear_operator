@@ -73,6 +73,42 @@ class TestDenseLinearOperator(LinearOperatorTestCase, unittest.TestCase):
         # add_low_rank should return correct sum
         self.assertTrue(torch.allclose(result.to_dense(), expected, atol=1e-5))
 
+    def test_cached_add_low_rank_and_cat_rows_preserve_triangular_roots(self):
+        torch.manual_seed(0)
+        n = 8
+        a_mat = torch.randn(n, n, dtype=torch.double)
+        base_matrix = a_mat @ a_mat.mT + torch.eye(n, dtype=torch.double)
+        low_rank = torch.randn(n, 2, dtype=torch.double)
+        rhs = torch.randn(n, 6, dtype=torch.double)
+
+        base_op = DenseLinearOperator(base_matrix)
+        _ = base_op.root_decomposition()
+        updated_op = base_op.add_low_rank(low_rank)
+
+        root = updated_op.root_decomposition().root
+        inv_root = updated_op.root_inv_decomposition().root
+        root_dense = root.to_dense()
+        inv_root_dense = inv_root.to_dense()
+        expected = base_matrix + low_rank @ low_rank.mT
+
+        self.assertTrue(torch.allclose(root_dense.triu(1), torch.zeros_like(root_dense)))
+        self.assertTrue(torch.allclose(inv_root_dense.tril(-1), torch.zeros_like(inv_root_dense)))
+        self.assertTrue(torch.allclose(root_dense @ root_dense.mT, expected))
+        self.assertTrue(torch.allclose(inv_root_dense @ inv_root_dense.mT, torch.linalg.inv(expected)))
+
+        iq, ld = updated_op.inv_quad_logdet(rhs, logdet=True, reduce_inv_quad=False)
+        ref_iq, ref_ld = DenseLinearOperator(expected).inv_quad_logdet(rhs, logdet=True, reduce_inv_quad=False)
+        self.assertTrue(torch.allclose(iq, ref_iq))
+        self.assertTrue(torch.allclose(ld, ref_ld))
+
+        # Also verify cat_rows updates cached roots when base_op has cached root_decomposition
+        cross_mat = torch.randn(2, n, dtype=torch.double)
+        new_mat = cross_mat @ torch.linalg.solve(base_matrix, cross_mat.mT) + torch.eye(2, dtype=torch.double)
+        cat_op = base_op.cat_rows(cross_mat, new_mat)
+        self.assertTrue(hasattr(cat_op, "_memoize_cache"))
+        cat_root = cat_op.root_decomposition().root.to_dense()
+        self.assertTrue(torch.allclose(cat_root @ cat_root.mT, cat_op.to_dense()))
+
 
 class TestDenseLinearOperatorBatch(LinearOperatorTestCase, unittest.TestCase):
     seed = 0
